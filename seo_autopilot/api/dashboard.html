@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SEO Autopilot – Dashboard</title>
+  <title>SEO Autopilot</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -27,14 +27,10 @@
       --yellow-light: #fefce8;
       --red: #dc2626;
       --red-light: #fef2f2;
-      --blue: #2563eb;
-      --blue-light: #eff6ff;
-      --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.06);
       --shadow: 0 4px 12px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.04);
-      --shadow-lg: 0 12px 32px rgba(0,0,0,.09), 0 4px 8px rgba(0,0,0,.04);
       --radius: 12px;
       --radius-sm: 8px;
-      --radius-xs: 6px;
     }
 
     html { font-size: 16px; }
@@ -46,1371 +42,986 @@
       min-height: 100vh;
     }
 
-    /* ── NAV ────────────────────────────────────────────────── */
-    nav {
+    /* ── PAGE SECTIONS ── */
+    .page { display: none; min-height: 100vh; }
+    .page.active { display: flex; }
+
+    /* ── AUTH PAGES (Setup + Login) ── */
+    .auth-page {
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .auth-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: var(--shadow);
+    }
+
+    .logo-area {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .logo-icon {
+      width: 52px;
+      height: 52px;
+      background: var(--orange);
+      border-radius: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .logo-icon svg { color: #fff; }
+
+    .logo-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text);
+      display: block;
+    }
+
+    .logo-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      display: block;
+      margin-top: 0.2rem;
+    }
+
+    .auth-heading {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+    }
+
+    .auth-sub {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-bottom: 1.75rem;
+      line-height: 1.5;
+    }
+
+    .field {
+      margin-bottom: 1rem;
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 0.375rem;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 0.65rem 0.875rem;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: inherit;
+      font-size: 0.9375rem;
+      color: var(--text);
+      background: var(--bg);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .field input:focus {
+      border-color: var(--orange);
+      background: #fff;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 0.75rem 1.25rem;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: inherit;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: var(--orange);
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: var(--orange-hover); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .error-msg {
+      background: var(--red-light);
+      color: var(--red);
+      border-radius: var(--radius-sm);
+      padding: 0.625rem 0.875rem;
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    .error-msg.visible { display: block; }
+
+    /* ── DASHBOARD ── */
+    .dashboard-page {
+      flex-direction: column;
+    }
+
+    /* Header */
+    .dash-header {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
-      padding: 0 24px;
+      padding: 0 1.5rem;
+      height: 56px;
       display: flex;
       align-items: center;
-      gap: 16px;
-      height: 60px;
+      justify-content: space-between;
+      gap: 1rem;
       position: sticky;
       top: 0;
-      z-index: 100;
+      z-index: 10;
     }
-    .nav-logo {
+
+    .dash-header-logo {
       display: flex;
       align-items: center;
-      gap: 10px;
-      text-decoration: none;
-      color: var(--text);
+      gap: 0.6rem;
     }
-    .nav-logo-icon {
-      width: 32px;
-      height: 32px;
+
+    .dash-logo-icon {
+      width: 30px;
+      height: 30px;
       background: var(--orange);
       border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      flex-shrink: 0;
     }
-    .nav-logo-icon svg { color: #fff; }
-    .nav-title {
-      font-size: 15px;
+
+    .dash-logo-icon svg { color: #fff; }
+
+    .dash-header-logo span {
+      font-size: 0.9375rem;
       font-weight: 600;
-      letter-spacing: -0.2px;
     }
-    .nav-version {
-      font-size: 11px;
-      font-weight: 500;
-      color: var(--text-light);
-      background: var(--bg);
-      border: 1px solid var(--border);
-      padding: 2px 7px;
-      border-radius: 20px;
-    }
-    .nav-spacer { flex: 1; }
-    .nav-status {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 13px;
+
+    .dash-domain {
+      font-size: 0.875rem;
       color: var(--text-muted);
-    }
-    .status-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--text-light);
-    }
-    .status-dot.online { background: var(--green); }
-    .status-dot.pulse {
-      background: var(--orange);
-      animation: pulse 1.2s infinite;
+      background: var(--bg);
+      padding: 0.3rem 0.75rem;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      font-weight: 500;
     }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: .5; transform: scale(.8); }
+    .btn-logout {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.35rem 0.75rem;
+      font-family: inherit;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
     }
 
-    /* ── LAYOUT ─────────────────────────────────────────────── */
-    main {
-      max-width: 1100px;
+    .btn-logout:hover {
+      background: var(--red-light);
+      color: var(--red);
+      border-color: var(--red);
+    }
+
+    /* Main content */
+    .dash-content {
+      padding: 2rem 1.5rem;
+      max-width: 860px;
       margin: 0 auto;
-      padding: 32px 24px 64px;
+      width: 100%;
     }
 
-    /* ── QUICK SCAN ─────────────────────────────────────────── */
-    .quick-scan {
+    /* Score ring */
+    .score-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .score-ring-wrap {
+      position: relative;
+      width: 160px;
+      height: 160px;
+      margin-bottom: 1rem;
+    }
+
+    .score-ring-wrap svg {
+      transform: rotate(-90deg);
+    }
+
+    .score-ring-bg {
+      fill: none;
+      stroke: var(--border);
+      stroke-width: 10;
+    }
+
+    .score-ring-fill {
+      fill: none;
+      stroke-width: 10;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.5s;
+    }
+
+    .score-number {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 2.25rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .score-label {
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      text-align: center;
+      display: block;
+      margin-top: 0.2rem;
+    }
+
+    /* Stats row */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 28px 32px;
-      margin-bottom: 32px;
-      box-shadow: var(--shadow-sm);
+      padding: 1rem;
+      text-align: center;
     }
-    .quick-scan h2 {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-    .quick-scan p {
-      font-size: 14px;
-      color: var(--text-muted);
-      margin-bottom: 18px;
-    }
-    .scan-form {
-      display: flex;
-      gap: 10px;
-    }
-    .scan-input {
-      flex: 1;
-      height: 44px;
-      padding: 0 14px;
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius-sm);
-      font-family: inherit;
-      font-size: 14px;
-      color: var(--text);
-      background: var(--bg);
-      transition: border-color .15s;
-      outline: none;
-    }
-    .scan-input:focus { border-color: var(--orange); }
-    .scan-input::placeholder { color: var(--text-light); }
 
-    /* ── BUTTONS ────────────────────────────────────────────── */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      height: 44px;
-      padding: 0 18px;
-      font-family: inherit;
-      font-size: 14px;
-      font-weight: 500;
-      border-radius: var(--radius-sm);
-      border: none;
-      cursor: pointer;
-      transition: all .15s;
-      text-decoration: none;
-      white-space: nowrap;
+    .stat-num {
+      font-size: 1.75rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 0.25rem;
     }
-    .btn:disabled { opacity: .5; cursor: not-allowed; }
-    .btn-primary {
+
+    .stat-num.red { color: var(--red); }
+    .stat-num.yellow { color: var(--yellow); }
+    .stat-num.green { color: var(--green); }
+    .stat-num.orange { color: var(--orange); }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Audit actions */
+    .audit-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .last-audit-info {
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+    }
+
+    .btn-run {
       background: var(--orange);
       color: #fff;
-    }
-    .btn-primary:not(:disabled):hover { background: var(--orange-hover); }
-    .btn-secondary {
-      background: var(--bg);
-      color: var(--text);
-      border: 1.5px solid var(--border);
-    }
-    .btn-secondary:not(:disabled):hover { border-color: var(--orange); color: var(--orange); }
-    .btn-ghost {
-      background: transparent;
-      color: var(--text-muted);
-      padding: 0 10px;
-    }
-    .btn-ghost:hover { color: var(--text); background: var(--bg); }
-    .btn-sm { height: 34px; padding: 0 12px; font-size: 13px; }
-
-    /* ── SECTION HEADER ─────────────────────────────────────── */
-    .section-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-    }
-    .section-header h2 { font-size: 18px; font-weight: 600; }
-    .section-header p { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
-
-    /* ── PROJECT GRID ───────────────────────────────────────── */
-    .projects-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 16px;
-    }
-
-    .project-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 22px 24px;
-      box-shadow: var(--shadow-sm);
-      transition: box-shadow .15s, border-color .15s;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-    .project-card:hover { box-shadow: var(--shadow); border-color: #d4d0cb; }
-
-    .project-card-top {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-    }
-    .project-card-info { flex: 1; min-width: 0; }
-    .project-name {
-      font-size: 15px;
-      font-weight: 600;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .project-domain {
-      font-size: 13px;
-      color: var(--text-muted);
-      margin-top: 2px;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-    .project-domain svg { flex-shrink: 0; }
-
-    /* Score Badge */
-    .score-badge {
-      flex-shrink: 0;
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      font-weight: 700;
-      border: 2.5px solid;
-    }
-    .score-badge.score-green { color: var(--green); border-color: var(--green); background: var(--green-light); }
-    .score-badge.score-yellow { color: var(--yellow); border-color: var(--yellow); background: var(--yellow-light); }
-    .score-badge.score-red { color: var(--red); border-color: var(--red); background: var(--red-light); }
-    .score-badge.score-none { color: var(--text-light); border-color: var(--border); background: var(--bg); font-size: 10px; font-weight: 500; }
-
-    .project-meta {
-      display: flex;
-      gap: 16px;
-    }
-    .project-meta-item {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .project-meta-label { font-size: 11px; color: var(--text-light); font-weight: 500; text-transform: uppercase; letter-spacing: .4px; }
-    .project-meta-value { font-size: 13px; font-weight: 500; color: var(--text-muted); }
-
-    .project-card-actions {
-      display: flex;
-      gap: 8px;
-    }
-
-    /* ── EMPTY STATE ─────────────────────────────────────────── */
-    .empty-state {
-      background: var(--surface);
-      border: 1.5px dashed var(--border);
-      border-radius: var(--radius);
-      padding: 48px 32px;
-      text-align: center;
-      color: var(--text-muted);
-    }
-    .empty-state-icon {
-      width: 56px;
-      height: 56px;
-      background: var(--bg);
-      border: 1.5px solid var(--border);
-      border-radius: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 16px;
-    }
-    .empty-state h3 { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-    .empty-state p { font-size: 14px; line-height: 1.6; max-width: 400px; margin: 0 auto 20px; }
-    .code-block {
-      background: #f5f3f0;
-      border: 1px solid var(--border);
+      border: none;
       border-radius: var(--radius-sm);
-      padding: 14px 18px;
-      text-align: left;
-      font-size: 13px;
-      font-family: 'SF Mono', 'Fira Code', monospace;
-      color: var(--text);
-      overflow-x: auto;
-      line-height: 1.7;
-      display: inline-block;
-      max-width: 100%;
+      padding: 0.6rem 1.25rem;
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: background 0.15s, opacity 0.15s;
     }
-    .code-comment { color: var(--text-light); }
-    .code-key { color: var(--blue); }
-    .code-val { color: var(--green); }
 
-    /* ── LOADING OVERLAY ─────────────────────────────────────── */
-    .loading-section {
+    .btn-run:hover { background: var(--orange-hover); }
+    .btn-run:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* Loading state */
+    .loading-bar {
       display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
       text-align: center;
-      padding: 80px 24px;
+      margin-bottom: 1.5rem;
     }
-    .loading-section.visible { display: block; }
+
+    .loading-bar.visible { display: block; }
+
     .spinner {
-      width: 48px;
-      height: 48px;
+      display: inline-block;
+      width: 28px;
+      height: 28px;
       border: 3px solid var(--border);
       border-top-color: var(--orange);
       border-radius: 50%;
-      animation: spin .8s linear infinite;
-      margin: 0 auto 20px;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 0.75rem;
     }
+
     @keyframes spin { to { transform: rotate(360deg); } }
-    .loading-title { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
-    .loading-sub { font-size: 14px; color: var(--text-muted); }
-    .loading-steps {
-      margin: 24px auto 0;
-      max-width: 360px;
-      text-align: left;
-    }
-    .loading-step {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 0;
-      font-size: 13px;
+
+    .loading-text {
+      font-size: 0.875rem;
       color: var(--text-muted);
-      border-bottom: 1px solid var(--border-light);
-    }
-    .loading-step:last-child { border-bottom: none; }
-    .step-icon {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      font-size: 10px;
-      background: var(--bg);
-      border: 1.5px solid var(--border);
-    }
-    .step-icon.done { background: var(--green-light); border-color: var(--green); color: var(--green); }
-    .step-icon.active { background: var(--orange-light); border-color: var(--orange); }
-    .step-icon.active .mini-spinner {
-      width: 10px;
-      height: 10px;
-      border: 1.5px solid var(--border);
-      border-top-color: var(--orange);
-      border-radius: 50%;
-      animation: spin .6s linear infinite;
     }
 
-    /* ── REPORT ──────────────────────────────────────────────── */
-    .report-section { display: none; }
-    .report-section.visible { display: block; }
-
-    .report-back {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 14px;
-      color: var(--text-muted);
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 0;
-      font-family: inherit;
-      margin-bottom: 24px;
-      transition: color .15s;
-    }
-    .report-back:hover { color: var(--text); }
-
-    .report-hero {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 32px;
-      margin-bottom: 24px;
-      box-shadow: var(--shadow-sm);
-      display: flex;
-      align-items: center;
-      gap: 32px;
-    }
-    .score-ring-wrap {
-      flex-shrink: 0;
-      position: relative;
-    }
-    .score-ring-wrap svg { transform: rotate(-90deg); }
-    .score-ring-track { fill: none; stroke: var(--border); stroke-width: 8; }
-    .score-ring-fill {
-      fill: none;
-      stroke-width: 8;
-      stroke-linecap: round;
-      transition: stroke-dashoffset 1s cubic-bezier(.4,0,.2,1), stroke .5s;
-    }
-    .score-ring-label {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
-    .score-ring-number {
-      font-size: 28px;
-      font-weight: 700;
-      line-height: 1;
-    }
-    .score-ring-suffix { font-size: 12px; color: var(--text-light); font-weight: 500; }
-
-    .report-hero-info { flex: 1; min-width: 0; }
-    .report-hero-title {
-      font-size: 22px;
-      font-weight: 700;
-      margin-bottom: 4px;
-    }
-    .report-hero-domain {
-      font-size: 14px;
-      color: var(--text-muted);
-      margin-bottom: 20px;
-    }
-    .report-hero-stats {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-    }
-    .report-stat {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .report-stat-value {
-      font-size: 22px;
-      font-weight: 700;
-      line-height: 1.1;
-    }
-    .report-stat-value.stat-red { color: var(--red); }
-    .report-stat-value.stat-yellow { color: var(--yellow); }
-    .report-stat-value.stat-green { color: var(--green); }
-    .report-stat-label { font-size: 12px; color: var(--text-light); font-weight: 500; }
-
-    /* Tabs */
-    .tabs {
-      display: flex;
-      gap: 4px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 4px;
-      margin-bottom: 20px;
-      overflow-x: auto;
-    }
-    .tab-btn {
-      flex: 1;
-      min-width: 0;
-      height: 36px;
-      padding: 0 14px;
-      font-family: inherit;
-      font-size: 13px;
-      font-weight: 500;
-      border: none;
-      border-radius: var(--radius-xs);
-      cursor: pointer;
-      transition: all .15s;
-      background: transparent;
-      color: var(--text-muted);
-      white-space: nowrap;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-    }
-    .tab-btn:hover { color: var(--text); background: var(--bg); }
-    .tab-btn.active { background: var(--orange); color: #fff; }
-    .tab-count {
-      font-size: 11px;
+    /* Issues list */
+    .issues-section h2 {
+      font-size: 1rem;
       font-weight: 600;
-      padding: 1px 6px;
-      border-radius: 10px;
-      background: rgba(255,255,255,.25);
-    }
-    .tab-btn:not(.active) .tab-count {
-      background: var(--bg);
-      color: var(--text-muted);
+      margin-bottom: 1rem;
+      color: var(--text);
     }
 
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
-
-    /* Issues List */
-    .issues-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
     .issue-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 16px 18px;
+      border-radius: var(--radius);
+      padding: 1rem 1.125rem;
+      margin-bottom: 0.75rem;
+      transition: box-shadow 0.15s;
+    }
+
+    .issue-card:hover { box-shadow: var(--shadow); }
+
+    .issue-header {
       display: flex;
-      gap: 14px;
       align-items: flex-start;
-      box-shadow: var(--shadow-sm);
+      gap: 0.75rem;
     }
-    .issue-icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      font-size: 14px;
-    }
-    .issue-icon.sev-high { background: var(--red-light); }
-    .issue-icon.sev-medium { background: var(--yellow-light); }
-    .issue-icon.sev-low { background: var(--blue-light); }
+
+    .issue-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 0.1rem; }
 
     .issue-body { flex: 1; min-width: 0; }
-    .issue-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-    .issue-desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
-    .issue-tags { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-    .tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 11px;
-      font-weight: 500;
-      padding: 3px 8px;
-      border-radius: 20px;
-      border: 1px solid;
-    }
-    .tag-cat { background: var(--blue-light); color: var(--blue); border-color: #bfdbfe; }
-    .tag-high { background: var(--red-light); color: var(--red); border-color: #fecaca; }
-    .tag-medium { background: var(--yellow-light); color: var(--yellow); border-color: #fde68a; }
-    .tag-low { background: var(--bg); color: var(--text-muted); border-color: var(--border); }
 
-    .fix-box {
-      background: var(--orange-light);
-      border: 1px solid #fbd5bf;
-      border-radius: var(--radius-xs);
-      padding: 10px 12px;
-      margin-top: 10px;
-      font-size: 13px;
+    .issue-title {
+      font-weight: 600;
+      font-size: 0.9375rem;
+      margin-bottom: 0.2rem;
+    }
+
+    .issue-desc {
+      font-size: 0.8125rem;
+      color: var(--text-muted);
       line-height: 1.5;
     }
-    .fix-box-label {
-      font-size: 11px;
+
+    .issue-badge {
+      font-size: 0.6875rem;
       font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      border-radius: 20px;
+      flex-shrink: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-high { background: var(--red-light); color: var(--red); }
+    .badge-medium { background: var(--yellow-light); color: var(--yellow); }
+    .badge-low { background: var(--green-light); color: var(--green); }
+
+    .ai-fix {
+      margin-top: 0.75rem;
+      background: var(--orange-light);
+      border: 1px solid #f5c9a8;
+      border-radius: var(--radius-sm);
+      padding: 0.625rem 0.875rem;
+    }
+
+    .ai-fix-label {
+      font-size: 0.6875rem;
+      font-weight: 700;
       color: var(--orange);
       text-transform: uppercase;
-      letter-spacing: .5px;
-      margin-bottom: 4px;
-      display: flex;
-      align-items: center;
-      gap: 5px;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.3rem;
     }
-    .fix-box-text { color: #7c2d07; }
 
-    /* Metrics cards */
-    .metrics-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: 12px;
-      margin-bottom: 24px;
+    .ai-fix-text {
+      font-size: 0.8125rem;
+      color: var(--text);
+      line-height: 1.5;
     }
-    .metric-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 18px 16px;
-      box-shadow: var(--shadow-sm);
-    }
-    .metric-label { font-size: 12px; color: var(--text-light); font-weight: 500; margin-bottom: 6px; }
-    .metric-value { font-size: 24px; font-weight: 700; line-height: 1; }
-    .metric-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-    .metric-trend { font-size: 12px; margin-top: 4px; font-weight: 500; }
-    .metric-trend.up { color: var(--green); }
-    .metric-trend.down { color: var(--red); }
 
-    /* No issues state */
-    .no-issues {
+    .empty-state {
       text-align: center;
-      padding: 40px 24px;
+      padding: 3rem 1rem;
       color: var(--text-muted);
     }
-    .no-issues-icon { font-size: 40px; margin-bottom: 12px; }
-    .no-issues h3 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
-    .no-issues p { font-size: 13px; }
 
-    /* ── ERROR BANNER ─────────────────────────────────────────── */
-    .error-banner {
-      display: none;
-      background: var(--red-light);
-      border: 1px solid #fecaca;
-      border-radius: var(--radius-sm);
-      padding: 14px 18px;
-      margin-bottom: 20px;
-      font-size: 14px;
-      color: var(--red);
-      display: flex;
-      gap: 10px;
-      align-items: flex-start;
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      color: var(--border);
+      margin-bottom: 1rem;
     }
-    .error-banner.hidden { display: none !important; }
-    .error-banner svg { flex-shrink: 0; margin-top: 1px; }
 
-    /* ── TOAST ─────────────────────────────────────────────────── */
-    .toast-container {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      z-index: 1000;
-    }
-    .toast {
-      background: var(--text);
-      color: #fff;
-      padding: 12px 16px;
-      border-radius: var(--radius-sm);
-      font-size: 13px;
-      box-shadow: var(--shadow-lg);
-      animation: slideIn .2s ease;
-      max-width: 320px;
-    }
-    .toast.success { background: var(--green); }
-    .toast.error { background: var(--red); }
-    @keyframes slideIn { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .empty-state p { font-size: 0.9375rem; }
 
-    /* ── RESPONSIVE ─────────────────────────────────────────────── */
-    @media (max-width: 640px) {
-      main { padding: 20px 16px 48px; }
-      .quick-scan { padding: 20px; }
-      .scan-form { flex-direction: column; }
-      .report-hero { flex-direction: column; gap: 20px; }
-      .report-hero-stats { gap: 16px; }
-      .projects-grid { grid-template-columns: 1fr; }
+    /* Responsive */
+    @media (max-width: 600px) {
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+      .auth-box { padding: 1.75rem 1.25rem; }
+      .dash-domain { display: none; }
     }
   </style>
 </head>
 <body>
 
-<!-- ── NAV ────────────────────────────────────────────────────── -->
-<nav>
-  <a class="nav-logo" href="#" onclick="showHome(); return false;">
-    <div class="nav-logo-icon">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-      </svg>
-    </div>
-    <span class="nav-title">SEO Autopilot</span>
-  </a>
-  <span class="nav-version">v0.1.0</span>
-  <div class="nav-spacer"></div>
-  <div class="nav-status" id="nav-status">
-    <div class="status-dot" id="status-dot"></div>
-    <span id="status-text">Verbinde...</span>
-  </div>
-</nav>
-
-<!-- ── MAIN ───────────────────────────────────────────────────── -->
-<main>
-
-  <!-- Error Banner -->
-  <div class="error-banner hidden" id="error-banner">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>
-    </svg>
-    <span id="error-banner-text">API nicht erreichbar. Läuft der Server auf Port 8080?</span>
-  </div>
-
-  <!-- ── HOME SECTION ────────────────────────────────────────── -->
-  <div id="home-section">
-
-    <!-- Quick Scan -->
-    <section class="quick-scan">
-      <h2>Quick-Scan</h2>
-      <p>URL direkt scannen – ohne Projekt-Konfiguration</p>
-      <form class="scan-form" onsubmit="startQuickScan(event)">
-        <input
-          class="scan-input"
-          type="url"
-          id="quick-scan-url"
-          placeholder="https://example.com"
-          autocomplete="off"
-          spellcheck="false"
-        >
-        <button type="submit" class="btn btn-primary" id="quick-scan-btn">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          Jetzt scannen
-        </button>
-      </form>
-    </section>
-
-    <!-- Projects -->
-    <section id="projects-section">
-      <div class="section-header">
-        <div>
-          <h2>Projekte</h2>
-          <p id="projects-subtitle">Lade Projekte...</p>
-        </div>
-        <button class="btn btn-secondary btn-sm" onclick="loadProjects()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-          Aktualisieren
-        </button>
-      </div>
-      <div id="projects-container">
-        <!-- filled by JS -->
-      </div>
-    </section>
-
-  </div><!-- /home-section -->
-
-  <!-- ── LOADING SECTION ─────────────────────────────────────── -->
-  <div class="loading-section" id="loading-section">
-    <div class="spinner"></div>
-    <div class="loading-title" id="loading-title">Audit läuft...</div>
-    <div class="loading-sub" id="loading-sub">Das kann 30–120 Sekunden dauern</div>
-    <div class="loading-steps" id="loading-steps">
-      <div class="loading-step" id="step-analyzer">
-        <div class="step-icon active"><div class="mini-spinner"></div></div>
-        <span>Seiten crawlen &amp; analysieren</span>
-      </div>
-      <div class="loading-step" id="step-keyword">
-        <div class="step-icon">2</div>
-        <span>Keywords aus GSC laden</span>
-      </div>
-      <div class="loading-step" id="step-strategy">
-        <div class="step-icon">3</div>
-        <span>Strategie &amp; Priorisierung</span>
-      </div>
-      <div class="loading-step" id="step-content">
-        <div class="step-icon">4</div>
-        <span>AI-Fixes generieren</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── REPORT SECTION ──────────────────────────────────────── -->
-  <div class="report-section" id="report-section">
-    <button class="report-back" onclick="showHome()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-      Zurück zur Übersicht
-    </button>
-
-    <!-- Hero -->
-    <div class="report-hero" id="report-hero">
-      <div class="score-ring-wrap">
-        <svg width="110" height="110" viewBox="0 0 110 110">
-          <circle class="score-ring-track" cx="55" cy="55" r="46"/>
-          <circle class="score-ring-fill" id="score-ring-fill" cx="55" cy="55" r="46"
-            stroke-dasharray="289"
-            stroke-dashoffset="289"
-          />
+<!-- ══ PAGE 1: SETUP ══════════════════════════════════════ -->
+<section id="page-setup" class="page auth-page">
+  <div class="auth-box">
+    <div class="logo-area">
+      <div class="logo-icon">
+        <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
-        <div class="score-ring-label">
-          <span class="score-ring-number" id="score-number">–</span>
-          <span class="score-ring-suffix">/ 100</span>
-        </div>
       </div>
-      <div class="report-hero-info">
-        <div class="report-hero-title" id="report-project-name">–</div>
-        <div class="report-hero-domain" id="report-project-domain">–</div>
-        <div class="report-hero-stats">
-          <div class="report-stat">
-            <span class="report-stat-value stat-red" id="stat-high">–</span>
-            <span class="report-stat-label">Kritisch</span>
-          </div>
-          <div class="report-stat">
-            <span class="report-stat-value stat-yellow" id="stat-medium">–</span>
-            <span class="report-stat-label">Mittel</span>
-          </div>
-          <div class="report-stat">
-            <span class="report-stat-value" id="stat-low">–</span>
-            <span class="report-stat-label">Gering</span>
-          </div>
-          <div class="report-stat">
-            <span class="report-stat-value" id="stat-fixes">–</span>
-            <span class="report-stat-label">AI-Fixes</span>
-          </div>
-          <div class="report-stat">
-            <span class="report-stat-value" id="stat-duration">–</span>
-            <span class="report-stat-label">Dauer</span>
-          </div>
-        </div>
+      <span class="logo-title">SEO Autopilot</span>
+    </div>
+    <h1 class="auth-heading">Willkommen – einmalige Einrichtung</h1>
+    <p class="auth-sub">Trage deine Website-URL ein und wähle ein Passwort. Danach startet der erste SEO-Audit automatisch.</p>
+    <div id="setup-error" class="error-msg"></div>
+    <div class="field">
+      <label for="setup-url">Deine Website-URL</label>
+      <input id="setup-url" type="url" placeholder="https://deine-webseite.de" autocomplete="url">
+    </div>
+    <div class="field">
+      <label for="setup-pw">Passwort wählen</label>
+      <input id="setup-pw" type="password" placeholder="Mindestens 4 Zeichen" autocomplete="new-password">
+    </div>
+    <div class="field">
+      <label for="setup-pw2">Passwort bestätigen</label>
+      <input id="setup-pw2" type="password" placeholder="Nochmal eingeben" autocomplete="new-password">
+    </div>
+    <button id="setup-btn" class="btn btn-primary" onclick="doSetup()">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      Einrichten &amp; ersten Audit starten
+    </button>
+  </div>
+</section>
+
+<!-- ══ PAGE 2: LOGIN ═════════════════════════════════════ -->
+<section id="page-login" class="page auth-page">
+  <div class="auth-box">
+    <div class="logo-area">
+      <div class="logo-icon">
+        <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </div>
+      <span class="logo-title">SEO Autopilot</span>
+      <span id="login-domain" class="logo-subtitle"></span>
+    </div>
+    <div id="login-error" class="error-msg"></div>
+    <div class="field">
+      <label for="login-pw">Passwort</label>
+      <input id="login-pw" type="password" placeholder="Dein Passwort" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter') doLogin()">
+    </div>
+    <button id="login-btn" class="btn btn-primary" onclick="doLogin()">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      Anmelden
+    </button>
+  </div>
+</section>
+
+<!-- ══ PAGE 3: DASHBOARD ══════════════════════════════════ -->
+<section id="page-dashboard" class="page dashboard-page">
+
+  <header class="dash-header">
+    <div class="dash-header-logo">
+      <div class="dash-logo-icon">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </div>
+      <span>SEO Autopilot</span>
+    </div>
+    <span id="dash-domain" class="dash-domain"></span>
+    <button class="btn-logout" onclick="doLogout()">Abmelden</button>
+  </header>
+
+  <main class="dash-content">
+
+    <!-- Score Ring -->
+    <div class="score-section">
+      <div class="score-ring-wrap">
+        <svg width="160" height="160" viewBox="0 0 160 160">
+          <circle class="score-ring-bg" cx="80" cy="80" r="70"/>
+          <circle id="score-ring-fill" class="score-ring-fill" cx="80" cy="80" r="70"
+            stroke-dasharray="439.82"
+            stroke-dashoffset="439.82"/>
+        </svg>
+        <div class="score-number" id="score-num">–</div>
+      </div>
+      <span class="score-label">SEO Score</span>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-num red" id="stat-high">–</div>
+        <div class="stat-label">Kritisch</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num yellow" id="stat-med">–</div>
+        <div class="stat-label">Mittel</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num green" id="stat-low">–</div>
+        <div class="stat-label">Gering</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num orange" id="stat-fixes">–</div>
+        <div class="stat-label">AI-Fixes</div>
       </div>
     </div>
 
-    <!-- GSC Metrics Row -->
-    <div class="metrics-grid" id="gsc-metrics" style="display:none">
-      <!-- filled by JS -->
-    </div>
-
-    <!-- Tabs -->
-    <div class="tabs" id="report-tabs">
-      <button class="tab-btn active" data-tab="all" onclick="switchTab('all')">
-        Alle <span class="tab-count" id="tab-count-all">0</span>
-      </button>
-      <button class="tab-btn" data-tab="technical" onclick="switchTab('technical')">
-        Technisch <span class="tab-count" id="tab-count-technical">0</span>
-      </button>
-      <button class="tab-btn" data-tab="content" onclick="switchTab('content')">
-        Content <span class="tab-count" id="tab-count-content">0</span>
-      </button>
-      <button class="tab-btn" data-tab="performance" onclick="switchTab('performance')">
-        Performance <span class="tab-count" id="tab-count-performance">0</span>
-      </button>
-      <button class="tab-btn" data-tab="gsc" onclick="switchTab('gsc')">
-        GSC <span class="tab-count" id="tab-count-gsc">0</span>
+    <!-- Actions -->
+    <div class="audit-actions">
+      <span id="last-audit-ts" class="last-audit-info"></span>
+      <button id="run-btn" class="btn-run" onclick="startAudit()">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Neuen Audit starten
       </button>
     </div>
 
-    <!-- Tab panels -->
-    <div class="tab-panel active" id="panel-all">
-      <div class="issues-list" id="issues-all"></div>
-    </div>
-    <div class="tab-panel" id="panel-technical">
-      <div class="issues-list" id="issues-technical"></div>
-    </div>
-    <div class="tab-panel" id="panel-content">
-      <div class="issues-list" id="issues-content"></div>
-    </div>
-    <div class="tab-panel" id="panel-performance">
-      <div class="issues-list" id="issues-performance"></div>
-    </div>
-    <div class="tab-panel" id="panel-gsc">
-      <div class="issues-list" id="issues-gsc"></div>
+    <!-- Loading -->
+    <div id="loading-bar" class="loading-bar">
+      <div class="spinner"></div>
+      <div class="loading-text" id="loading-text">Audit läuft – das dauert ca. 1–2 Minuten…</div>
     </div>
 
-  </div><!-- /report-section -->
+    <!-- Issues -->
+    <div class="issues-section">
+      <h2 id="issues-heading">Issues</h2>
+      <div id="issues-list"></div>
+    </div>
 
-</main>
-
-<!-- Toast container -->
-<div class="toast-container" id="toast-container"></div>
+  </main>
+</section>
 
 <script>
-// ── CONFIG ─────────────────────────────────────────────────────
-const API = window.location.origin;
-let pollTimer = null;
-let currentAuditId = null;
-let currentAuditData = null;
-let stepAnimTimer = null;
+(function() {
 
-// ── UTILS ──────────────────────────────────────────────────────
-async function apiFetch(path, opts = {}) {
-  const res = await fetch(API + path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...opts,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || `HTTP ${res.status}`);
+  // ── Base URL ──────────────────────────────────────────────
+  const path = window.location.pathname;
+  const base = window.location.origin + (path.startsWith('/seo-autopilot') ? '/seo-autopilot' : '');
+
+  // ── Helpers ───────────────────────────────────────────────
+  function show(id) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
   }
-  return res.json();
-}
 
-function toast(msg, type = '') {
-  const el = document.createElement('div');
-  el.className = 'toast' + (type ? ' ' + type : '');
-  el.textContent = msg;
-  document.getElementById('toast-container').appendChild(el);
-  setTimeout(() => el.remove(), 4000);
-}
+  function token() { return localStorage.getItem('seo_token') || ''; }
 
-function showError(msg) {
-  const b = document.getElementById('error-banner');
-  b.classList.remove('hidden');
-  document.getElementById('error-banner-text').textContent = msg;
-}
-function hideError() {
-  document.getElementById('error-banner').classList.add('hidden');
-}
-
-function setStatus(state, text) {
-  const dot = document.getElementById('status-dot');
-  const label = document.getElementById('status-text');
-  dot.className = 'status-dot ' + state;
-  label.textContent = text;
-}
-
-function formatDate(iso) {
-  if (!iso) return '–';
-  const d = new Date(iso);
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
-    + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatDuration(sec) {
-  if (!sec) return '–';
-  if (sec < 60) return sec + 's';
-  return Math.floor(sec / 60) + 'm ' + (sec % 60) + 's';
-}
-
-function scoreClass(score) {
-  if (score === null || score === undefined) return 'score-none';
-  if (score >= 80) return 'score-green';
-  if (score >= 50) return 'score-yellow';
-  return 'score-red';
-}
-
-function scoreColor(score) {
-  if (score >= 80) return '#16a34a';
-  if (score >= 50) return '#ca8a04';
-  return '#dc2626';
-}
-
-function severityIcon(sev) {
-  if (sev === 'high' || sev === 'critical') return '❌';
-  if (sev === 'medium') return '⚠️';
-  return 'ℹ️';
-}
-
-// ── HEALTH CHECK ───────────────────────────────────────────────
-async function checkHealth() {
-  try {
-    await apiFetch('/api/health');
-    setStatus('online', 'API online');
-    hideError();
-  } catch (e) {
-    setStatus('', 'Offline');
-    showError('API nicht erreichbar. Läuft der Server? Starte ihn mit: seo-autopilot api');
+  function authHeaders() {
+    return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token() };
   }
-}
 
-// ── SECTIONS ───────────────────────────────────────────────────
-function showHome() {
-  clearPoll();
-  document.getElementById('home-section').style.display = '';
-  document.getElementById('loading-section').classList.remove('visible');
-  document.getElementById('report-section').classList.remove('visible');
-  loadProjects();
-}
-
-function showLoading(title, sub) {
-  document.getElementById('home-section').style.display = 'none';
-  document.getElementById('report-section').classList.remove('visible');
-  document.getElementById('loading-section').classList.add('visible');
-  document.getElementById('loading-title').textContent = title || 'Audit läuft...';
-  document.getElementById('loading-sub').textContent = sub || 'Das kann 30–120 Sekunden dauern';
-  resetSteps();
-}
-
-function showReport() {
-  document.getElementById('home-section').style.display = 'none';
-  document.getElementById('loading-section').classList.remove('visible');
-  document.getElementById('report-section').classList.add('visible');
-}
-
-// ── STEP ANIMATION ─────────────────────────────────────────────
-const STEPS = ['analyzer', 'keyword', 'strategy', 'content'];
-let currentStep = 0;
-
-function resetSteps() {
-  currentStep = 0;
-  clearInterval(stepAnimTimer);
-  STEPS.forEach((s, i) => {
-    const el = document.querySelector('#step-' + s + ' .step-icon');
-    if (i === 0) {
-      el.className = 'step-icon active';
-      el.innerHTML = '<div class="mini-spinner"></div>';
-    } else {
-      el.className = 'step-icon';
-      el.textContent = String(i + 1);
-    }
-  });
-  // Auto-advance steps for visual feedback
-  stepAnimTimer = setInterval(() => {
-    if (currentStep < STEPS.length - 1) advanceStep();
-  }, 18000);
-}
-
-function advanceStep() {
-  const done = document.querySelector('#step-' + STEPS[currentStep] + ' .step-icon');
-  done.className = 'step-icon done';
-  done.textContent = '✓';
-  currentStep++;
-  if (currentStep < STEPS.length) {
-    const next = document.querySelector('#step-' + STEPS[currentStep] + ' .step-icon');
-    next.className = 'step-icon active';
-    next.innerHTML = '<div class="mini-spinner"></div>';
+  async function api(method, path, body) {
+    const opts = { method, headers: authHeaders() };
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(base + path, opts);
+    return r;
   }
-}
 
-function finishAllSteps() {
-  clearInterval(stepAnimTimer);
-  STEPS.forEach(s => {
-    const el = document.querySelector('#step-' + s + ' .step-icon');
-    el.className = 'step-icon done';
-    el.textContent = '✓';
-  });
-}
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.classList.add('visible');
+  }
 
-// ── PROJECTS ───────────────────────────────────────────────────
-async function loadProjects() {
-  const container = document.getElementById('projects-container');
-  const subtitle = document.getElementById('projects-subtitle');
+  function hideError(id) {
+    document.getElementById(id).classList.remove('visible');
+  }
 
-  container.innerHTML = '<p style="color:var(--text-muted);font-size:14px;padding:16px 0">Lade...</p>';
+  function setBtn(id, loading, text) {
+    const b = document.getElementById(id);
+    b.disabled = loading;
+    if (text) b.querySelector('svg') && (b.innerHTML = b.innerHTML); // keep svg
+    const last = b.childNodes[b.childNodes.length - 1];
+    if (last && last.nodeType === 3) last.textContent = ' ' + text;
+  }
 
-  try {
-    const projects = await apiFetch('/api/projects');
-    setStatus('online', 'API online');
-    hideError();
-
-    if (!projects || projects.length === 0) {
-      subtitle.textContent = 'Keine Projekte konfiguriert';
-      container.innerHTML = renderEmptyState();
-      return;
-    }
-
-    subtitle.textContent = projects.length + ' ' + (projects.length === 1 ? 'Projekt' : 'Projekte') + ' konfiguriert';
-
-    // Fetch latest audits for each project
-    let audits = [];
+  // ── Startup ───────────────────────────────────────────────
+  async function init() {
     try {
-      audits = await apiFetch('/api/audits');
-    } catch(_) {}
+      const r = await fetch(base + '/api/setup-status');
+      const data = await r.json();
 
-    container.innerHTML = '<div class="projects-grid">' +
-      projects.map(p => renderProjectCard(p, audits)).join('') +
-      '</div>';
-
-  } catch (e) {
-    subtitle.textContent = 'Fehler beim Laden';
-    showError('API nicht erreichbar: ' + e.message);
-    container.innerHTML = '';
-    setStatus('', 'Offline');
-  }
-}
-
-function renderProjectCard(p, audits) {
-  // Find latest audit for this project
-  const projectAudits = audits
-    .filter(a => a.project_id === p.id)
-    .sort((a, b) => new Date(b.completed_at || b.started_at) - new Date(a.completed_at || a.started_at));
-  const latest = projectAudits[0] || null;
-
-  const score = latest ? latest.score : null;
-  const scoreLabel = score !== null ? Math.round(score) : '–';
-  const sClass = scoreClass(score);
-
-  const lastRun = p.last_run_at ? formatDate(p.last_run_at) : 'Noch nie';
-
-  return `
-    <div class="project-card">
-      <div class="project-card-top">
-        <div class="project-card-info">
-          <div class="project-name">${escHtml(p.name)}</div>
-          <div class="project-domain">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-            ${escHtml(p.domain)}
-          </div>
-        </div>
-        <div class="score-badge ${sClass}">${scoreLabel}</div>
-      </div>
-      <div class="project-meta">
-        <div class="project-meta-item">
-          <span class="project-meta-label">Letzter Audit</span>
-          <span class="project-meta-value">${lastRun}</span>
-        </div>
-        <div class="project-meta-item">
-          <span class="project-meta-label">Schedule</span>
-          <span class="project-meta-value">${escHtml(p.schedule_cron || '–')}</span>
-        </div>
-        <div class="project-meta-item">
-          <span class="project-meta-label">Status</span>
-          <span class="project-meta-value">${p.enabled ? '<span style="color:var(--green)">Aktiv</span>' : '<span style="color:var(--text-light)">Inaktiv</span>'}</span>
-        </div>
-      </div>
-      <div class="project-card-actions">
-        <button class="btn btn-primary btn-sm" onclick="startAudit('${escHtml(p.id)}', '${escHtml(p.name)}')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-          Audit starten
-        </button>
-        ${latest ? `<button class="btn btn-secondary btn-sm" onclick="viewAudit('${latest.id}')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-          Report ansehen
-        </button>` : ''}
-      </div>
-    </div>
-  `;
-}
-
-function renderEmptyState() {
-  return `
-    <div class="empty-state">
-      <div class="empty-state-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-light)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-      </div>
-      <h3>Keine Projekte konfiguriert</h3>
-      <p>Erstelle eine <code>projects.yaml</code> Datei um Projekte zu konfigurieren.</p>
-      <div class="code-block"><span class="code-comment"># projects.yaml</span>
-<span class="code-key">projects</span>:
-  - <span class="code-key">id</span>: <span class="code-val">meine-website</span>
-    <span class="code-key">domain</span>: <span class="code-val">example.com</span>
-    <span class="code-key">name</span>: <span class="code-val">Meine Website</span>
-    <span class="code-key">enabled</span>: <span class="code-val">true</span>
-    <span class="code-key">schedule_cron</span>: <span class="code-val">"0 7 * * 1"</span></div>
-    </div>
-  `;
-}
-
-// ── AUDIT TRIGGER ──────────────────────────────────────────────
-async function startAudit(projectId, projectName) {
-  showLoading('Audit für ' + projectName, 'Crawle Seiten, lade Keywords, generiere Fixes...');
-
-  try {
-    const res = await apiFetch(`/api/audits/run/${projectId}`, {
-      method: 'POST',
-      body: JSON.stringify({ project_id: projectId, run_async: true }),
-    });
-
-    toast('Audit gestartet', 'success');
-    pollAuditByProject(projectId);
-
-  } catch (e) {
-    showHome();
-    toast('Fehler: ' + e.message, 'error');
-  }
-}
-
-async function startQuickScan(evt) {
-  evt.preventDefault();
-  const urlInput = document.getElementById('quick-scan-url');
-  const url = urlInput.value.trim();
-  if (!url) return;
-
-  // Try to extract domain
-  let domain = url;
-  try { domain = new URL(url).hostname; } catch(_) {}
-
-  // Check if a project with this domain exists
-  try {
-    const projects = await apiFetch('/api/projects');
-    const match = projects.find(p => p.domain === domain || url.includes(p.domain));
-    if (match) {
-      startAudit(match.id, match.name);
-      return;
-    }
-  } catch(_) {}
-
-  // No matching project – create one on the fly
-  const projectId = 'quickscan-' + Date.now();
-  try {
-    await apiFetch('/api/projects', {
-      method: 'POST',
-      body: JSON.stringify({
-        id: projectId,
-        domain: domain,
-        name: 'Quick Scan: ' + domain,
-        adapter_type: 'static',
-        enabled: true,
-        schedule_cron: '0 7 * * 1',
-      }),
-    });
-    startAudit(projectId, 'Quick Scan: ' + domain);
-  } catch(e) {
-    toast('Fehler: ' + e.message, 'error');
-  }
-}
-
-// ── POLLING ────────────────────────────────────────────────────
-function clearPoll() {
-  if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
-  clearInterval(stepAnimTimer);
-}
-
-async function pollAuditByProject(projectId) {
-  // Poll audit list to find the latest running audit for this project
-  let attempts = 0;
-  const maxAttempts = 120; // 4 minutes at 2s intervals
-
-  async function poll() {
-    attempts++;
-    if (attempts > maxAttempts) {
-      toast('Timeout – Audit dauert länger als erwartet', 'error');
-      showHome();
-      return;
-    }
-
-    try {
-      const audits = await apiFetch('/api/audits');
-      const projectAudits = audits
-        .filter(a => a.project_id === projectId)
-        .sort((a, b) => new Date(b.started_at) - new Date(a.started_at));
-
-      const latest = projectAudits[0];
-      if (!latest) {
-        pollTimer = setTimeout(poll, 2000);
+      if (!data.configured) {
+        show('page-setup');
         return;
       }
 
-      if (latest.status === 'completed' || latest.status === 'failed') {
-        finishAllSteps();
-        clearPoll();
-        if (latest.status === 'failed') {
-          toast('Audit fehlgeschlagen', 'error');
-          showHome();
-        } else {
-          toast('Audit abgeschlossen!', 'success');
-          await viewAudit(latest.id);
+      // Show domain on login
+      if (data.domain) {
+        document.getElementById('login-domain').textContent = data.domain;
+      }
+
+      // Check existing token
+      const tok = token();
+      if (tok) {
+        const me = await api('GET', '/api/me');
+        if (me.ok) {
+          const meData = await me.json();
+          document.getElementById('dash-domain').textContent = meData.domain || data.domain;
+          show('page-dashboard');
+          loadDashboard();
+          return;
         }
-        return;
+        localStorage.removeItem('seo_token');
       }
 
-      // still running
-      pollTimer = setTimeout(poll, 2000);
+      show('page-login');
     } catch(e) {
-      pollTimer = setTimeout(poll, 3000);
+      show('page-login');
     }
   }
 
-  await poll();
-}
+  // ── Setup ─────────────────────────────────────────────────
+  window.doSetup = async function() {
+    hideError('setup-error');
+    const url = document.getElementById('setup-url').value.trim();
+    const pw  = document.getElementById('setup-pw').value;
+    const pw2 = document.getElementById('setup-pw2').value;
 
-// ── VIEW AUDIT / REPORT ────────────────────────────────────────
-async function viewAudit(auditId) {
-  showLoading('Report wird geladen...', '');
+    if (!url || !url.startsWith('http')) {
+      showError('setup-error', 'Bitte eine gültige URL eingeben (https://...)');
+      return;
+    }
+    if (pw.length < 4) {
+      showError('setup-error', 'Passwort muss mindestens 4 Zeichen haben.');
+      return;
+    }
+    if (pw !== pw2) {
+      showError('setup-error', 'Passwörter stimmen nicht überein.');
+      return;
+    }
 
-  try {
-    const audit = await apiFetch('/api/audits/' + auditId);
-    currentAuditData = audit;
-    renderReport(audit);
-    showReport();
-  } catch(e) {
-    showHome();
-    toast('Report konnte nicht geladen werden: ' + e.message, 'error');
-  }
-}
+    const btn = document.getElementById('setup-btn');
+    btn.disabled = true;
+    btn.textContent = 'Einrichten…';
 
-function renderReport(audit) {
-  // Score ring
-  const score = audit.score !== null && audit.score !== undefined ? Math.round(audit.score) : null;
-  const circumference = 289; // 2 * PI * 46
-  const fill = score !== null ? circumference * (1 - score / 100) : circumference;
-  const ring = document.getElementById('score-ring-fill');
-  const color = score !== null ? scoreColor(score) : '#ccc';
-  ring.style.stroke = color;
-  ring.setAttribute('stroke-dashoffset', circumference); // start at 0
-  setTimeout(() => { ring.style.strokeDashoffset = fill; }, 50);
+    try {
+      const r = await fetch(base + '/api/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ site_url: url, password: pw })
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        showError('setup-error', data.detail || 'Fehler beim Einrichten.');
+        btn.disabled = false;
+        btn.textContent = 'Einrichten & ersten Audit starten';
+        return;
+      }
 
-  document.getElementById('score-number').textContent = score !== null ? score : '–';
-  document.getElementById('score-number').style.color = color;
-
-  // Hero info
-  document.getElementById('report-project-name').textContent = audit.project_name || audit.project_id || '–';
-  document.getElementById('report-project-domain').textContent = audit.domain || '–';
-
-  // Stats
-  const issues = audit.issues || [];
-  const fixes = audit.fixes || [];
-  const sevHigh = issues.filter(i => i.severity === 'high' || i.severity === 'critical').length;
-  const sevMed = issues.filter(i => i.severity === 'medium').length;
-  const sevLow = issues.filter(i => i.severity === 'low').length;
-
-  document.getElementById('stat-high').textContent = sevHigh;
-  document.getElementById('stat-medium').textContent = sevMed;
-  document.getElementById('stat-low').textContent = sevLow;
-  document.getElementById('stat-fixes').textContent = fixes.length;
-  document.getElementById('stat-duration').textContent = formatDuration(audit.duration_seconds);
-
-  // GSC metrics
-  const gscContainer = document.getElementById('gsc-metrics');
-  if (audit.gsc_clicks || audit.gsc_impressions) {
-    gscContainer.style.display = 'grid';
-    const ctr = audit.gsc_ctr ? (audit.gsc_ctr * 100).toFixed(1) + '%' : '–';
-    const pos = audit.gsc_avg_position ? audit.gsc_avg_position.toFixed(1) : '–';
-    gscContainer.innerHTML = [
-      { label: 'GSC Klicks', value: (audit.gsc_clicks || 0).toLocaleString('de-DE'), sub: 'letzte 3 Monate' },
-      { label: 'Impressionen', value: (audit.gsc_impressions || 0).toLocaleString('de-DE'), sub: '' },
-      { label: 'Ø CTR', value: ctr, sub: '' },
-      { label: 'Ø Position', value: pos, sub: 'in SERP' },
-      { label: 'Seiten gecrawlt', value: (audit.total_pages || '–').toString(), sub: '' },
-      { label: 'Keywords', value: (audit.total_keywords || '–').toString(), sub: '' },
-    ].map(m => `
-      <div class="metric-card">
-        <div class="metric-label">${m.label}</div>
-        <div class="metric-value">${m.value}</div>
-        ${m.sub ? `<div class="metric-sub">${m.sub}</div>` : ''}
-      </div>
-    `).join('');
-  } else {
-    gscContainer.style.display = 'none';
-  }
-
-  // Issues by tab
-  const tabs = {
-    all: issues,
-    technical: issues.filter(i => ['technical', 'meta', 'mobile', 'security', 'indexing'].includes(i.category)),
-    content: issues.filter(i => ['content', 'structured_data', 'headings', 'links'].includes(i.category)),
-    performance: issues.filter(i => ['performance', 'speed', 'core_web_vitals'].includes(i.category)),
-    gsc: issues.filter(i => ['gsc', 'keywords', 'ranking', 'ctr'].includes(i.category)),
+      // Auto-login
+      const lr = await fetch(base + '/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw })
+      });
+      const ld = await lr.json();
+      if (lr.ok && ld.token) {
+        localStorage.setItem('seo_token', ld.token);
+        document.getElementById('dash-domain').textContent = data.domain || ld.domain || '';
+        show('page-dashboard');
+        loadDashboard(true);
+      }
+    } catch(e) {
+      showError('setup-error', 'Verbindungsfehler. Bitte Seite neu laden.');
+      btn.disabled = false;
+      btn.textContent = 'Einrichten & ersten Audit starten';
+    }
   };
 
-  for (const [key, list] of Object.entries(tabs)) {
-    document.getElementById('tab-count-' + key).textContent = list.length;
-    document.getElementById('issues-' + key).innerHTML =
-      list.length === 0 ? renderNoIssues() : list.map(renderIssueCard).join('');
+  // ── Login ─────────────────────────────────────────────────
+  window.doLogin = async function() {
+    hideError('login-error');
+    const pw = document.getElementById('login-pw').value;
+    if (!pw) { showError('login-error', 'Bitte Passwort eingeben.'); return; }
+
+    const btn = document.getElementById('login-btn');
+    btn.disabled = true;
+
+    try {
+      const r = await fetch(base + '/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw })
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        showError('login-error', 'Falsches Passwort.');
+        btn.disabled = false;
+        return;
+      }
+      localStorage.setItem('seo_token', data.token);
+      document.getElementById('dash-domain').textContent = data.domain || '';
+      show('page-dashboard');
+      loadDashboard();
+    } catch(e) {
+      showError('login-error', 'Verbindungsfehler.');
+      btn.disabled = false;
+    }
+  };
+
+  // ── Logout ────────────────────────────────────────────────
+  window.doLogout = async function() {
+    await api('POST', '/api/logout');
+    localStorage.removeItem('seo_token');
+    location.reload();
+  };
+
+  // ── Dashboard ─────────────────────────────────────────────
+  async function loadDashboard(autoStart) {
+    try {
+      const r = await api('GET', '/api/audits?project_id=main-site&limit=1');
+      if (!r.ok) return;
+      const audits = await r.json();
+
+      if (!audits || audits.length === 0) {
+        // Kein Audit vorhanden → automatisch starten
+        await triggerAndPoll();
+        return;
+      }
+
+      const latest = audits[0];
+      if (autoStart) {
+        // Nach Setup immer frischen Audit starten
+        await triggerAndPoll();
+        return;
+      }
+
+      // Letzten Audit anzeigen
+      const detail = await api('GET', '/api/audits/' + latest.id);
+      if (detail.ok) {
+        const audit = await detail.json();
+        renderAudit(audit);
+      }
+    } catch(e) {
+      console.error('loadDashboard error', e);
+    }
   }
 
-  // Reset active tab
-  switchTab('all');
-}
+  window.startAudit = async function() {
+    await triggerAndPoll();
+  };
 
-function renderIssueCard(issue) {
-  const sev = (issue.severity || 'low').toLowerCase();
-  const icon = severityIcon(sev);
-  const cat = issue.category || 'other';
+  async function triggerAndPoll() {
+    const runBtn = document.getElementById('run-btn');
+    runBtn.disabled = true;
 
-  const fixHtml = issue.fix_suggestion ? `
-    <div class="fix-box">
-      <div class="fix-box-label">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4l3 3"></path></svg>
-        AI-Fix Vorschlag
-      </div>
-      <div class="fix-box-text">${escHtml(issue.fix_suggestion)}</div>
-      ${issue.estimated_impact ? `<div style="font-size:11px;color:var(--orange);margin-top:6px;font-weight:500">${escHtml(String(issue.estimated_impact))}</div>` : ''}
-    </div>
-  ` : '';
+    document.getElementById('loading-bar').classList.add('visible');
+    document.getElementById('loading-text').textContent = 'Audit läuft – das dauert ca. 1–2 Minuten…';
 
-  return `
-    <div class="issue-card">
-      <div class="issue-icon sev-${sev}">${icon}</div>
-      <div class="issue-body">
-        <div class="issue-title">${escHtml(issue.title || issue.type || '–')}</div>
-        ${issue.description ? `<div class="issue-desc">${escHtml(issue.description)}</div>` : ''}
-        <div class="issue-tags">
-          <span class="tag tag-cat">${escHtml(cat)}</span>
-          <span class="tag tag-${sev}">${sev}</span>
-          ${issue.priority ? `<span class="tag tag-low">${escHtml(issue.priority)}</span>` : ''}
-        </div>
-        ${fixHtml}
-      </div>
-    </div>
-  `;
-}
+    try {
+      // Trigger audit
+      const r = await api('POST', '/api/audits/run/main-site', { project_id: 'main-site', run_async: true });
+      if (!r.ok) throw new Error('Audit konnte nicht gestartet werden');
 
-function renderNoIssues() {
-  return `
-    <div class="no-issues">
-      <div class="no-issues-icon">✅</div>
-      <h3>Keine Probleme gefunden</h3>
-      <p>In dieser Kategorie sind keine Issues vorhanden.</p>
-    </div>
-  `;
-}
+      // Poll bis Ergebnis da
+      await pollForResult();
+    } catch(e) {
+      document.getElementById('loading-text').textContent = 'Fehler: ' + e.message;
+      setTimeout(() => {
+        document.getElementById('loading-bar').classList.remove('visible');
+        runBtn.disabled = false;
+      }, 3000);
+    }
+  }
 
-// ── TABS ───────────────────────────────────────────────────────
-function switchTab(tabId) {
-  document.querySelectorAll('.tab-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.tab === tabId);
-  });
-  document.querySelectorAll('.tab-panel').forEach(p => {
-    p.classList.toggle('active', p.id === 'panel-' + tabId);
-  });
-}
+  async function pollForResult() {
+    const maxWait = 180; // 3 Minuten
+    let waited = 0;
 
-// ── SECURITY ───────────────────────────────────────────────────
-function escHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
+    while (waited < maxWait) {
+      await sleep(5000);
+      waited += 5;
 
-// ── INIT ───────────────────────────────────────────────────────
-(async function init() {
-  await checkHealth();
-  await loadProjects();
+      try {
+        const r = await api('GET', '/api/audits?project_id=main-site&limit=1');
+        if (!r.ok) continue;
+        const audits = await r.json();
+        if (!audits || audits.length === 0) continue;
 
-  // Re-check health every 30s
-  setInterval(checkHealth, 30000);
+        const a = audits[0];
+        if (a.status === 'completed') {
+          // Hole Details
+          const dr = await api('GET', '/api/audits/' + a.id);
+          if (dr.ok) {
+            const detail = await dr.json();
+            document.getElementById('loading-bar').classList.remove('visible');
+            document.getElementById('run-btn').disabled = false;
+            renderAudit(detail);
+            return;
+          }
+        }
+      } catch(e) {
+        // weiter versuchen
+      }
+    }
+
+    // Timeout
+    document.getElementById('loading-text').textContent = 'Audit dauert länger als erwartet – bitte Seite neu laden.';
+    document.getElementById('run-btn').disabled = false;
+  }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  function renderAudit(audit) {
+    // Score
+    const score = audit.score || 0;
+    animateScore(score);
+
+    // Stats
+    const issues = audit.issues || [];
+    const high = issues.filter(i => i.severity === 'high').length;
+    const med  = issues.filter(i => i.severity === 'medium').length;
+    const low  = issues.filter(i => i.severity === 'low').length;
+    const fixes = issues.filter(i => i.fix_suggestion).length;
+
+    document.getElementById('stat-high').textContent  = high;
+    document.getElementById('stat-med').textContent   = med;
+    document.getElementById('stat-low').textContent   = low;
+    document.getElementById('stat-fixes').textContent = fixes;
+
+    // Timestamp
+    if (audit.completed_at) {
+      const d = new Date(audit.completed_at);
+      document.getElementById('last-audit-ts').textContent =
+        'Letzter Audit: ' + d.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' })
+        + ' ' + d.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' }) + ' Uhr';
+    }
+
+    // Issues
+    const sorted = [...issues].sort((a, b) => {
+      const order = { high: 0, medium: 1, low: 2 };
+      return (order[a.severity] ?? 3) - (order[b.severity] ?? 3);
+    });
+
+    const list = document.getElementById('issues-list');
+    document.getElementById('issues-heading').textContent = `Issues (${issues.length})`;
+
+    if (sorted.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <p>Keine Issues gefunden. Deine Seite sieht gut aus!</p>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = sorted.map(issue => {
+      const icon   = issue.severity === 'high' ? '❌' : issue.severity === 'medium' ? '⚠️' : 'ℹ️';
+      const badge  = `badge-${issue.severity || 'low'}`;
+      const label  = issue.severity === 'high' ? 'Kritisch' : issue.severity === 'medium' ? 'Mittel' : 'Gering';
+      const fixHtml = issue.fix_suggestion ? `
+        <div class="ai-fix">
+          <div class="ai-fix-label">AI-Fix</div>
+          <div class="ai-fix-text">${escHtml(issue.fix_suggestion)}</div>
+        </div>` : '';
+      return `
+        <div class="issue-card">
+          <div class="issue-header">
+            <span class="issue-icon">${icon}</span>
+            <div class="issue-body">
+              <div class="issue-title">${escHtml(issue.title || '')}</div>
+              <div class="issue-desc">${escHtml(issue.description || '')}</div>
+              ${fixHtml}
+            </div>
+            <span class="issue-badge ${badge}">${label}</span>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function animateScore(score) {
+    const circumference = 2 * Math.PI * 70; // 439.82
+    const ring = document.getElementById('score-ring-fill');
+    const numEl = document.getElementById('score-num');
+
+    // Color based on score
+    let color = '#dc2626';
+    if (score >= 80) color = '#16a34a';
+    else if (score >= 60) color = '#ca8a04';
+    else if (score >= 40) color = '#e8540a';
+
+    ring.style.stroke = color;
+
+    // Animate number
+    let current = 0;
+    const step = score / 40;
+    const timer = setInterval(() => {
+      current = Math.min(current + step, score);
+      numEl.textContent = Math.round(current);
+      if (current >= score) clearInterval(timer);
+    }, 25);
+
+    // Animate ring
+    setTimeout(() => {
+      const offset = circumference - (score / 100) * circumference;
+      ring.style.strokeDashoffset = offset;
+    }, 50);
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── Start ─────────────────────────────────────────────────
+  init();
+
 })();
 </script>
 </body>
