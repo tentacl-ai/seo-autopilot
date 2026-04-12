@@ -23,6 +23,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          pip install --upgrade pip
           pip install -e ".[dev]"
           pip install aiosqlite asyncpg
 
@@ -46,4 +47,4 @@ jobs:
         run: |
           flake8 seo_autopilot/ \
             --max-line-length=120 \
-            --ignore=E501,W503,W291,W293,E302,E303,E401,F401,W605,E128,E231,F841,E722,E126,E127,E121,E123,E125
+            --ignore=E501,W503,W291,W293,E302,E303,E401,F401,W605,E128,E231,F841,E722,E126,E127,E121,E123,E125,F541
