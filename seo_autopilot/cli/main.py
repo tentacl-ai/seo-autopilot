@@ -153,7 +153,7 @@ def api(host, port):
 @cli.command()
 def version():
     """Zeige Version"""
-    click.echo("SEO Autopilot v0.1.0")
+    click.echo("SEO Autopilot v0.3.0")
 
 
 if __name__ == "__main__":

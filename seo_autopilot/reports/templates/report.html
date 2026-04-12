@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SEO Audit – {{ summary.project_name }} – {{ summary.started_at[:10] }}</title>
+<style>
+  :root {
+    --bg: #faf9f7;
+    --text: #1a1a1a;
+    --primary: #e8540a;
+    --muted: #6b6b6b;
+    --border: #e7e5e0;
+    --high: #d92d20;
+    --medium: #f79009;
+    --low: #667085;
+    --good: #12b76a;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: var(--bg); color: var(--text); margin: 0; line-height: 1.5; }
+  .container { max-width: 960px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 28px; margin: 0 0 4px 0; }
+  h2 { font-size: 20px; margin: 48px 0 16px 0; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 16px; margin: 24px 0 8px 0; }
+  .subtitle { color: var(--muted); margin-bottom: 24px; }
+  .score-box { display: flex; align-items: center; gap: 24px; background: white;
+               border: 1px solid var(--border); border-radius: 12px; padding: 24px;
+               margin-bottom: 24px; }
+  .score { font-size: 64px; font-weight: 700; color: var(--primary); line-height: 1; }
+  .score-label { color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .stat { background: white; border: 1px solid var(--border); border-radius: 8px;
+          padding: 16px; }
+  .stat-value { font-size: 22px; font-weight: 600; }
+  .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px;
+           font-size: 11px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; }
+  .badge.high { background: #fef3f2; color: var(--high); }
+  .badge.medium { background: #fffaeb; color: var(--medium); }
+  .badge.low { background: #f2f4f7; color: var(--low); }
+  table { width: 100%; border-collapse: collapse; background: white;
+          border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border);
+           font-size: 14px; vertical-align: top; }
+  th { background: #f7f6f4; font-weight: 600; font-size: 12px; text-transform: uppercase;
+       letter-spacing: 0.5px; color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+  .fix-card { background: white; border: 1px solid var(--border); border-radius: 8px;
+              padding: 16px; margin-bottom: 12px; }
+  .fix-card pre { background: #f7f6f4; padding: 12px; border-radius: 6px;
+                  overflow-x: auto; font-size: 13px; white-space: pre-wrap; }
+  .meta { color: var(--muted); font-size: 13px; }
+  footer { margin-top: 64px; color: var(--muted); font-size: 12px; text-align: center; }
+  .no-data { color: var(--muted); font-style: italic; padding: 16px;
+             background: white; border: 1px dashed var(--border); border-radius: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>{{ summary.project_name }}</h1>
+  <p class="subtitle">{{ summary.domain }} · {{ summary.started_at[:19] }} · Audit {{ summary.audit_id }}</p>
+
+  <div class="score-box">
+    <div>
+      <div class="score">{{ summary.score if summary.score is not none else "–" }}</div>
+      <div class="score-label">SEO Score</div>
+    </div>
+    <div class="grid" style="flex: 1;">
+      <div class="stat">
+        <div class="stat-value">{{ summary.issues_total }}</div>
+        <div class="stat-label">Issues total</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" style="color: var(--high);">{{ severities.high }}</div>
+        <div class="stat-label">High severity</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" style="color: var(--medium);">{{ severities.medium }}</div>
+        <div class="stat-label">Medium severity</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">{{ summary.fixes_total }}</div>
+        <div class="stat-label">Auto-fixes</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Top Actions</h2>
+  {% if top_actions %}
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Issue</th>
+        <th>URL</th>
+        <th>Priority</th>
+        <th>Effort</th>
+        <th>Impact</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in top_actions[:15] %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>
+          <strong>{{ a.title }}</strong><br>
+          <span class="meta">{{ a.description or '' }}</span>
+        </td>
+        <td>
+          <code>{{ (a.affected_url or a.keyword or '-')|truncate(50) }}</code>
+        </td>
+        <td><span class="badge {{ a.priority or a.severity or 'low' }}">{{ a.priority or a.severity or 'low' }}</span></td>
+        <td>{{ a.effort_hours or '–' }} h</td>
+        <td>{{ a.impact_score or '–' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="no-data">Keine Issues erkannt.</div>
+  {% endif %}
+
+  <h2>Lighthouse / PageSpeed</h2>
+  {% if summary.agents.analyzer and ctx.agent_results.analyzer.metrics.pagespeed is defined %}
+  <div class="grid">
+    {% for psi in ctx.agent_results.analyzer.metrics.pagespeed %}
+    <div class="stat" style="grid-column: span 2;">
+      <div class="stat-label">{{ psi.url }} ({{ psi.strategy }})</div>
+      <div style="display:flex; gap:16px; margin-top:8px; flex-wrap:wrap;">
+        <div><div class="stat-value" style="color:{% if psi.performance_score >= 90 %}var(--good){% elif psi.performance_score >= 50 %}var(--medium){% else %}var(--high){% endif %}">{{ psi.performance_score }}</div><div class="stat-label">Performance</div></div>
+        <div><div class="stat-value">{{ psi.seo_score or '–' }}</div><div class="stat-label">SEO</div></div>
+        <div><div class="stat-value">{{ psi.accessibility_score or '–' }}</div><div class="stat-label">A11y</div></div>
+        <div><div class="stat-value">{{ psi.best_practices_score or '–' }}</div><div class="stat-label">Best Practices</div></div>
+        <div><div class="stat-value">{{ psi.lcp_display or '–' }}</div><div class="stat-label">LCP</div></div>
+        <div><div class="stat-value">{{ psi.cls_display or '–' }}</div><div class="stat-label">CLS</div></div>
+        <div><div class="stat-value">{{ psi.tbt_display or '–' }}</div><div class="stat-label">TBT</div></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="no-data">PageSpeed Insights nicht verfügbar (API-Limit oder kein Key konfiguriert). Setze <code>pagespeed.api_key</code> in source_config.</div>
+  {% endif %}
+
+  <h2>Issue-Kategorien</h2>
+  <div class="grid">
+    {% for cat, count in categories.items() %}
+    <div class="stat">
+      <div class="stat-value">{{ count }}</div>
+      <div class="stat-label">{{ cat }}</div>
+    </div>
+    {% else %}
+    <div class="no-data">Keine Kategorien.</div>
+    {% endfor %}
+  </div>
+
+  <h2>Google Search Console (28 Tage)</h2>
+  {% if keyword_metrics and keyword_metrics.gsc_available %}
+  <div class="grid">
+    <div class="stat">
+      <div class="stat-value">{{ keyword_metrics.total_clicks }}</div>
+      <div class="stat-label">Clicks</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{{ keyword_metrics.total_impressions }}</div>
+      <div class="stat-label">Impressions</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{{ keyword_metrics.avg_ctr }}%</div>
+      <div class="stat-label">CTR</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{{ keyword_metrics.avg_position }}</div>
+      <div class="stat-label">Ø Position</div>
+    </div>
+  </div>
+  <h3>Top Keywords</h3>
+  <table>
+    <thead><tr><th>Keyword</th><th>Clicks</th><th>Impressions</th><th>Position</th></tr></thead>
+    <tbody>
+      {% for kw in keyword_metrics.top_queries[:15] %}
+      <tr>
+        <td>{{ kw.query }}</td>
+        <td>{{ kw.clicks }}</td>
+        <td>{{ kw.impressions }}</td>
+        <td>{{ kw.position }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="no-data">GSC data nicht verfügbar (Service Account ohne Berechtigung oder nicht konfiguriert).</div>
+  {% endif %}
+
+  <h2>Konkrete Fixes zum Einfügen</h2>
+  {% for fix in fixes %}
+  <div class="fix-card">
+    <div>
+      <span class="badge {{ fix.priority or 'low' }}">{{ fix.priority or 'low' }}</span>
+      <strong>{{ fix.issue_title or fix.type }}</strong>
+      <span class="meta">· {{ fix.source }} · {{ fix.url }}</span>
+    </div>
+    <pre>{{ fix.suggestion }}</pre>
+  </div>
+  {% else %}
+  <div class="no-data">Keine Fixes generiert.</div>
+  {% endfor %}
+
+  <footer>
+    Generated by SEO Autopilot · {{ summary.completed_at[:19] if summary.completed_at else '' }}
+  </footer>
+</div>
+</body>
+</html>

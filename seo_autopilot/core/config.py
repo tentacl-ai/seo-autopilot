@@ -1,72 +1,86 @@
 """
 Configuration Management – Pydantic Settings + Environment Variables
 
-Multi-tenant ready: Jeder Tenant kann seine eigenen Credentials haben.
+All settings can be overridden via environment variables or a .env file.
 """
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
+
+
+# Detect a sensible default data directory
+_HOME = Path.home()
+_DEFAULT_DB = str(_HOME / ".seo-autopilot" / "seo_autopilot.db")
+_DEFAULT_PROJECTS = str(Path.cwd() / "projects.yaml")
+_DEFAULT_LOG = None  # No log file by default – just stdout
 
 
 class Settings(BaseSettings):
-    """Application Settings – Read from .env + Environment Variables"""
+    """Application settings – loaded from environment variables or .env file."""
 
     # Application
     APP_NAME: str = "SEO Autopilot"
-    APP_VERSION: str = "0.1.0"
-    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
+    APP_VERSION: str = "0.3.0"
+    DEBUG: bool = False
 
     # API
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8002
-    API_SECRET_KEY: str = os.getenv("API_SECRET_KEY", "change-me-in-production")
-    CORS_ORIGINS: list = ["http://localhost:3000", "http://localhost:8000"]
+    API_SECRET_KEY: str = "change-me-in-production"
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8080"]
 
-    # Database
-    # Default: SQLite in project dir. For Postgres use: postgresql+asyncpg://user:pass@host/db
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        "sqlite+aiosqlite:////opt/odoo/docs/seo-autopilot/seo_autopilot.db"
-    )
-    DB_ECHO: bool = DEBUG  # Log SQL queries if debug
+    # Database – defaults to SQLite in user home dir
+    DATABASE_URL: str = f"sqlite+aiosqlite:///{_DEFAULT_DB}"
+    DB_ECHO: bool = False
 
-    # AI APIs
-    CLAUDE_API_KEY: Optional[str] = os.getenv("CLAUDE_API_KEY")
-    CLAUDE_MODEL: str = "claude-sonnet-4-20250514"
-    GEMINI_API_KEY: Optional[str] = os.getenv("GEMINI_API_KEY")
+    # AI APIs (optional)
+    CLAUDE_API_KEY: Optional[str] = None
+    CLAUDE_MODEL: str = "claude-opus-4-5"
+    GEMINI_API_KEY: Optional[str] = None
 
-    # Telegram Notifications
-    TELEGRAM_BOT_TOKEN: Optional[str] = os.getenv("TELEGRAM_BOT_TOKEN")
-    TELEGRAM_CHAT_ID: Optional[str] = os.getenv("TELEGRAM_CHAT_ID")
+    # Telegram notifications (optional)
+    TELEGRAM_BOT_TOKEN: Optional[str] = None
+    TELEGRAM_CHAT_ID: Optional[str] = None
 
-    # Data Sources
-    GSC_CREDENTIALS_PATH: str = "/opt/odoo/credentials/tentacl-seo-service-account.json"
-    AHREFS_API_KEY: Optional[str] = os.getenv("AHREFS_API_KEY")
-    SEMRUSH_API_KEY: Optional[str] = os.getenv("SEMRUSH_API_KEY")
+    # Data sources (optional)
+    GSC_CREDENTIALS_PATH: Optional[str] = None
+    PAGESPEED_API_KEY: Optional[str] = None
+    AHREFS_API_KEY: Optional[str] = None
+    SEMRUSH_API_KEY: Optional[str] = None
 
     # Logging
     LOG_LEVEL: str = "INFO"
-    LOG_FILE: Optional[str] = os.getenv("LOG_FILE", "/var/log/seo-autopilot.log")
+    LOG_FILE: Optional[str] = _DEFAULT_LOG
 
     # Scheduler
     SCHEDULER_TIMEZONE: str = "UTC"
     SCHEDULER_MAX_WORKERS: int = 4
 
     # Sentry (optional)
-    SENTRY_DSN: Optional[str] = os.getenv("SENTRY_DSN")
+    SENTRY_DSN: Optional[str] = None
 
-    # Project Config
-    PROJECT_CONFIG_PATH: str = os.getenv(
-        "PROJECT_CONFIG_PATH",
-        "/opt/odoo/docs/seo-autopilot/projects.yaml"
-    )
+    # Project config file path
+    PROJECT_CONFIG_PATH: str = _DEFAULT_PROJECTS
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive": True,
+        "extra": "ignore",
+    }
 
 
-# Singleton instance
-settings = Settings()
+def _load_settings() -> Settings:
+    """Load settings, gracefully ignoring missing or unreadable .env file."""
+    try:
+        return Settings()
+    except Exception:
+        # Fallback: ignore .env if unreadable
+        return Settings(_env_file=None)
+
+
+# Singleton
+settings = _load_settings()

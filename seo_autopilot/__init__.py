@@ -1,23 +1,13 @@
 """
 SEO Autopilot – Multi-Tenant SEO Automation Platform
 
-Version: 0.1.0
-Author: Tentacl
-License: Proprietary
+Real crawler, Google Search Console, PageSpeed Insights, AI-powered fixes.
+Self-hosted, open-source, MIT license.
 
-Features:
-- Multi-project configuration
-- Plugin-based data sources (GSC, Ahrefs, Semrush, Lighthouse)
-- AI-powered SEO agents (Claude/Gemini)
-- Event-driven architecture
-- REST API + CLI
-- Multi-tenant ready
+https://tentacl.ai/seo-autopilot/
 """
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"
 __author__ = "Tentacl"
 
-from .core.config import settings
-from .core.project_manager import ProjectManager
-
-__all__ = ["settings", "ProjectManager"]
+__all__ = ["__version__"]
