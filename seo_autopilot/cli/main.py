@@ -112,9 +112,25 @@ def run(project_id):
     projects = [p for p in projects if p]
 
     if not projects:
-        click.echo("Keine Projekte gefunden")
+        click.echo("Keine Projekte gefunden. Erstelle zuerst eine projects.yaml:")
+        click.echo("")
+        click.echo("  projects:")
+        click.echo("    my-site:")
+        click.echo("      domain: https://example.com")
+        click.echo("      name: My Site")
+        click.echo("      enabled: true")
+        click.echo("")
+        click.echo("Dann: seo-autopilot run --project-id my-site")
         return
 
+    # Zeige welche Features aktiv sind
+    click.echo("")
+    click.echo("🕷️  Crawler        ✅ aktiv (immer)")
+    click.echo(f"📊  GSC            {'✅ aktiv' if settings.GSC_CREDENTIALS_PATH else '⬜ kein Service Account (optional)'}")
+    click.echo(f"⚡  PageSpeed      {'✅ aktiv' if settings.PAGESPEED_API_KEY else '⬜ kein API Key (optional)'}")
+    click.echo(f"🤖  AI-Fixes       {'✅ aktiv' if settings.CLAUDE_API_KEY else '⬜ kein Claude API Key (optional)'}")
+    click.echo(f"📱  Telegram       {'✅ aktiv' if settings.TELEGRAM_BOT_TOKEN else '⬜ kein Bot Token (optional)'}")
+    click.echo("")
     click.echo(f"Starte {len(projects)} Audit(s)...")
 
     async def _run_all():

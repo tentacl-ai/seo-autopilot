@@ -9,6 +9,34 @@
 
 > Crawl your website, analyze 100+ SEO issues, prioritize by ROI, generate fixes, and ship improvements.
 
+---
+
+## ✅ Works without any API keys
+
+You can run a full SEO audit **right now** – no accounts, no credentials required:
+
+```bash
+pip install seo-autopilot
+seo-autopilot run --project-id my-site
+```
+
+The crawler analyzes your website locally and detects issues like missing titles, broken meta descriptions, missing h1, security headers, and schema markup – **all without any external API**.
+
+Optional integrations unlock additional data:
+
+| Feature | Without | With |
+|---------|---------|------|
+| 🕷️ Web Crawler (14+ checks) | ✅ Always works | – |
+| 📄 HTML Report | ✅ Always works | – |
+| ⚡ PageSpeed / Core Web Vitals | ❌ | Google API Key (free) |
+| 📊 Google Search Console data | ❌ | GSC Service Account |
+| 🤖 AI-generated fix suggestions | ❌ | Claude API Key |
+| 📱 Telegram notifications | ❌ | Telegram Bot Token |
+
+**Start without anything. Add credentials later when you need them.**
+
+---
+
 ## 🚀 What It Does
 
 SEO Autopilot turns raw web crawl data into a **prioritized action plan**:
@@ -22,7 +50,7 @@ SEO Autopilot turns raw web crawl data into a **prioritized action plan**:
 7. **📄 Ships HTML reports** – Beautiful Jinja2 templates, Telegram notifications, auto-publish to web
 8. **⏰ Schedules audits** – APScheduler cron jobs, multi-tenant isolation, event streaming
 
-**Real audit scores:** 97.5/100 on production (from 75.5 in one run). GSC integration shows 2-15+ clicks/day improvements.
+**Real audit scores:** 97.5/100 on production (from 75.5 in one run).
 
 ---
 
@@ -59,62 +87,72 @@ docker run -p 8002:8002 \
 
 ## ⚡ Quickstart
 
-### 1. Configure a Project
+### Step 1 – Install
 
-Create `projects.yaml`:
+```bash
+pip install seo-autopilot
+```
+
+### Step 2 – Create a minimal project config
 
 ```yaml
+# projects.yaml  (no credentials needed to get started)
 projects:
   my-website:
     domain: https://example.com
-    name: Example.com
-    tenant_id: default
-    adapter_type: static
-    adapter_config:
-      root_path: /var/www/html
-    enabled_sources:
-      - gsc
-      - pagespeed
+    name: My Website
+    enabled: true
+```
+
+### Step 3 – Run
+
+```bash
+seo-autopilot run --project-id my-website
+```
+
+That's it. The crawler audits your site and writes `reports/latest.html`.
+
+---
+
+### ➕ Optional: unlock more data
+
+Add any of these to your `projects.yaml` or as environment variables:
+
+**Google PageSpeed Insights** (free API key, 400 requests/day):
+```yaml
+    enabled_sources: [pagespeed]
+    source_config:
+      pagespeed:
+        api_key: "AIzaSy..."   # get at console.cloud.google.com
+```
+> Without the key: PageSpeed is skipped, all other checks still run.
+
+**Google Search Console** (keyword data, 28-day trends):
+```yaml
+    enabled_sources: [gsc]
     source_config:
       gsc:
         property_url: sc-domain:example.com
         credentials_path: /path/to/service-account.json
-      pagespeed:
-        api_key: ${PAGESPEED_API_KEY}  # Optional: for higher quota
-    enabled: true
-    schedule_cron: "0 7 * * 1"  # Monday 7am
-    notifications_enabled: true
-    notify_channels:
-      - telegram
-    notify_config:
-      telegram:
-        enabled: true
 ```
+> Without credentials: GSC is skipped, crawler runs independently.
 
-### 2. Set Environment Variables
-
+**AI-generated fixes** (Claude API):
 ```bash
 export CLAUDE_API_KEY="sk-ant-..."
+```
+> Without the key: fix suggestions fall back to built-in templates.
+
+**Telegram notifications**:
+```bash
 export TELEGRAM_BOT_TOKEN="1234567:ABCdef..."
 export TELEGRAM_CHAT_ID="123456789"
-export DATABASE_URL="sqlite:///seo.db"  # or postgres://...
-export PAGESPEED_API_KEY="AIzaSy..."     # optional
 ```
+> Without: report is saved locally, no notification sent.
 
-### 3. Run Your First Audit
+---
 
-```bash
-# List projects
-seo-autopilot config list
-
-# Run audit
-seo-autopilot run --project-id my-website
-
-# Watch live output
-seo-autopilot run --project-id my-website --verbose
-```
-
-### 4. View Report
+### View Report
 
 Open `reports/latest.html` in your browser – or access via API:
 
