@@ -1,0 +1,25 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.db
+*.sqlite*
+.env
+logs/
+/reports/
+/data/
+.pytest_cache/
+
+# Projekt-Config mit echten Credentials – niemals committen
+projects.yaml
+credentials/
+*.json
+!projects.yaml.example
+
+# Python packaging
+dist/
+build/
+*.egg-info/
+
+# macOS
+.DS_Store

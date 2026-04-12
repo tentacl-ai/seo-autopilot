@@ -1,0 +1,10 @@
+projects:
+  example-test:
+    domain: "https://example.com"
+    name: "Example Test"
+    tenant_id: "test"
+    adapter_type: static
+    enabled: true
+    enabled_sources: [gsc]
+    schedule_cron: "0 7 * * 1"
+    notify_channels: []

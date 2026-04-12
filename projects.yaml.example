@@ -1,0 +1,49 @@
+# SEO Autopilot – Project Configuration
+# Copy to projects.yaml and adjust to your setup
+
+projects:
+  my-website:
+    domain: "https://example.com"
+    name: "My Website"
+    tenant_id: "default"
+    adapter_type: static
+    adapter_config:
+      root_path: /var/www/html         # Path to your built HTML files
+    enabled: true
+    enabled_sources:
+      - gsc                            # Google Search Console
+      - pagespeed                      # PageSpeed Insights
+    source_config:
+      gsc:
+        property_url: "sc-domain:example.com"  # Your GSC property
+        credentials_path: /path/to/service-account.json
+      pagespeed:
+        api_key: "${PAGESPEED_API_KEY}"         # Optional, env var
+    schedule_cron: "0 7 * * 1"        # Weekly Monday 7am
+    run_interval_days: 7
+    notifications_enabled: true
+    notify_channels:
+      - telegram
+    notify_config:
+      telegram:
+        enabled: true                  # Needs TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID env vars
+
+  # Second project example (WordPress site)
+  client-wordpress:
+    domain: "https://client.com"
+    name: "Client Site"
+    tenant_id: "client-1"
+    adapter_type: wordpress
+    adapter_config:
+      wordpress_url: "https://client.com"
+      wordpress_user: "admin"
+      wordpress_password: "${WORDPRESS_PASSWORD}"
+    enabled: false
+    enabled_sources:
+      - gsc
+    source_config:
+      gsc:
+        property_url: "sc-domain:client.com"
+        credentials_path: /path/to/client-service-account.json
+    schedule_cron: "0 8 * * 2"        # Tuesday 8am
+    notifications_enabled: false
