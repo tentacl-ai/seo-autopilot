@@ -19,8 +19,10 @@ Endpoints:
 
 from fastapi import FastAPI, HTTPException, WebSocket, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
+from pathlib import Path
 import logging
 import asyncio
 from datetime import datetime
@@ -158,6 +160,13 @@ async def shutdown_event():
 # ============================================================
 
 
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard():
+    """Serve the SEO Autopilot Web Dashboard"""
+    html_path = Path(__file__).parent / "dashboard.html"
+    return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
+
+
 @app.get("/api/health")
 async def health():
     """Health Check"""
@@ -281,6 +290,120 @@ async def trigger_audit(project_id: str, req: AuditRunRequest):
 
     except Exception as e:
         logger.error(f"Audit trigger failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/audits")
+async def list_audits(project_id: Optional[str] = None, limit: int = 50):
+    """Liste alle Audits (optional nach Projekt gefiltert)"""
+    try:
+        from sqlalchemy import select, desc
+        from ..db.models import SEOAudit
+
+        async with db.get_session() as session:
+            stmt = select(SEOAudit).order_by(desc(SEOAudit.started_at)).limit(limit)
+            if project_id:
+                stmt = stmt.where(SEOAudit.project_id == project_id)
+            result = await session.execute(stmt)
+            audits = result.scalars().all()
+            return [
+                {
+                    "id": a.id,
+                    "project_id": a.project_id,
+                    "status": a.status,
+                    "started_at": a.started_at.isoformat() if a.started_at else None,
+                    "completed_at": a.completed_at.isoformat() if a.completed_at else None,
+                    "duration_seconds": a.duration_seconds,
+                    "score": a.score,
+                    "total_pages": a.total_pages,
+                    "total_keywords": a.total_keywords,
+                    "issues_found": a.issues_found,
+                    "gsc_clicks": a.gsc_clicks,
+                    "gsc_impressions": a.gsc_impressions,
+                    "gsc_ctr": a.gsc_ctr,
+                    "gsc_avg_position": a.gsc_avg_position,
+                }
+                for a in audits
+            ]
+    except Exception as e:
+        logger.error(f"list_audits failed: {e}")
+        return []
+
+
+@app.get("/api/audits/{audit_id}")
+async def get_audit(audit_id: str):
+    """Hole einen einzelnen Audit inkl. Issues und Fixes"""
+    try:
+        from sqlalchemy import select
+        from ..db.models import SEOAudit, SEOIssue, SEOProject
+
+        async with db.get_session() as session:
+            audit = await session.scalar(select(SEOAudit).where(SEOAudit.id == audit_id))
+            if not audit:
+                raise HTTPException(status_code=404, detail="Audit not found")
+
+            # Load project name + domain
+            project = await session.scalar(select(SEOProject).where(SEOProject.id == audit.project_id))
+
+            # Load issues
+            result = await session.execute(
+                select(SEOIssue).where(SEOIssue.audit_id == audit_id)
+            )
+            issues = result.scalars().all()
+
+            return {
+                "id": audit.id,
+                "project_id": audit.project_id,
+                "project_name": project.name if project else audit.project_id,
+                "domain": project.domain if project else None,
+                "status": audit.status,
+                "started_at": audit.started_at.isoformat() if audit.started_at else None,
+                "completed_at": audit.completed_at.isoformat() if audit.completed_at else None,
+                "duration_seconds": audit.duration_seconds,
+                "score": audit.score,
+                "total_pages": audit.total_pages,
+                "total_keywords": audit.total_keywords,
+                "issues_found": audit.issues_found,
+                "gsc_clicks": audit.gsc_clicks,
+                "gsc_impressions": audit.gsc_impressions,
+                "gsc_ctr": audit.gsc_ctr,
+                "gsc_avg_position": audit.gsc_avg_position,
+                "issues": [
+                    {
+                        "id": i.id,
+                        "category": i.category,
+                        "type": i.type,
+                        "severity": i.severity,
+                        "priority": i.priority,
+                        "status": i.status,
+                        "title": i.title,
+                        "description": i.description,
+                        "affected_items": i.affected_items,
+                        "count": i.count,
+                        "fix_suggestion": i.fix_suggestion,
+                        "estimated_impact": i.estimated_impact,
+                    }
+                    for i in issues
+                ],
+                "fixes": [
+                    {
+                        "id": i.id,
+                        "title": i.title,
+                        "fix_suggestion": i.fix_suggestion,
+                        "estimated_impact": i.estimated_impact,
+                        "category": i.category,
+                        "severity": i.severity,
+                    }
+                    for i in issues if i.fix_suggestion
+                ],
+                "analytics_data": audit.analytics_data,
+                "log_output": audit.log_output,
+                "errors": audit.errors,
+            }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"get_audit failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
