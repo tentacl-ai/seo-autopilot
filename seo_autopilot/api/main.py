@@ -458,6 +458,25 @@ async def get_intelligence_impact(project_id: str):
     return report
 
 
+@app.post("/api/intelligence/poll")
+async def manual_poll_intelligence():
+    """Manuell Intelligence Feed polling triggern."""
+    events = await intelligence_agent.poll_feeds()
+    return {
+        "status": "ok",
+        "events_detected": len(events),
+        "events": [
+            {
+                "event_id": e.event_id,
+                "title": e.title,
+                "priority": e.priority,
+                "confirmed": e.confirmed,
+            }
+            for e in events
+        ],
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
 

@@ -300,6 +300,40 @@ class TestAPIHelpers:
         assert result["event_id"] == "evt001"
 
 
+class TestManualPollEndpoint:
+    """Test POST /api/intelligence/poll via TestClient."""
+
+    def test_manual_poll_returns_200(self):
+        with patch("seo_autopilot.api.main.intelligence_agent") as mock_agent:
+            mock_agent.poll_feeds = AsyncMock(return_value=[])
+            from starlette.testclient import TestClient
+            from seo_autopilot.api.main import app
+
+            client = TestClient(app, raise_server_exceptions=False)
+            resp = client.post("/api/intelligence/poll")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["status"] == "ok"
+            assert data["events_detected"] == 0
+
+    def test_manual_poll_with_events(self):
+        evt = AlgorithmEvent(
+            event_id="e1", title="Core Update", priority="critical",
+            sources=["a", "b"], confirmed=True, keywords=["core update"],
+        )
+        with patch("seo_autopilot.api.main.intelligence_agent") as mock_agent:
+            mock_agent.poll_feeds = AsyncMock(return_value=[evt])
+            from starlette.testclient import TestClient
+            from seo_autopilot.api.main import app
+
+            client = TestClient(app, raise_server_exceptions=False)
+            resp = client.post("/api/intelligence/poll")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["events_detected"] == 1
+            assert data["events"][0]["event_id"] == "e1"
+
+
 class TestImpactReportSerialization:
     def test_to_dict(self, confirmed_event):
         report = ImpactReport(
