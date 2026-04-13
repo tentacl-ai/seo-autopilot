@@ -1,4 +1,5 @@
 venv/
+.venv/
 __pycache__/
 *.pyc
 *.pyo
@@ -10,7 +11,7 @@ logs/
 /data/
 .pytest_cache/
 
-# Projekt-Config mit echten Credentials – niemals committen
+# Project config with real credentials — never commit
 projects.yaml
 credentials/
 *.json
@@ -20,6 +21,8 @@ credentials/
 dist/
 build/
 *.egg-info/
+
+*.log
 
 # macOS
 .DS_Store

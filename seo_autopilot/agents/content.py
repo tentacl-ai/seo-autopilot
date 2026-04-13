@@ -165,8 +165,14 @@ async def _claude_fix(client, issue: Dict[str, Any], name: str, domain: str) -> 
 
 
 def _build_prompt(issue: Dict[str, Any], name: str, domain: str) -> str:
+    """Build a Claude API prompt for the given issue type.
+
+    NOTE: All prompt strings are intentionally in German because they generate
+    German SEO content for German-language websites.
+    """
     itype = issue.get("type", "")
     if itype in ("missing_title", "short_title", "long_title"):
+        # Prompt: generate an optimal HTML <title> in German
         return (
             f"Schreibe einen optimalen HTML <title> (50-60 Zeichen, deutsch) für die Seite "
             f"{issue.get('affected_url')} der Marke '{name}' ({domain}). "
@@ -174,17 +180,20 @@ def _build_prompt(issue: Dict[str, Any], name: str, domain: str) -> str:
             f"Gib NUR den Titel-Text aus, keine Erklärung, keine Anführungszeichen."
         )
     if itype in ("missing_meta_description", "short_meta_description", "long_meta_description"):
+        # Prompt: generate an optimal meta description in German
         return (
             f"Schreibe eine optimale Meta-Description (140-160 Zeichen, deutsch) für "
             f"{issue.get('affected_url')} von '{name}'. "
             f"Enthalte Call-to-Action. Gib NUR den reinen Text aus."
         )
     if itype == "missing_h1":
+        # Prompt: suggest an H1 heading in German
         return (
             f"Schlage einen H1-Text (3-8 Wörter, deutsch) für {issue.get('affected_url')} "
             f"von '{name}' vor. Nur der H1-Text, nichts anderes."
         )
     if itype == "low_ctr_opportunity":
+        # Prompt: suggest new title + meta description to improve CTR (German)
         return (
             f"Für den Suchbegriff '{issue.get('keyword')}' ranked '{name}' ({domain}) "
             f"auf Position {issue.get('position')} mit CTR {issue.get('ctr')}%. "
@@ -192,20 +201,23 @@ def _build_prompt(issue: Dict[str, Any], name: str, domain: str) -> str:
             f"Format:\nTITLE: ...\nDESC: ..."
         )
     if itype == "striking_distance":
+        # Prompt: list 5 on-page SEO measures to reach page 1 (German)
         return (
             f"Die Seite rankt für '{issue.get('keyword')}' auf Position {issue.get('position')}. "
             f"Liste 5 konkrete on-page SEO-Maßnahmen für '{name}' auf um auf Seite 1 zu kommen. "
             f"Kurz und konkret, nummeriert."
         )
     if itype == "missing_organization_schema":
+        # Prompt: generate a complete Organization JSON-LD block (German)
         return (
             f"Erzeuge einen vollständigen schema.org Organization JSON-LD Block für "
             f"'{name}' ({domain}). Gib nur den JSON-Block aus."
         )
+    # Fallback prompt: short actionable recommendation in German
     return (
         f"SEO-Problem: {issue.get('title','')} — {issue.get('description','')}. "
         f"Marke: {name}, URL: {issue.get('affected_url','')}. "
-        f"Gib eine kurze, umsetzbare Empfehlung in maximal 3 Sätzen."
+        f"Gib eine kurze, umsetzbare Empfehlung in maximal 3 S\u00e4tzen."
     )
 
 

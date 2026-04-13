@@ -1,8 +1,8 @@
 """
 Scheduler – APScheduler Integration
 
-Führt regelmäßig Audits aus basierend auf Cron-Expressions.
-Multi-Tenant ready: Jedes Projekt kann sein eigenes Schedule haben.
+Runs periodic audits based on cron expressions.
+Multi-tenant ready: each project can have its own schedule.
 """
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class AuditScheduler:
-    """Scheduler für regelmäßige SEO-Audits"""
+    """Scheduler for periodic SEO audits"""
 
     def __init__(self, timezone: str = "UTC", max_workers: int = 4):
         self.scheduler = AsyncIOScheduler(
@@ -26,16 +26,16 @@ class AuditScheduler:
         self._jobs: Dict[str, str] = {}  # project_id -> job_id
 
     async def start(self):
-        """Starte den Scheduler"""
+        """Start the scheduler"""
         if not self.scheduler.running:
             self.scheduler.start()
-            logger.info("Scheduler gestartet")
+            logger.info("Scheduler started")
 
     async def stop(self):
-        """Stoppe den Scheduler"""
+        """Stop the scheduler"""
         if self.scheduler.running:
             self.scheduler.shutdown()
-            logger.info("Scheduler gestoppt")
+            logger.info("Scheduler stopped")
 
     def schedule_project(
         self,
@@ -45,28 +45,28 @@ class AuditScheduler:
         **callback_kwargs
     ) -> str:
         """
-        Schedule ein Audit für ein Projekt
+        Schedule an audit for a project
 
         Args:
-            project_id: z.B. "tentacl-ai"
-            cron_expression: z.B. "0 7 * * 1" (Montag 7 Uhr)
-            callback: Async Funktion die aufgerufen wird
-            **callback_kwargs: Args für die Callback-Funktion
+            project_id: e.g. "tentacl-ai"
+            cron_expression: e.g. "0 7 * * 1" (Monday 7 AM)
+            callback: Async function to invoke
+            **callback_kwargs: Args for the callback function
 
         Returns:
             job_id
         """
 
-        # Entferne alten Job falls vorhanden
+        # Remove old job if present
         if project_id in self._jobs:
             old_job_id = self._jobs[project_id]
             try:
                 self.scheduler.remove_job(old_job_id)
-                logger.debug(f"Alter Job entfernt: {old_job_id}")
-            except:
-                pass
+                logger.debug(f"Old job removed: {old_job_id}")
+            except Exception:
+                logger.debug(f"Job {old_job_id} already removed or not found")
 
-        # Erstelle neuen Job
+        # Create new job
         try:
             trigger = CronTrigger.from_crontab(cron_expression)
             job = self.scheduler.add_job(
@@ -83,11 +83,11 @@ class AuditScheduler:
             return job.id
 
         except Exception as e:
-            logger.error(f"Fehler beim Scheduling {project_id}: {e}")
+            logger.error(f"Error scheduling {project_id}: {e}")
             raise
 
     def unschedule_project(self, project_id: str) -> bool:
-        """Entferne Schedule für ein Projekt"""
+        """Remove schedule for a project"""
         if project_id not in self._jobs:
             return False
 
@@ -98,11 +98,11 @@ class AuditScheduler:
             logger.info(f"Job unscheduled: {project_id}")
             return True
         except Exception as e:
-            logger.error(f"Fehler beim Unscheduling {project_id}: {e}")
+            logger.error(f"Error unscheduling {project_id}: {e}")
             return False
 
     def get_next_run(self, project_id: str) -> Optional[datetime]:
-        """Erhalte nächsten Run-Zeitpunkt"""
+        """Get the next scheduled run time"""
         if project_id not in self._jobs:
             return None
 

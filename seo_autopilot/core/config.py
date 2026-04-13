@@ -72,8 +72,12 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        env_file_encoding = "utf-8"
         case_sensitive = True
 
 
-# Singleton instance
-settings = Settings()
+# Singleton instance — graceful if .env is missing or unreadable
+try:
+    settings = Settings()
+except Exception:
+    settings = Settings(_env_file=None)

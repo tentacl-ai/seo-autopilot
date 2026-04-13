@@ -270,7 +270,7 @@ async def trigger_audit(project_id: str, req: AuditRunRequest):
                 message=f"Audit queued for {project_id}",
             )
         else:
-            # Synchron - warte auf Ergebnis
+            # Synchronous - wait for result
             audit_id = await run_audit_for_project(project_id)
             return AuditRunResponse(
                 audit_id=audit_id,

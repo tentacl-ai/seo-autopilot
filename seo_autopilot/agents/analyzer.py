@@ -159,7 +159,7 @@ class AnalyzerAgent(Agent):
             # --- v0.5 Analyzer: GEO Audit ---
             geo_result = None
             try:
-                # robots.txt fuer AI-Crawler-Check holen
+                # Fetch robots.txt for AI crawler check
                 robots_txt = ""
                 try:
                     import httpx as _httpx
@@ -198,7 +198,7 @@ class AnalyzerAgent(Agent):
 
             # --- v0.5 Analyzer: Duplicate Content ---
             try:
-                # Canonical-Pairs aus der Canonical Engine fuer Dedup-Awareness
+                # Canonical pairs from the canonical engine for dedup awareness
                 canonical_pairs = set()
                 if canonical_engine:
                     resolutions = canonical_engine.resolve_all(canonical_pages)
@@ -206,7 +206,7 @@ class AnalyzerAgent(Agent):
                         if res.resolved_canonical and res.resolved_canonical != url_key:
                             canonical_pairs.add((url_key, res.resolved_canonical))
 
-                # Cluster-URLs fuer Cluster-Awareness
+                # Cluster URLs for cluster awareness
                 cluster_url_map = {}
                 for cluster in topical_clusters:
                     cluster_url_map[cluster.cluster_id] = set(cluster.cluster_urls)
@@ -225,10 +225,10 @@ class AnalyzerAgent(Agent):
             # --- v0.5 Analyzer: Internal Link Graph ---
             try:
                 link_graph = LinkGraph()
-                # Link-Graph braucht outlink_urls — wir nutzen die gecrawlten Seiten
-                # Da der Crawler nur Zaehler hat, bauen wir die Links aus den Snapshots
-                # Fuer jetzt: Link Graph wird mit den vorhandenen Daten gespeist
-                # (echte outlink-URLs kommen in einer spaeteren Version)
+                # Link graph needs outlink_urls — we use the crawled pages
+                # Since the crawler only has counters, we build links from snapshots
+                # For now: link graph is fed with available data
+                # (real outlink URLs will come in a later version)
                 link_issues = link_graph.detect_issues(
                     [{"url": p.url, "final_url": p.final_url, "status_code": p.status_code,
                       "outlink_urls": p.internal_link_urls}
@@ -528,8 +528,8 @@ class AnalyzerAgent(Agent):
     def _check_core_web_vitals(self, psi_results: List[PageSpeedResult]) -> List[Dict[str, Any]]:
         """Detect Core Web Vitals issues from PageSpeed results.
 
-        Bevorzugt CrUX Field-Daten (echte User), Fallback auf Lab-Daten.
-        INP (Interaction to Next Paint) ersetzt FID seit Maerz 2024.
+        Prefers CrUX field data (real users), falls back to lab data.
+        INP (Interaction to Next Paint) replaced FID since March 2024.
         """
         issues = []
         for r in psi_results:
@@ -549,7 +549,7 @@ class AnalyzerAgent(Agent):
                     f"Performance: {r.performance_score}, LCP: {r.lcp_display}, TBT: {r.tbt_display}",
                     "Review render-blocking resources, optimize images, enable text compression."))
 
-            # --- LCP (bevorzuge CrUX, Fallback Lab) ---
+            # --- LCP (prefer CrUX, fallback to lab) ---
             lcp_val = r.crux_lcp_ms if r.crux_lcp_ms is not None else r.lcp_ms
             lcp_source = "field" if r.crux_lcp_ms is not None else "lab"
             if lcp_val is not None and lcp_val > 2500:
@@ -559,7 +559,7 @@ class AnalyzerAgent(Agent):
                     f"Largest Contentful Paint is {lcp_val:.0f}ms (target: <2500ms)",
                     "Optimize hero image (compress, use WebP, preload), reduce TTFB, eliminate render-blocking CSS."))
 
-            # --- CLS (bevorzuge CrUX, Fallback Lab) ---
+            # --- CLS (prefer CrUX, fallback to lab) ---
             cls_val = r.crux_cls if r.crux_cls is not None else r.cls
             cls_source = "field" if r.crux_cls is not None else "lab"
             if cls_val is not None and cls_val > 0.1:
@@ -569,22 +569,22 @@ class AnalyzerAgent(Agent):
                     f"Cumulative Layout Shift is {cls_val:.3f} (target: <0.1)",
                     "Set explicit width/height on images/videos, avoid injecting content above the fold."))
 
-            # --- INP (CrUX only — kein Lab-Equivalent, TBT ist nur Proxy) ---
+            # --- INP (CrUX only — no lab equivalent, TBT is only a proxy) ---
             if r.crux_inp_ms is not None and r.crux_inp_ms > 200:
                 sev = "high" if r.crux_inp_ms > 500 else "medium"
                 issues.append(_issue("performance", "poor_inp", sev, r.url,
                     f"Poor INP: {r.crux_inp_ms:.0f}ms ({r.strategy}, field)",
                     f"Interaction to Next Paint is {r.crux_inp_ms:.0f}ms (target: <200ms). "
-                    f"INP misst alle Interaktionen einer Session, nicht nur die erste.",
+                    f"INP measures all interactions in a session, not just the first one.",
                     "Split long tasks, defer non-critical JS, use requestIdleCallback, optimize event handlers."))
 
-            # --- TBT als INP-Proxy wenn kein CrUX-INP vorhanden ---
+            # --- TBT as INP proxy when no CrUX INP is available ---
             if r.crux_inp_ms is None and r.tbt_ms is not None and r.tbt_ms > 200:
                 sev = "high" if r.tbt_ms > 600 else "medium"
                 issues.append(_issue("performance", "poor_tbt", sev, r.url,
                     f"High TBT: {r.tbt_display} ({r.strategy}, lab — INP-Proxy)",
                     f"Total Blocking Time is {r.tbt_ms:.0f}ms (target: <200ms). "
-                    f"TBT ist Lab-Proxy fuer INP. Echte INP-Daten verfuegbar wenn CrUX vorhanden.",
+                    f"TBT is a lab proxy for INP. Real INP data is available when CrUX data exists.",
                     "Split long tasks, defer non-critical JavaScript, use web workers."))
 
             # --- TTFB (CrUX) ---

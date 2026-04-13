@@ -1,13 +1,13 @@
 """
 Project Manager – Multi-Tenant Project Configuration & CRUD
 
-Ermöglicht:
-- Mehrere Projekte (Domains) in einer Instanz
-- Verschiedene Adapter pro Projekt (Static HTML, WordPress, etc)
-- Verschiedene Data Sources pro Projekt
-- Tenant-Isolation
+Provides:
+- Multiple projects (domains) in a single instance
+- Different adapters per project (Static HTML, WordPress, etc)
+- Different data sources per project
+- Tenant isolation
 
-Daten-Persistierung: YAML Config + SQLite/PostgreSQL
+Data persistence: YAML config + SQLite/PostgreSQL
 """
 
 import yaml
@@ -23,32 +23,32 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ProjectConfig:
-    """Ein SEO-Projekt / eine Domain"""
+    """A single SEO project / domain"""
 
-    # Identifikatoren
-    id: str  # z.B. "tentacl-ai", "myshop-de"
-    domain: str  # z.B. "https://tentacl.ai"
+    # Identifiers
+    id: str  # e.g. "tentacl-ai", "myshop-de"
+    domain: str  # e.g. "https://tentacl.ai"
     name: str  # Display name
-    tenant_id: Optional[str] = None  # Multi-tenant: welcher Kunde?
+    tenant_id: Optional[str] = None  # Multi-tenant: which customer?
 
-    # Adapter-Typ (wie man auf die Site zugreift)
+    # Adapter type (how to access the site)
     adapter_type: str = "static"  # static | wordpress | fastapi | generic
-    adapter_config: Dict[str, Any] = None  # z.B. {"root_path": "/opt/apps/..."}
+    adapter_config: Dict[str, Any] = None  # e.g. {"root_path": "/opt/apps/..."}
 
-    # Data Sources (welche Daten wir pullen)
-    enabled_sources: List[str] = None  # z.B. ["gsc", "lighthouse"]
-    source_config: Dict[str, Any] = None  # z.B. {"gsc": {"property_url": "..."}}
+    # Data sources (which data we pull)
+    enabled_sources: List[str] = None  # e.g. ["gsc", "lighthouse"]
+    source_config: Dict[str, Any] = None  # e.g. {"gsc": {"property_url": "..."}}
 
     # Scheduling
     enabled: bool = True
-    schedule_cron: str = "0 7 * * 1"  # Montag 07:00
+    schedule_cron: str = "0 7 * * 1"  # Monday 07:00
     last_run_at: Optional[datetime] = None
     run_interval_days: int = 7
 
     # Notifications
     notifications_enabled: bool = True
-    notify_channels: List[str] = None  # z.B. ["telegram", "email"]
-    notify_config: Dict[str, Any] = None  # z.B. {"email": "admin@..."}
+    notify_channels: List[str] = None  # e.g. ["telegram", "email"]
+    notify_config: Dict[str, Any] = None  # e.g. {"email": "admin@..."}
 
     # Metadata
     created_at: datetime = None
@@ -80,9 +80,9 @@ class ProjectManager:
         self._load_config()
 
     def _load_config(self):
-        """Lade Projekte aus YAML"""
+        """Load projects from YAML"""
         if not self.config_path.exists():
-            logger.warning(f"Config file nicht gefunden: {self.config_path}. Starte mit leerer Liste.")
+            logger.warning(f"Config file not found: {self.config_path}. Starting with empty list.")
             return
 
         try:
@@ -94,12 +94,12 @@ class ProjectManager:
                     id=project_id,
                     **cfg
                 )
-            logger.info(f"Geladen {len(self.projects)} Projekte aus {self.config_path}")
+            logger.info(f"Loaded {len(self.projects)} projects from {self.config_path}")
         except Exception as e:
-            logger.error(f"Fehler beim Laden der Config: {e}")
+            logger.error(f"Error loading config: {e}")
 
     def _save_config(self):
-        """Speichere Projekte in YAML"""
+        """Save projects to YAML"""
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
 
         data = {
@@ -112,7 +112,7 @@ class ProjectManager:
         with open(self.config_path, "w") as f:
             yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 
-        logger.info(f"Konfiguration gespeichert: {self.config_path}")
+        logger.info(f"Configuration saved: {self.config_path}")
 
     def add_project(
         self,
@@ -124,10 +124,10 @@ class ProjectManager:
         enabled_sources: List[str] = None,
         **kwargs
     ) -> ProjectConfig:
-        """Füge ein neues Projekt hinzu"""
+        """Add a new project"""
 
         if project_id in self.projects:
-            raise ValueError(f"Projekt '{project_id}' existiert bereits")
+            raise ValueError(f"Project '{project_id}' already exists")
 
         cfg = ProjectConfig(
             id=project_id,
@@ -141,15 +141,15 @@ class ProjectManager:
 
         self.projects[project_id] = cfg
         self._save_config()
-        logger.info(f"Projekt hinzugefügt: {project_id} ({domain})")
+        logger.info(f"Project added: {project_id} ({domain})")
         return cfg
 
     def get_project(self, project_id: str) -> Optional[ProjectConfig]:
-        """Hole ein Projekt"""
+        """Get a project"""
         return self.projects.get(project_id)
 
     def list_projects(self, tenant_id: str = None, enabled_only: bool = False) -> List[ProjectConfig]:
-        """Liste alle Projekte (optional gefiltert)"""
+        """List all projects (optionally filtered)"""
         projects = list(self.projects.values())
 
         if tenant_id:
@@ -161,9 +161,9 @@ class ProjectManager:
         return projects
 
     def update_project(self, project_id: str, **updates) -> ProjectConfig:
-        """Update ein Projekt"""
+        """Update a project"""
         if project_id not in self.projects:
-            raise ValueError(f"Projekt '{project_id}' nicht gefunden")
+            raise ValueError(f"Project '{project_id}' not found")
 
         cfg = self.projects[project_id]
         for key, value in updates.items():
@@ -172,21 +172,21 @@ class ProjectManager:
 
         cfg.updated_at = datetime.utcnow()
         self._save_config()
-        logger.info(f"Projekt aktualisiert: {project_id}")
+        logger.info(f"Project updated: {project_id}")
         return cfg
 
     def delete_project(self, project_id: str) -> bool:
-        """Lösche ein Projekt"""
+        """Delete a project"""
         if project_id not in self.projects:
-            raise ValueError(f"Projekt '{project_id}' nicht gefunden")
+            raise ValueError(f"Project '{project_id}' not found")
 
         del self.projects[project_id]
         self._save_config()
-        logger.info(f"Projekt gelöscht: {project_id}")
+        logger.info(f"Project deleted: {project_id}")
         return True
 
     def get_enabled_projects(self) -> List[ProjectConfig]:
-        """Hole alle aktivierten Projekte (für Scheduler)"""
+        """Get all enabled projects (for scheduler)"""
         return [p for p in self.projects.values() if p.enabled]
 
     def export_config(self, format: str = "yaml") -> str:

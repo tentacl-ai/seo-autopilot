@@ -1,7 +1,7 @@
 """
-Abstract Data Source – Basis-Klasse für alle Datenquellen
+Abstract Data Source – Base class for all data sources
 
-Alle Sources (GSC, Ahrefs, Semrush, Lighthouse) erben davon.
+All sources (GSC, Ahrefs, Semrush, Lighthouse) inherit from this.
 """
 
 from abc import ABC, abstractmethod
@@ -12,7 +12,7 @@ from datetime import datetime
 
 @dataclass
 class SearchAnalytics:
-    """Struktur für Search-Daten"""
+    """Structure for search data"""
 
     total_clicks: int
     total_impressions: int
@@ -25,35 +25,35 @@ class SearchAnalytics:
 
 
 class DataSource(ABC):
-    """Abstract Base Class für Datenquellen"""
+    """Abstract base class for data sources"""
 
     @abstractmethod
     async def authenticate(self) -> bool:
-        """Authentifiziere bei der Datenquelle"""
+        """Authenticate with the data source"""
         pass
 
     @abstractmethod
     async def pull_analytics(self, domain: str, days: int = 28) -> Optional[SearchAnalytics]:
-        """Ziehe Search-Analytics (z.B. GSC, Semrush)"""
+        """Pull search analytics (e.g. GSC, Semrush)"""
         pass
 
     @abstractmethod
     async def pull_backlinks(self, domain: str) -> Optional[List[Dict[str, Any]]]:
-        """Ziehe Backlink-Daten (falls verfügbar)"""
+        """Pull backlink data (if available)"""
         pass
 
     @abstractmethod
     async def pull_keywords(self, domain: str) -> Optional[List[Dict[str, Any]]]:
-        """Ziehe Keyword-Daten (falls verfügbar)"""
+        """Pull keyword data (if available)"""
         pass
 
     @abstractmethod
     async def test_connection(self) -> bool:
-        """Teste ob die Verbindung funktioniert"""
+        """Test whether the connection works"""
         pass
 
 
 class DataSourceError(Exception):
-    """Base exception für Data Source Fehler"""
+    """Base exception for data source errors"""
 
     pass

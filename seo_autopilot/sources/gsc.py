@@ -1,11 +1,11 @@
 """
 Google Search Console Data Source
 
-Pulliert wöchentliche Daten aus GSC:
-- Top Keywords
-- Top Pages
-- Device Distribution
-- Geographic Distribution
+Pulls weekly data from GSC:
+- Top keywords
+- Top pages
+- Device distribution
+- Geographic distribution
 """
 
 import json
@@ -33,23 +33,23 @@ class GSCDataSource(DataSource):
 
     def __init__(self, credentials_path: str):
         """
-        Initialisiere GSC Data Source
+        Initialize GSC data source
 
         Args:
-            credentials_path: Path zu service account JSON
+            credentials_path: Path to service account JSON
         """
         if not HAS_GOOGLE_API:
-            raise DataSourceError("Google API libraries nicht installiert. Installiere: google-auth-oauthlib")
+            raise DataSourceError("Google API libraries not installed. Install: google-auth-oauthlib")
 
         self.credentials_path = Path(credentials_path)
         self.service = None
         self.authenticated = False
 
     async def authenticate(self) -> bool:
-        """Authentifiziere mit Service Account"""
+        """Authenticate with service account"""
         try:
             if not self.credentials_path.exists():
-                raise FileNotFoundError(f"Credentials nicht gefunden: {self.credentials_path}")
+                raise FileNotFoundError(f"Credentials not found: {self.credentials_path}")
 
             credentials = Credentials.from_service_account_file(
                 self.credentials_path,
@@ -66,12 +66,12 @@ class GSCDataSource(DataSource):
             raise DataSourceError(f"GSC Auth Error: {e}")
 
     async def test_connection(self) -> bool:
-        """Teste Verbindung zu GSC"""
+        """Test connection to GSC"""
         try:
             if not self.authenticated:
                 await self.authenticate()
 
-            # Versuche die einfachste Query
+            # Try the simplest query
             self.service.webmasters().sites().list().execute()
             return True
         except Exception as e:
@@ -80,14 +80,14 @@ class GSCDataSource(DataSource):
 
     async def pull_analytics(self, domain: str, days: int = 28) -> Optional[SearchAnalytics]:
         """
-        Ziehe GSC Analytics für eine Domain
+        Pull GSC analytics for a domain
 
         Args:
-            domain: z.B. "https://tentacl.ai"
-            days: Wie viele Tage zurückschauen
+            domain: e.g. "https://tentacl.ai"
+            days: How many days to look back
 
         Returns:
-            SearchAnalytics oder None bei Fehler
+            SearchAnalytics or None on error
         """
         try:
             if not self.authenticated:
@@ -178,7 +178,7 @@ class GSCDataSource(DataSource):
             countries[country]["clicks"] += clicks
             countries[country]["impressions"] += impressions
 
-        # Berechne Durchschnitte
+        # Calculate averages
         for query in queries:
             if queries[query]["count"] > 0:
                 queries[query]["position"] = round(
@@ -215,12 +215,12 @@ class GSCDataSource(DataSource):
         return SearchAnalytics(**stats)
 
     async def pull_backlinks(self, domain: str) -> Optional[List[Dict[str, Any]]]:
-        """GSC hat keine Backlink-API – Not Implemented"""
+        """GSC has no backlink API – not implemented"""
         logger.warning("GSC does not provide backlink data. Use Ahrefs/Semrush instead.")
         return None
 
     async def pull_keywords(self, domain: str) -> Optional[List[Dict[str, Any]]]:
-        """Ziehe Keywords aus Top Queries"""
+        """Pull keywords from top queries"""
         try:
             analytics = await self.pull_analytics(domain)
             if not analytics:
