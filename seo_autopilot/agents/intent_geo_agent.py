@@ -139,7 +139,7 @@ def parse_response(raw: str) -> Dict[str, Any]:
     if text.startswith("```"):
         lines = text.split("\n")
         # Remove first and last fence lines
-        lines = [l for l in lines if not l.strip().startswith("```")]
+        lines = [ln for ln in lines if not ln.strip().startswith("```")]
         text = "\n".join(lines).strip()
 
     try:
@@ -282,8 +282,10 @@ def _generate_issues(result: IntentGEOResult) -> List[Dict[str, Any]]:
                     f"Page at position {a.position:.0f} does not match search intent "
                     f"for '{a.keyword}'. {a.intent_explanation}"
                 ),
-                "fix_suggestion": "; ".join(a.suggested_improvements[:2]) if a.suggested_improvements else
-                    "Rewrite content to match the search intent.",
+                "fix_suggestion": (
+                    "; ".join(a.suggested_improvements[:2]) if a.suggested_improvements
+                    else "Rewrite content to match the search intent."
+                ),
                 "estimated_impact": f"Keyword has {a.impressions} impressions/week",
             })
         elif a.intent_match < 70:
@@ -297,8 +299,10 @@ def _generate_issues(result: IntentGEOResult) -> List[Dict[str, Any]]:
                     f"Page partially matches intent for '{a.keyword}' (pos {a.position:.0f}). "
                     f"{a.intent_explanation}"
                 ),
-                "fix_suggestion": "; ".join(a.suggested_improvements[:2]) if a.suggested_improvements else
-                    "Strengthen content alignment with search intent.",
+                "fix_suggestion": (
+                    "; ".join(a.suggested_improvements[:2]) if a.suggested_improvements
+                    else "Strengthen content alignment with search intent."
+                ),
                 "estimated_impact": f"Keyword has {a.impressions} impressions/week",
             })
 

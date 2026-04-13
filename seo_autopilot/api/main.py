@@ -17,7 +17,7 @@ Endpoints:
 - WS /api/ws/events/{project_id}
 """
 
-from fastapi import FastAPI, HTTPException, WebSocket, Depends
+from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
@@ -27,7 +27,7 @@ from datetime import datetime
 from functools import partial
 
 from ..core.config import settings
-from ..core.project_manager import ProjectManager, ProjectConfig
+from ..core.project_manager import ProjectManager
 from ..core.scheduler import scheduler
 from ..core.event_bus import event_bus, EventType, Event
 from ..core.audit_context import AuditContext

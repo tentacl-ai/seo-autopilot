@@ -7,7 +7,6 @@ All sources (GSC, Ahrefs, Semrush, Lighthouse) inherit from this.
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
-from datetime import datetime
 
 
 @dataclass

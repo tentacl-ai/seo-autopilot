@@ -234,7 +234,7 @@ class IntelligenceAgent:
         """Format the Telegram alert message."""
         event = report.event
         lines = [
-            f"*ALGORITHM ALERT — seo-autopilot*",
+            "*ALGORITHM ALERT — seo-autopilot*",
             f"`{event.title}` detected",
             f"Confirmed by: {' + '.join(event.sources)}",
             "",

@@ -151,7 +151,7 @@ async def _claude_fix(client, issue: Dict[str, Any], name: str, domain: str) -> 
 
     try:
         text = await asyncio.get_event_loop().run_in_executor(None, _call)
-    except Exception as exc:
+    except Exception:
         raise
 
     return {
@@ -176,7 +176,7 @@ def _build_prompt(issue: Dict[str, Any], name: str, domain: str) -> str:
         return (
             f"Schreibe einen optimalen HTML <title> (50-60 Zeichen, deutsch) für die Seite "
             f"{issue.get('affected_url')} der Marke '{name}' ({domain}). "
-            f"Kontext: {issue.get('description','')}. "
+            f"Kontext: {issue.get('description', '')}. "
             f"Gib NUR den Titel-Text aus, keine Erklärung, keine Anführungszeichen."
         )
     if itype in ("missing_meta_description", "short_meta_description", "long_meta_description"):
@@ -215,8 +215,8 @@ def _build_prompt(issue: Dict[str, Any], name: str, domain: str) -> str:
         )
     # Fallback prompt: short actionable recommendation in German
     return (
-        f"SEO-Problem: {issue.get('title','')} — {issue.get('description','')}. "
-        f"Marke: {name}, URL: {issue.get('affected_url','')}. "
+        f"SEO-Problem: {issue.get('title', '')} — {issue.get('description', '')}. "
+        f"Marke: {name}, URL: {issue.get('affected_url', '')}. "
         f"Gib eine kurze, umsetzbare Empfehlung in maximal 3 S\u00e4tzen."
     )
 
@@ -228,9 +228,9 @@ def _template_fix(issue: Dict[str, Any], name: str, domain: str) -> Optional[Dic
     suggestion: Optional[str] = None
 
     if t in ("missing_title", "short_title"):
-        suggestion = f"{name} | {url.rstrip('/').split('/')[-1].replace('-',' ').title() or 'Home'}"
+        suggestion = f"{name} | {url.rstrip('/').split('/')[-1].replace('-', ' ').title() or 'Home'}"
     elif t == "long_title":
-        suggestion = f"Shorten to: {name} | {issue.get('affected_url','').rstrip('/').split('/')[-1]}"
+        suggestion = f"Shorten to: {name} | {issue.get('affected_url', '').rstrip('/').split('/')[-1]}"
     elif t in ("missing_meta_description", "short_meta_description"):
         suggestion = (
             f"{name} bietet KI-Business-Systeme für moderne Unternehmen. "

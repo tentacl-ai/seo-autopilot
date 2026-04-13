@@ -7,12 +7,10 @@ Supports:
 - Async sessions via SQLAlchemy 2.0
 """
 
-from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import sessionmaker
 from contextlib import asynccontextmanager
 import logging
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator
 
 from ..core.config import settings
 from .models import Base

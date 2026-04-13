@@ -8,7 +8,6 @@ Pulls weekly data from GSC:
 - Geographic distribution
 """
 
-import json
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List

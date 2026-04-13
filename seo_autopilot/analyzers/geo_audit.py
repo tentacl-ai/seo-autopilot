@@ -137,8 +137,10 @@ class GEOAuditor:
         # 2. Structured Format: H2/H3 as questions, lists present
         h2_list = page.get("h2", [])
         has_question_headings = any(
-            h.endswith("?") or h.lower().startswith(("was ", "wie ", "warum ", "wann ", "wo ",
-                                                      "what ", "how ", "why ", "when ", "where "))
+            h.endswith("?") or h.lower().startswith(
+                ("was ", "wie ", "warum ", "wann ", "wo ",
+                 "what ", "how ", "why ", "when ", "where ")
+            )
             for h in (h2_list if isinstance(h2_list, list) else [])
         )
         has_enough_structure = len(h2_list) >= 2 if isinstance(h2_list, list) else False

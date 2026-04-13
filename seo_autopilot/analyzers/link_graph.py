@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict, deque
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Set
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
@@ -115,7 +115,7 @@ class LinkGraph:
         self.build(pages, homepage)
         issues: List[Dict[str, Any]] = []
 
-        pr = self.pagerank()
+        self.pagerank()
         depths = self.click_depth()
 
         # 1. Orphan pages

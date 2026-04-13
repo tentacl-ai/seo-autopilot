@@ -133,7 +133,7 @@ class DuplicateContentDetector:
                     "keyword_cannibalization", "high", urls[0],
                     f"Keyword cannibalization: H1 '{h1}' on {len(urls)} pages",
                     f"URLs: {', '.join(urls[:5])}",
-                    f"Differentiate the H1 tags or set canonical to the strongest page.",
+                    "Differentiate the H1 tags or set canonical to the strongest page.",
                 ))
 
         return issues

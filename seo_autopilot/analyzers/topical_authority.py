@@ -144,7 +144,7 @@ class TopicalAuthorityAnalyzer:
                 issues.append(_authority_issue(
                     "orphan_cluster_page", "low",
                     url,
-                    f"Page belongs to no topic cluster",
+                    "Page belongs to no topic cluster",
                     "Page is thematically isolated and does not benefit from cluster authority.",
                     "Assign the page to an existing cluster or create a new one.",
                 ))

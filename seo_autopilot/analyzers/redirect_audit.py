@@ -80,7 +80,7 @@ class RedirectAuditor:
 
                 try:
                     resp = await client.get(current, follow_redirects=False)
-                except Exception as exc:
+                except Exception:
                     chain.final_url = current
                     chain.final_status = 0
                     break

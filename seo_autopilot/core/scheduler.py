@@ -11,7 +11,6 @@ from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime
 import logging
 from typing import Optional, Callable, Dict
-import asyncio
 
 logger = logging.getLogger(__name__)
 
