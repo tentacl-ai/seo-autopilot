@@ -1,0 +1,19 @@
+services:
+  seo-autopilot:
+    build: .
+    container_name: seo_autopilot
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8002:8002"
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/seo_autopilot.db
+      - PROJECT_CONFIG_PATH=/app/data/projects.yaml
+      - GSC_CREDENTIALS_PATH=/app/secrets/service-account.json
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+    volumes:
+      - ./data:/app/data
+      - ./reports:/app/reports
+      - ./logs:/app/logs
+      - ./credentials/service-account.json:/app/secrets/service-account.json:ro
