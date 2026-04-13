@@ -25,7 +25,7 @@ SEO Autopilot turns raw web crawl data into a **prioritized action plan**:
 9. **Ships HTML reports** – Self-contained Jinja2 templates with Telegram notifications
 10. **Schedules audits** – APScheduler cron jobs, multi-tenant isolation, WebSocket event streaming
 
-**130 tests, 0 external dependencies beyond Python stdlib + httpx/BS4/FastAPI. No Playwright, no scikit-learn, no heavyweight ML.**
+**201 tests, 0 external dependencies beyond Python stdlib + httpx/BS4/FastAPI. No Playwright, no scikit-learn, no heavyweight ML.**
 
 ---
 
@@ -72,9 +72,6 @@ projects:
     domain: https://example.com
     name: Example.com
     tenant_id: default
-    adapter_type: static
-    adapter_config:
-      root_path: /var/www/html
     enabled_sources:
       - gsc
       - pagespeed
@@ -144,7 +141,7 @@ seo_autopilot/
 │   ├── gsc.py                     Google Search Console (28-day)
 │   ├── intelligence.py            RSS feed monitor (algorithm updates)
 │   └── base.py                    Abstract base
-├── analyzers/                   # Rule-based analysis (v0.5)
+├── analyzers/                   # Rule-based analysis (v1.0)
 │   ├── canonical_engine.py        Canonical resolution + conflict detection
 │   ├── redirect_audit.py          Chains, loops, 302→301, soft-404
 │   ├── schema_validation.py       JSON-LD required fields (13 types)
@@ -175,7 +172,7 @@ seo_autopilot/
 
 ---
 
-## Analysis Dimensions (v0.5)
+## Analysis Dimensions (v1.0)
 
 | Module | What it checks | Issue types |
 |--------|---------------|-------------|
@@ -387,7 +384,7 @@ Each project has isolated:
 
 ```bash
 curl http://localhost:8002/api/health
-# { "status": "ok", "version": "0.5.0" }
+# { "status": "ok", "version": "1.0.1" }
 ```
 
 ### List Projects
@@ -533,7 +530,7 @@ python -m seo_autopilot.api.main
 ### Docker (Recommended)
 
 ```bash
-docker build -t seo-autopilot:0.3.0 .
+docker build -t seo-autopilot:1.0.1 .
 docker run -d \
   --name seo-autopilot \
   -p 8002:8002 \
@@ -542,7 +539,7 @@ docker run -d \
   -e DATABASE_URL="postgres://user:pass@db:5432/seo" \
   -e CLAUDE_API_KEY="sk-..." \
   -e TELEGRAM_BOT_TOKEN="..." \
-  seo-autopilot:0.3.0
+  seo-autopilot:1.0.1
 ```
 
 ### Kubernetes
@@ -564,7 +561,7 @@ spec:
     spec:
       containers:
       - name: seo-autopilot
-        image: seo-autopilot:0.3.0
+        image: seo-autopilot:1.0.1
         ports:
         - containerPort: 8002
         env:
@@ -696,38 +693,28 @@ asyncio.run(audit_website())
 
 ## Roadmap
 
-### v0.5 (Current)
+### v1.0 (Current)
 - Real crawler (httpx + BeautifulSoup)
 - 10 analyzer modules (50+ issue types)
 - GEO audit, topical authority, duplicate detection, link graph
 - PageSpeed CrUX field data (INP, LCP, CLS)
 - Delta/regression engine
 - Intelligence feed (algorithm monitoring)
+- Intent/GEO keyword analysis (Claude API)
+- E-E-A-T signal detection
 - Google Search Console + PageSpeed Insights
 - HTML reports + Telegram notifications
 - Multi-tenant database (SQLAlchemy + Alembic)
 - FastAPI REST API + WebSocket
+- MCP Server (Claude integration)
 - APScheduler cron jobs
+- 201 tests, 0 failures
 
-### v0.4 (In Progress)
-- [ ] Real Core Web Vitals via PageSpeed Insights API (INP, LCP, CLS — no FID)
-- [ ] Canonical Engine (signal hierarchy, conflict detection)
-- [ ] Redirect Audit + Soft-404 detection
-- [ ] Structured Data Validator (JSON-LD pflichtfeld-checks)
-- [ ] CI/CD with GitHub Actions
-
-### v0.5 (Planned)
-- [ ] GEO Audit (AI-crawler blocking, answer-first structure, fact density)
-- [ ] Topical Authority detection (cluster analysis, coverage gaps)
-- [ ] Duplicate Content detection (SimHash, canonical-aware)
-- [ ] Internal Link Graph (orphan pages, PageRank, click depth)
-
-### v0.6+
-- [ ] Delta / Regression Engine (audit-over-audit comparison)
-- [ ] SEO Intelligence Feed (algorithm update monitoring)
-- [ ] E-E-A-T signal detection
+### v1.1 (Planned)
 - [ ] Hreflang / Internationalization audit
-- [ ] Optional: DataForSEO backlinks, Playwright JS rendering
+- [ ] Optional: DataForSEO backlinks
+- [ ] Optional: Playwright JS rendering
+- [ ] CI/CD with GitHub Actions
 
 ---
 

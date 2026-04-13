@@ -23,7 +23,7 @@ class SEOAutopilotMCPServer:
 
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or Settings()
-        self.project_manager = ProjectManager(self.settings.projects_file)
+        self.project_manager = ProjectManager(self.settings.PROJECT_CONFIG_PATH)
 
     async def list_projects(self) -> dict[str, Any]:
         """List all configured SEO projects.

@@ -39,6 +39,10 @@ SEO_FEEDS: Dict[str, str] = {
     "ahrefs_blog": "https://ahrefs.com/blog/rss.xml",
     "web_dev_blog": "https://web.dev/feed.xml",
     "chrome_developers": "https://developer.chrome.com/static/blog/rss.xml",
+    "google_news_algo": "https://news.google.com/rss/search?q=google+algorithm+update&hl=en-US&gl=US&ceid=US:en",
+    "google_news_cwv": "https://news.google.com/rss/search?q=core+web+vitals+INP&hl=en-US&gl=US&ceid=US:en",
+    "google_news_geo": "https://news.google.com/rss/search?q=google+AI+overviews+SEO&hl=en-US&gl=US&ceid=US:en",
+    "google_news_ai_crawlers": "https://news.google.com/rss/search?q=GPTBot+ClaudeBot+SEO&hl=en-US&gl=US&ceid=US:en",
 }
 
 # Keywords by priority

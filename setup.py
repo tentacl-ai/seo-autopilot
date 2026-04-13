@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="seo-autopilot",
-    version="0.5.0",
+    version="1.0.1",
     description="Multi-tenant SEO automation platform – real crawler, GSC, PageSpeed, AI agents",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -72,6 +72,7 @@ setup(
             "seo-autopilot=seo_autopilot.cli.main:cli",
         ],
     },
+    license="MIT",
     keywords=[
         "seo", "automation", "crawler", "google-search-console",
         "pagespeed", "lighthouse", "multi-tenant", "audit",

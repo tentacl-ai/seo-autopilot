@@ -30,6 +30,9 @@ from ..analyzers.geo_audit import GEOAuditor
 from ..analyzers.topical_authority import TopicalAuthorityAnalyzer
 from ..analyzers.duplicate_content import DuplicateContentDetector
 from ..analyzers.link_graph import LinkGraph
+from ..analyzers.robots_sitemap import RobotsSitemapAuditor
+from ..analyzers.eeat import EEATAnalyzer
+from .intent_geo_agent import analyze_keywords as intent_geo_analyze
 from .base import Agent, AgentResult, AgentStatus
 
 logger = logging.getLogger(__name__)
@@ -240,6 +243,85 @@ class AnalyzerAgent(Agent):
             except Exception as exc:
                 logger.warning(f"[analyzer] Link graph failed (non-fatal): {exc}")
 
+            # --- v0.9 Analyzer: Robots.txt + Sitemap Audit ---
+            try:
+                rs_auditor = RobotsSitemapAuditor()
+                import httpx as _httpx
+                async with _httpx.AsyncClient(timeout=15, follow_redirects=True) as _rs_client:
+                    robots_result = await rs_auditor.fetch_robots(domain, client=_rs_client)
+                    issues.extend(rs_auditor.detect_robots_issues(robots_result))
+
+                    # Determine sitemap URL from robots.txt or default
+                    sitemap_url = (
+                        robots_result.sitemap_directives[0]
+                        if robots_result.sitemap_directives
+                        else f"{domain.rstrip('/')}/sitemap.xml"
+                    )
+                    sitemap_result = await rs_auditor.fetch_sitemap(sitemap_url, client=_rs_client)
+
+                    # Build lookup data for sitemap cross-checks
+                    crawled_200 = {p.url for p in good_pages}
+                    canonical_set = {p.canonical for p in good_pages if p.canonical}
+                    url_status_map = {p.url: p.status_code for p in pages}
+
+                    sitemap_issues = rs_auditor.detect_sitemap_issues(
+                        sitemap_result,
+                        canonical_urls=canonical_set or None,
+                        crawled_urls=crawled_200 or None,
+                        url_status=url_status_map or None,
+                    )
+                    issues.extend(sitemap_issues)
+                    logger.info(
+                        f"[analyzer] Robots/Sitemap: robots={'ok' if robots_result.exists else 'missing'}, "
+                        f"sitemap={len(sitemap_result.urls)} URLs, "
+                        f"{len(sitemap_issues) + len([i for i in issues if i['category'] == 'robots'])} issues"
+                    )
+            except Exception as exc:
+                logger.warning(f"[analyzer] Robots/Sitemap audit failed (non-fatal): {exc}")
+
+            # --- v0.10 Analyzer: E-E-A-T Signals ---
+            eeat_result = None
+            try:
+                eeat_analyzer = EEATAnalyzer()
+                eeat_pages = [_page_snapshot(p) for p in good_pages]
+                eeat_result = eeat_analyzer.analyze(eeat_pages, domain)
+                issues.extend(eeat_result["issues"])
+                logger.info(
+                    f"[analyzer] E-E-A-T: score={eeat_result['score']}/100, "
+                    f"{len(eeat_result['issues'])} issues"
+                )
+            except Exception as exc:
+                logger.warning(f"[analyzer] E-E-A-T analysis failed (non-fatal): {exc}")
+
+            # --- v0.12 Analyzer: Intent + GEO Content Analysis ---
+            intent_geo_result = None
+            try:
+                # GSC keywords from project config or context
+                gsc_keywords = []
+                if self.context and hasattr(self.context, "gsc_keywords"):
+                    gsc_keywords = self.context.gsc_keywords or []
+                elif (self.project_config.source_config or {}).get("gsc_keywords"):
+                    gsc_keywords = self.project_config.source_config["gsc_keywords"]
+
+                if gsc_keywords:
+                    page_snapshots = [_page_snapshot(p) for p in good_pages]
+                    intent_geo_result = await intent_geo_analyze(
+                        gsc_keywords=gsc_keywords,
+                        pages=page_snapshots,
+                    )
+                    if not intent_geo_result.skipped_reason:
+                        issues.extend(intent_geo_result.issues)
+                    logger.info(
+                        f"[analyzer] Intent/GEO: {intent_geo_result.api_calls_used} API calls, "
+                        f"avg_intent={intent_geo_result.avg_intent_match:.0f}, "
+                        f"avg_geo={intent_geo_result.avg_geo_readiness:.0f}"
+                        + (f" (skipped: {intent_geo_result.skipped_reason})" if intent_geo_result.skipped_reason else "")
+                    )
+                else:
+                    logger.info("[analyzer] Intent/GEO: no GSC keywords available, skipped")
+            except Exception as exc:
+                logger.warning(f"[analyzer] Intent/GEO analysis failed (non-fatal): {exc}")
+
             # Snapshot metrics
             total_images = sum(p.images_total for p in good_pages)
             missing_alt = sum(p.images_without_alt for p in good_pages)
@@ -276,6 +358,20 @@ class AnalyzerAgent(Agent):
                     }
                     for c in topical_clusters
                 ]
+
+            # E-E-A-T metrics
+            if eeat_result:
+                result.metrics["eeat_score"] = eeat_result["score"]
+                result.metrics["eeat_signals"] = eeat_result["signals"]
+
+            # Intent/GEO metrics
+            if intent_geo_result and not intent_geo_result.skipped_reason:
+                result.metrics["intent_geo"] = {
+                    "avg_intent_match": intent_geo_result.avg_intent_match,
+                    "avg_geo_readiness": intent_geo_result.avg_geo_readiness,
+                    "api_calls_used": intent_geo_result.api_calls_used,
+                    "keywords_analyzed": len(intent_geo_result.analyses),
+                }
 
             # PageSpeed metrics (if available)
             if psi_results:

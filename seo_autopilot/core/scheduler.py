@@ -3,6 +3,7 @@ Scheduler – APScheduler Integration
 
 Runs periodic audits based on cron expressions.
 Multi-tenant ready: each project can have its own schedule.
+Also schedules intelligence feed polling and update checks.
 """
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -120,6 +121,36 @@ class AuditScheduler:
                 "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
             }
         return jobs
+
+    def schedule_intelligence_jobs(
+        self,
+        poll_callback: Callable,
+        check_callback: Callable,
+    ) -> None:
+        """Schedule intelligence feed polling and update checks.
+
+        - poll_feeds: every 6 hours (0, 6, 12, 18 UTC)
+        - check_for_updates: daily at 8 UTC
+        """
+        self.scheduler.add_job(
+            poll_callback,
+            trigger=CronTrigger(hour="0,6,12,18"),
+            id="intelligence_poll_feeds",
+            name="Poll intelligence feeds",
+            replace_existing=True,
+            misfire_grace_time=300,
+        )
+        logger.info("Scheduled: intelligence_poll_feeds (every 6h)")
+
+        self.scheduler.add_job(
+            check_callback,
+            trigger=CronTrigger(hour=8),
+            id="intelligence_check_for_updates",
+            name="Check for algorithm updates",
+            replace_existing=True,
+            misfire_grace_time=300,
+        )
+        logger.info("Scheduled: intelligence_check_for_updates (daily 08:00)")
 
 
 # Singleton instance

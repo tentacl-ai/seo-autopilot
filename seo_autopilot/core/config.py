@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     # Application
     APP_NAME: str = "SEO Autopilot"
-    APP_VERSION: str = "0.5.0"
+    APP_VERSION: str = "1.0.1"
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
 
     # API

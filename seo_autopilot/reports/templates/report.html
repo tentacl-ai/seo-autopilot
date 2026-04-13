@@ -143,6 +143,186 @@
   <div class="no-data">PageSpeed Insights nicht verfügbar (API-Limit oder kein Key konfiguriert). Setze <code>pagespeed.api_key</code> in source_config.</div>
   {% endif %}
 
+  <h2>GEO Score (Generative Engine Optimization)</h2>
+  {% if ctx.agent_results.get("geo_audit") and ctx.agent_results.geo_audit.get("page_scores") %}
+  <div class="score-box">
+    <div>
+      <div class="score" style="font-size: 48px;">{{ ctx.agent_results.geo_audit.avg_geo_score }}</div>
+      <div class="score-label">GEO Score (0–100)</div>
+    </div>
+    <div class="grid" style="flex: 1;">
+      <div class="stat">
+        <div class="stat-value">{{ ctx.agent_results.geo_audit.pages_analyzed }}</div>
+        <div class="stat-label">Pages analyzed</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">{{ ctx.agent_results.geo_audit.issues|length }}</div>
+        <div class="stat-label">GEO Issues</div>
+      </div>
+    </div>
+  </div>
+  <h3>GEO Score per Page</h3>
+  <table>
+    <thead><tr><th>URL</th><th>GEO Score</th></tr></thead>
+    <tbody>
+      {% for url, score in ctx.agent_results.geo_audit.page_scores.items() %}
+      <tr>
+        <td><code>{{ url|truncate(60) }}</code></td>
+        <td><strong style="color:{% if score >= 70 %}var(--good){% elif score >= 40 %}var(--medium){% else %}var(--high){% endif %}">{{ score }}</strong></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="no-data">GEO Audit nicht verfügbar. Modul aktivieren für AI-Search-Readiness-Analyse.</div>
+  {% endif %}
+
+  <h2>E-E-A-T Score</h2>
+  {% if ctx.agent_results.get("eeat") and ctx.agent_results.eeat.get("score") is not none %}
+  <div class="score-box">
+    <div>
+      <div class="score" style="font-size: 48px;">{{ ctx.agent_results.eeat.score }}</div>
+      <div class="score-label">E-E-A-T Score (0–100)</div>
+    </div>
+    <div class="grid" style="flex: 1;">
+      {% set s = ctx.agent_results.eeat.signals %}
+      <div class="stat">
+        <div class="stat-value" style="color:{% if s.impressum %}var(--good){% else %}var(--high){% endif %}">{{ "Yes" if s.impressum else "No" }}</div>
+        <div class="stat-label">Impressum</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" style="color:{% if s.datenschutz %}var(--good){% else %}var(--high){% endif %}">{{ "Yes" if s.datenschutz else "No" }}</div>
+        <div class="stat-label">Datenschutz</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" style="color:{% if s.org_schema %}var(--good){% else %}var(--medium){% endif %}">{{ "Yes" if s.org_schema else "No" }}</div>
+        <div class="stat-label">Org Schema</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" style="color:{% if s.author_schema %}var(--good){% else %}var(--medium){% endif %}">{{ "Yes" if s.author_schema else "No" }}</div>
+        <div class="stat-label">Author Schema</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">{{ s.total_articles or 0 }}</div>
+        <div class="stat-label">Articles found</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">{{ s.articles_with_author or 0 }}</div>
+        <div class="stat-label">With author</div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="no-data">E-E-A-T Analyse nicht verfügbar.</div>
+  {% endif %}
+
+  <h2>Topical Authority Cluster Map</h2>
+  {% if ctx.agent_results.get("topical_authority") and ctx.agent_results.topical_authority is iterable and ctx.agent_results.topical_authority|length > 0 %}
+  <table>
+    <thead>
+      <tr>
+        <th>Cluster</th>
+        <th>Pillar Page</th>
+        <th>Pages</th>
+        <th>Coverage</th>
+        <th>Authority</th>
+        <th>Cannibalization</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cluster in ctx.agent_results.topical_authority %}
+      <tr>
+        <td><strong>{{ cluster.topic_label }}</strong></td>
+        <td><code>{{ (cluster.pillar_url or '–')|truncate(40) }}</code></td>
+        <td>{{ cluster.cluster_urls|length }}</td>
+        <td>
+          <span style="color:{% if cluster.coverage_score >= 70 %}var(--good){% elif cluster.coverage_score >= 40 %}var(--medium){% else %}var(--high){% endif %}">
+            {{ cluster.coverage_score }}%
+          </span>
+        </td>
+        <td>{{ cluster.authority_score }}</td>
+        <td>
+          {% if cluster.cannibalization_risk %}
+          <span class="badge high">Risk</span>
+          {% else %}
+          <span class="badge low">OK</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="no-data">Keine Topic Clusters erkannt. Topical Authority Modul aktivieren oder mehr Seiten crawlen.</div>
+  {% endif %}
+
+  <h2>Delta View (Änderungen seit letztem Audit)</h2>
+  {% if ctx.agent_results.get("delta") and ctx.agent_results.delta.previous_audit_id %}
+  {% set d = ctx.agent_results.delta %}
+  <div class="score-box">
+    <div>
+      <div class="score" style="font-size: 48px; color: {% if d.score_delta > 0 %}var(--good){% elif d.score_delta < 0 %}var(--high){% else %}var(--muted){% endif %}">
+        {{ "+" if d.score_delta > 0 }}{{ d.score_delta }}
+      </div>
+      <div class="score-label">Score Change ({{ d.score_previous }} → {{ d.score_current }})</div>
+    </div>
+    <div class="grid" style="flex: 1;">
+      <div class="stat">
+        <div class="stat-value" style="color: var(--good);">{{ d.issues_summary.resolved or 0 }}</div>
+        <div class="stat-label">Resolved</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" style="color: var(--high);">{{ d.issues_summary.new or 0 }}</div>
+        <div class="stat-label">New Issues</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" style="color: var(--medium);">{{ d.issues_summary.regressed or 0 }}</div>
+        <div class="stat-label">Regressed</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">{{ d.issues_summary.persistent or 0 }}</div>
+        <div class="stat-label">Persistent</div>
+      </div>
+    </div>
+  </div>
+
+  {% if d.improved_pages %}
+  <h3>Improved Pages</h3>
+  <table>
+    <thead><tr><th>URL</th><th>Before</th><th>After</th><th>Change</th></tr></thead>
+    <tbody>
+      {% for p in d.improved_pages[:10] %}
+      <tr>
+        <td><code>{{ p.url|truncate(50) }}</code></td>
+        <td>{{ p.issues_before }}</td>
+        <td>{{ p.issues_after }}</td>
+        <td style="color: var(--good);">{{ p.delta }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if d.degraded_pages %}
+  <h3>Degraded Pages</h3>
+  <table>
+    <thead><tr><th>URL</th><th>Before</th><th>After</th><th>Change</th></tr></thead>
+    <tbody>
+      {% for p in d.degraded_pages[:10] %}
+      <tr>
+        <td><code>{{ p.url|truncate(50) }}</code></td>
+        <td>{{ p.issues_before }}</td>
+        <td>{{ p.issues_after }}</td>
+        <td style="color: var(--high);">+{{ p.delta }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  {% else %}
+  <div class="no-data">Kein vorheriges Audit zum Vergleich vorhanden. Delta View wird ab dem zweiten Audit aktiv.</div>
+  {% endif %}
+
   <h2>Issue-Kategorien</h2>
   <div class="grid">
     {% for cat, count in categories.items() %}

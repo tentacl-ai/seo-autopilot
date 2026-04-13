@@ -39,6 +39,8 @@ from ..db.database import db
 from ..db.persistence import persist_audit
 from ..reports.html import render_html_report
 from ..notifications.telegram import send_audit_notification
+from ..agents.intelligence_agent import IntelligenceAgent
+from ..sources.intelligence import IntelligenceFeed
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +48,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="SEO Autopilot API",
     description="Multi-tenant SEO automation platform",
-    version="0.5.0"
+    version="1.0.1"
 )
 
 # CORS
@@ -60,6 +62,10 @@ app.add_middleware(
 
 # Global instances
 project_manager = ProjectManager(settings.PROJECT_CONFIG_PATH)
+intelligence_agent = IntelligenceAgent(
+    feed=IntelligenceFeed(),
+    project_manager=project_manager,
+)
 
 
 # ============================================================
@@ -142,6 +148,16 @@ async def startup_event():
         except Exception as e:
             logger.error(f"Failed to schedule {project.id}: {e}")
 
+    # Schedule intelligence feed jobs
+    try:
+        scheduler.schedule_intelligence_jobs(
+            poll_callback=intelligence_agent.poll_feeds,
+            check_callback=intelligence_agent.check_for_updates,
+        )
+        logger.info("Scheduled intelligence jobs")
+    except Exception as e:
+        logger.error(f"Failed to schedule intelligence jobs: {e}")
+
     logger.info("✅ SEO Autopilot API started")
 
 
@@ -161,7 +177,7 @@ async def shutdown_event():
 @app.get("/api/health")
 async def health():
     """Health Check"""
-    return {"status": "ok", "version": "0.5.0"}
+    return {"status": "ok", "version": "1.0.1"}
 
 
 @app.get("/api/projects", response_model=List[ProjectResponse])
@@ -412,6 +428,26 @@ async def run_audit_for_project(project_id: str) -> Optional[str]:
             data={"audit_id": audit_id, "error": str(exc)},
         ))
         return audit_id
+
+
+# ============================================================
+# Routes: Intelligence Feed
+# ============================================================
+
+
+@app.get("/api/intelligence/events")
+async def get_intelligence_events():
+    """Return all detected algorithm events."""
+    return {"events": intelligence_agent.get_events()}
+
+
+@app.get("/api/intelligence/impact/{project_id}")
+async def get_intelligence_impact(project_id: str):
+    """Return the latest impact report for a project."""
+    report = intelligence_agent.get_impact_report(project_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="No impact report found for this project")
+    return report
 
 
 if __name__ == "__main__":
