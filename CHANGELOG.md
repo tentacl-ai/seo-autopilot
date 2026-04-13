@@ -2,7 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.5.0] - 2026-04-13
+## [1.0.2] - 2026-04-13
+
+### Added
+- `POST /api/intelligence/poll` endpoint for manual feed triggering
+- 4 Google News keyword feeds (algo, CWV, GEO, AI crawlers)
+- Intelligence agent with impact analysis + Telegram alerts
+- Scheduler integration for intelligence jobs (6h poll + daily check)
+- 2 new tests for poll endpoint (203 total)
+
+## [1.0.1] - 2026-04-13
+
+### Fixed
+- MCP server: AttributeError on startup fixed
+- README: all feature claims verified and corrected
+- Adapter references removed (HTTP crawling works on any site)
+
+## [1.0.0] - 2026-04-13
 
 ### Added
 - **Canonical Engine** — Signal hierarchy (HTTP Header > HTML > Sitemap), chain detection, 7 conflict types
@@ -13,7 +29,7 @@ All notable changes to this project will be documented in this file.
 - **Duplicate Content** — SimHash near-duplicate detection (canonical-aware, cluster-aware), thin content, keyword cannibalization
 - **Link Graph** — Custom PageRank, orphan pages, click depth, broken internal links, link equity sinks
 - **Delta Engine** — Audit-over-audit comparison, regression detection, severity tracking, alert messages
-- **Intelligence Feed** — RSS feed monitor for algorithm updates (8 sources, 2-source confirmation)
+- **Intelligence Feed** — RSS feed monitor for algorithm updates (12 sources, 2-source confirmation)
 - **PageSpeed CrUX** — Real user metrics (INP, LCP, CLS) from Chrome UX Report field data
 - CONTRIBUTING.md
 - CHANGELOG.md
@@ -24,7 +40,6 @@ All notable changes to this project will be documented in this file.
 - Crawler stores internal link URLs (not just counts) for link graph analysis
 - All code, comments, docstrings translated to English
 - Removed all hardcoded paths — uses relative paths via `Path(__file__)`
-- Version unified to 0.5.0 across all files
 
 ### Fixed
 - Score claim in README corrected from 97.5 to actual 77/100
