@@ -27,6 +27,7 @@ TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
 @dataclass
 class ProjectImpact:
     """Impact assessment for a single project."""
+
     project_id: str
     domain: str
     score: Optional[float] = None
@@ -37,6 +38,7 @@ class ProjectImpact:
 @dataclass
 class ImpactReport:
     """Full impact report for a confirmed event."""
+
     event: AlgorithmEvent
     impacts: List[ProjectImpact] = field(default_factory=list)
     analyzed_at: Optional[datetime] = None
@@ -48,7 +50,9 @@ class ImpactReport:
             "priority": self.event.priority,
             "sources": self.event.sources,
             "confirmed": self.event.confirmed,
-            "first_seen": self.event.first_seen.isoformat() if self.event.first_seen else None,
+            "first_seen": (
+                self.event.first_seen.isoformat() if self.event.first_seen else None
+            ),
             "analyzed_at": self.analyzed_at.isoformat() if self.analyzed_at else None,
             "impacts": [
                 {
@@ -86,9 +90,13 @@ class IntelligenceAgent:
 
     async def check_for_updates(self) -> List[ImpactReport]:
         """Check for critical events and run impact analysis."""
-        critical_events = [e for e in self._events if e.confirmed and e.priority == "critical"]
+        critical_events = [
+            e for e in self._events if e.confirmed and e.priority == "critical"
+        ]
         if not critical_events:
-            logger.info("[intelligence] No critical confirmed events — skipping impact analysis")
+            logger.info(
+                "[intelligence] No critical confirmed events — skipping impact analysis"
+            )
             return []
 
         reports = []
@@ -119,17 +127,23 @@ class IntelligenceAgent:
             impacts=impacts,
             analyzed_at=datetime.now(timezone.utc),
         )
-        logger.info(f"[intelligence] Impact report for '{event.title}': {api_calls} projects analyzed")
+        logger.info(
+            f"[intelligence] Impact report for '{event.title}': {api_calls} projects analyzed"
+        )
         return report
 
-    async def _assess_project_impact(self, event: AlgorithmEvent, project) -> ProjectImpact:
+    async def _assess_project_impact(
+        self, event: AlgorithmEvent, project
+    ) -> ProjectImpact:
         """Use Claude API to assess impact on a single project."""
         domain = project.domain
         impact = ProjectImpact(project_id=project.id, domain=domain)
 
         api_key = settings.CLAUDE_API_KEY
         if not api_key:
-            logger.warning("[intelligence] No CLAUDE_API_KEY — using heuristic assessment")
+            logger.warning(
+                "[intelligence] No CLAUDE_API_KEY — using heuristic assessment"
+            )
             return self._heuristic_assessment(event, project)
 
         prompt = (
@@ -173,7 +187,9 @@ class IntelligenceAgent:
 
         return impact
 
-    def _parse_impact_response(self, text: str, project_id: str, domain: str) -> ProjectImpact:
+    def _parse_impact_response(
+        self, text: str, project_id: str, domain: str
+    ) -> ProjectImpact:
         """Parse the delimiter-based Claude response."""
         impact = ProjectImpact(project_id=project_id, domain=domain)
         for line in text.strip().splitlines():
@@ -215,12 +231,15 @@ class IntelligenceAgent:
 
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.post(url, data={
-                    "chat_id": chat_id,
-                    "text": text[:4096],
-                    "parse_mode": "Markdown",
-                    "disable_web_page_preview": "true",
-                })
+                resp = await client.post(
+                    url,
+                    data={
+                        "chat_id": chat_id,
+                        "text": text[:4096],
+                        "parse_mode": "Markdown",
+                        "disable_web_page_preview": "true",
+                    },
+                )
             if resp.status_code != 200:
                 logger.warning(f"[intelligence] Telegram API error {resp.status_code}")
                 return False
@@ -246,8 +265,12 @@ class IntelligenceAgent:
         risk_order = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
 
         for imp in report.impacts:
-            lines.append(f"- `{imp.domain}` (Score {imp.score or '–'}) \u2192 *{imp.risk_level}*")
-            if highest_risk is None or risk_order.get(imp.risk_level, 3) < risk_order.get(highest_risk, 3):
+            lines.append(
+                f"- `{imp.domain}` (Score {imp.score or '–'}) \u2192 *{imp.risk_level}*"
+            )
+            if highest_risk is None or risk_order.get(
+                imp.risk_level, 3
+            ) < risk_order.get(highest_risk, 3):
                 highest_risk = imp.risk_level
                 highest_risk_impact = imp
 

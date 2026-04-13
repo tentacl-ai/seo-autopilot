@@ -122,7 +122,9 @@ class SEOAutopilotMCPServer:
                     },
                     "keyword": {
                         "status": keyword_result.status.value,
-                        "opportunities": len(keyword_result.metrics.get("opportunities", [])),
+                        "opportunities": len(
+                            keyword_result.metrics.get("opportunities", [])
+                        ),
                     },
                     "strategy": {
                         "status": strategy_result.status.value,

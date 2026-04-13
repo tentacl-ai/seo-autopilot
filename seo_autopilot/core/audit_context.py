@@ -92,10 +92,13 @@ class AuditContext:
             "project_name": self.project_config.name,
             "domain": self.project_config.domain,
             "started_at": self.started_at.isoformat(),
-            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "completed_at": (
+                self.completed_at.isoformat() if self.completed_at else None
+            ),
             "duration_seconds": (
                 (self.completed_at - self.started_at).total_seconds()
-                if self.completed_at else None
+                if self.completed_at
+                else None
             ),
             "status": self.status,
             "score": self.score,
@@ -105,7 +108,11 @@ class AuditContext:
             "fixes_total": len(self.all_fixes),
             "agents": {
                 name: {
-                    "status": getattr(res, "status", None).value if getattr(res, "status", None) else None,
+                    "status": (
+                        getattr(res, "status", None).value
+                        if getattr(res, "status", None)
+                        else None
+                    ),
                     "duration_seconds": getattr(res, "duration_seconds", None),
                     "issues": len(getattr(res, "issues", []) or []),
                     "log": getattr(res, "log_output", ""),

@@ -38,11 +38,13 @@ class Database:
         # Create async engine. SQLite/aiosqlite does not support pool_size/max_overflow.
         engine_kwargs = {"echo": settings.DB_ECHO, "future": True}
         if not settings.DATABASE_URL.startswith("sqlite"):
-            engine_kwargs.update({
-                "pool_size": 10,
-                "max_overflow": 20,
-                "pool_pre_ping": True,
-            })
+            engine_kwargs.update(
+                {
+                    "pool_size": 10,
+                    "max_overflow": 20,
+                    "pool_pre_ping": True,
+                }
+            )
         self.async_engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
 
         self.AsyncSessionLocal = async_sessionmaker(

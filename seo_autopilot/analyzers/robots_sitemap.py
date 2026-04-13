@@ -23,15 +23,28 @@ logger = logging.getLogger(__name__)
 
 # AI crawlers — blocking these hurts GEO/AIO visibility
 AI_CRAWLERS = [
-    "GPTBot", "ChatGPT-User", "ClaudeBot", "anthropic-ai",
-    "PerplexityBot", "Bytespider", "CCBot", "Google-Extended",
-    "FacebookBot", "cohere-ai",
+    "GPTBot",
+    "ChatGPT-User",
+    "ClaudeBot",
+    "anthropic-ai",
+    "PerplexityBot",
+    "Bytespider",
+    "CCBot",
+    "Google-Extended",
+    "FacebookBot",
+    "cohere-ai",
 ]
 
 # CSS/JS blocking prevents rendering — critical for JS-heavy sites
 ASSET_PATTERNS = [
-    r"/\.css", r"/\.js", r"/static/", r"/assets/", r"/_next/",
-    r"/dist/", r"/bundle", r"/webpack",
+    r"/\.css",
+    r"/\.js",
+    r"/static/",
+    r"/assets/",
+    r"/_next/",
+    r"/dist/",
+    r"/bundle",
+    r"/webpack",
 ]
 
 # Max URLs per sitemap before search engines may ignore entries
@@ -47,6 +60,7 @@ NS = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 @dataclass
 class RobotsResult:
     """Parsed robots.txt data."""
+
     raw: str = ""
     exists: bool = False
     status_code: int = 0
@@ -54,12 +68,15 @@ class RobotsResult:
     blocked_ai_crawlers: List[str] = field(default_factory=list)
     blocks_css_js: bool = False
     has_wildcard_disallow: bool = False
-    disallow_rules: List[Tuple[str, str]] = field(default_factory=list)  # (user-agent, path)
+    disallow_rules: List[Tuple[str, str]] = field(
+        default_factory=list
+    )  # (user-agent, path)
 
 
 @dataclass
 class SitemapUrl:
     """Single URL entry from a sitemap."""
+
     loc: str
     lastmod: Optional[str] = None
     changefreq: Optional[str] = None
@@ -69,6 +86,7 @@ class SitemapUrl:
 @dataclass
 class SitemapResult:
     """Parsed sitemap data."""
+
     url: str = ""
     exists: bool = False
     status_code: int = 0
@@ -85,7 +103,9 @@ class RobotsSitemapAuditor:
     def __init__(self, timeout: float = 15.0):
         self.timeout = timeout
 
-    async def fetch_robots(self, domain: str, client: Optional[httpx.AsyncClient] = None) -> RobotsResult:
+    async def fetch_robots(
+        self, domain: str, client: Optional[httpx.AsyncClient] = None
+    ) -> RobotsResult:
         """Fetch and parse robots.txt."""
         result = RobotsResult()
         url = f"{domain.rstrip('/')}/robots.txt"
@@ -109,7 +129,9 @@ class RobotsSitemapAuditor:
 
         return result
 
-    async def fetch_sitemap(self, url: str, client: Optional[httpx.AsyncClient] = None) -> SitemapResult:
+    async def fetch_sitemap(
+        self, url: str, client: Optional[httpx.AsyncClient] = None
+    ) -> SitemapResult:
         """Fetch and parse a sitemap XML."""
         result = SitemapResult(url=url)
         own_client = client is None
@@ -151,7 +173,7 @@ class RobotsSitemapAuditor:
                 sitemap_url = line.split(":", 1)[1].strip()
                 # "Sitemap:" value includes the scheme, rejoin after first split
                 if not sitemap_url.startswith("http"):
-                    sitemap_url = ":" .join(line.split(":")[1:]).strip()
+                    sitemap_url = ":".join(line.split(":")[1:]).strip()
                 result.sitemap_directives.append(sitemap_url)
 
         # Detect AI crawler blocking
@@ -211,64 +233,98 @@ class RobotsSitemapAuditor:
                 lastmod_el = url_el.find("sm:lastmod", NS)
                 changefreq_el = url_el.find("sm:changefreq", NS)
                 priority_el = url_el.find("sm:priority", NS)
-                result.urls.append(SitemapUrl(
-                    loc=loc.text.strip(),
-                    lastmod=lastmod_el.text.strip() if lastmod_el is not None and lastmod_el.text else None,
-                    changefreq=changefreq_el.text.strip() if changefreq_el is not None and changefreq_el.text else None,
-                    priority=priority_el.text.strip() if priority_el is not None and priority_el.text else None,
-                ))
+                result.urls.append(
+                    SitemapUrl(
+                        loc=loc.text.strip(),
+                        lastmod=(
+                            lastmod_el.text.strip()
+                            if lastmod_el is not None and lastmod_el.text
+                            else None
+                        ),
+                        changefreq=(
+                            changefreq_el.text.strip()
+                            if changefreq_el is not None and changefreq_el.text
+                            else None
+                        ),
+                        priority=(
+                            priority_el.text.strip()
+                            if priority_el is not None and priority_el.text
+                            else None
+                        ),
+                    )
+                )
 
     def detect_robots_issues(self, robots: RobotsResult) -> List[Dict[str, Any]]:
         """Detect SEO issues in robots.txt."""
         issues: List[Dict[str, Any]] = []
 
         if not robots.exists:
-            issues.append(_issue(
-                "robots", "missing_robots_txt", "medium",
-                "Missing robots.txt",
-                "No robots.txt found. Search engines use defaults, but explicit rules improve control.",
-                "Create a robots.txt with sitemap directive and reasonable access rules.",
-            ))
+            issues.append(
+                _issue(
+                    "robots",
+                    "missing_robots_txt",
+                    "medium",
+                    "Missing robots.txt",
+                    "No robots.txt found. Search engines use defaults, but explicit rules improve control.",
+                    "Create a robots.txt with sitemap directive and reasonable access rules.",
+                )
+            )
             return issues
 
         # AI crawler blocking
         if robots.blocked_ai_crawlers:
             crawlers = ", ".join(robots.blocked_ai_crawlers)
-            issues.append(_issue(
-                "robots", "ai_crawler_blocked", "high",
-                f"AI crawlers blocked: {crawlers}",
-                f"robots.txt blocks these AI crawlers: {crawlers}. "
-                "This hurts visibility in AI search (ChatGPT, Perplexity, Claude).",
-                "Remove Disallow: / for AI crawlers unless you have a specific reason to block them.",
-            ))
+            issues.append(
+                _issue(
+                    "robots",
+                    "ai_crawler_blocked",
+                    "high",
+                    f"AI crawlers blocked: {crawlers}",
+                    f"robots.txt blocks these AI crawlers: {crawlers}. "
+                    "This hurts visibility in AI search (ChatGPT, Perplexity, Claude).",
+                    "Remove Disallow: / for AI crawlers unless you have a specific reason to block them.",
+                )
+            )
 
         # CSS/JS blocking
         if robots.blocks_css_js:
-            issues.append(_issue(
-                "robots", "css_js_blocked", "high",
-                "CSS/JS resources blocked in robots.txt",
-                "Blocking CSS/JS prevents Googlebot from rendering the page correctly. "
-                "This can lead to missing content in the index.",
-                "Remove Disallow rules for static assets (CSS, JS, images).",
-            ))
+            issues.append(
+                _issue(
+                    "robots",
+                    "css_js_blocked",
+                    "high",
+                    "CSS/JS resources blocked in robots.txt",
+                    "Blocking CSS/JS prevents Googlebot from rendering the page correctly. "
+                    "This can lead to missing content in the index.",
+                    "Remove Disallow rules for static assets (CSS, JS, images).",
+                )
+            )
 
         # Missing sitemap directive
         if not robots.sitemap_directives:
-            issues.append(_issue(
-                "robots", "missing_sitemap_directive", "medium",
-                "No Sitemap directive in robots.txt",
-                "robots.txt has no Sitemap: line. Search engines may not find the sitemap automatically.",
-                "Add 'Sitemap: https://example.com/sitemap.xml' to robots.txt.",
-            ))
+            issues.append(
+                _issue(
+                    "robots",
+                    "missing_sitemap_directive",
+                    "medium",
+                    "No Sitemap directive in robots.txt",
+                    "robots.txt has no Sitemap: line. Search engines may not find the sitemap automatically.",
+                    "Add 'Sitemap: https://example.com/sitemap.xml' to robots.txt.",
+                )
+            )
 
         # Wildcard disallow (blocks everything)
         if robots.has_wildcard_disallow:
-            issues.append(_issue(
-                "robots", "wildcard_disallow", "critical",
-                "robots.txt blocks all crawlers (Disallow: /)",
-                "User-agent: * with Disallow: / blocks all search engine crawlers from the entire site.",
-                "Remove or restrict the Disallow: / rule to specific paths.",
-            ))
+            issues.append(
+                _issue(
+                    "robots",
+                    "wildcard_disallow",
+                    "critical",
+                    "robots.txt blocks all crawlers (Disallow: /)",
+                    "User-agent: * with Disallow: / blocks all search engine crawlers from the entire site.",
+                    "Remove or restrict the Disallow: / rule to specific paths.",
+                )
+            )
 
         return issues
 
@@ -283,62 +339,86 @@ class RobotsSitemapAuditor:
         issues: List[Dict[str, Any]] = []
 
         if not sitemap.exists:
-            issues.append(_issue(
-                "sitemap", "missing_sitemap", "high",
-                "Missing sitemap.xml",
-                "No sitemap.xml found. Search engines rely on sitemaps for efficient crawling.",
-                "Create a sitemap.xml listing all indexable pages with lastmod dates.",
-            ))
+            issues.append(
+                _issue(
+                    "sitemap",
+                    "missing_sitemap",
+                    "high",
+                    "Missing sitemap.xml",
+                    "No sitemap.xml found. Search engines rely on sitemaps for efficient crawling.",
+                    "Create a sitemap.xml listing all indexable pages with lastmod dates.",
+                )
+            )
             return issues
 
         if sitemap.parse_error:
-            issues.append(_issue(
-                "sitemap", "sitemap_parse_error", "critical",
-                "Sitemap XML parse error",
-                f"Sitemap could not be parsed: {sitemap.parse_error}",
-                "Fix the XML syntax in sitemap.xml. Validate with xmllint or Google Search Console.",
-            ))
+            issues.append(
+                _issue(
+                    "sitemap",
+                    "sitemap_parse_error",
+                    "critical",
+                    "Sitemap XML parse error",
+                    f"Sitemap could not be parsed: {sitemap.parse_error}",
+                    "Fix the XML syntax in sitemap.xml. Validate with xmllint or Google Search Console.",
+                )
+            )
             return issues
 
         # Sitemap index — skip URL-level checks
         if sitemap.is_index:
             if not sitemap.child_sitemaps:
-                issues.append(_issue(
-                    "sitemap", "empty_sitemap_index", "high",
-                    "Sitemap index has no child sitemaps",
-                    "The sitemap index file contains no <sitemap> entries.",
-                    "Add child sitemap references or switch to a flat sitemap.",
-                ))
+                issues.append(
+                    _issue(
+                        "sitemap",
+                        "empty_sitemap_index",
+                        "high",
+                        "Sitemap index has no child sitemaps",
+                        "The sitemap index file contains no <sitemap> entries.",
+                        "Add child sitemap references or switch to a flat sitemap.",
+                    )
+                )
             return issues
 
         # Empty sitemap
         if not sitemap.urls:
-            issues.append(_issue(
-                "sitemap", "empty_sitemap", "high",
-                "Sitemap is empty (0 URLs)",
-                "sitemap.xml exists but contains no <url> entries.",
-                "Add all indexable pages to the sitemap.",
-            ))
+            issues.append(
+                _issue(
+                    "sitemap",
+                    "empty_sitemap",
+                    "high",
+                    "Sitemap is empty (0 URLs)",
+                    "sitemap.xml exists but contains no <url> entries.",
+                    "Add all indexable pages to the sitemap.",
+                )
+            )
             return issues
 
         # Too many URLs
         if len(sitemap.urls) > SITEMAP_MAX_URLS:
-            issues.append(_issue(
-                "sitemap", "sitemap_too_large", "medium",
-                f"Sitemap has {len(sitemap.urls)} URLs (max {SITEMAP_MAX_URLS})",
-                "Sitemaps with more than 50,000 URLs may be ignored by search engines.",
-                "Split into multiple sitemaps and create a sitemap index.",
-            ))
+            issues.append(
+                _issue(
+                    "sitemap",
+                    "sitemap_too_large",
+                    "medium",
+                    f"Sitemap has {len(sitemap.urls)} URLs (max {SITEMAP_MAX_URLS})",
+                    "Sitemaps with more than 50,000 URLs may be ignored by search engines.",
+                    "Split into multiple sitemaps and create a sitemap index.",
+                )
+            )
 
         # Oversized file
         if sitemap.size_bytes > SITEMAP_MAX_BYTES:
             mb = sitemap.size_bytes / (1024 * 1024)
-            issues.append(_issue(
-                "sitemap", "sitemap_file_too_large", "medium",
-                f"Sitemap file too large ({mb:.1f} MB, max 50 MB)",
-                "Uncompressed sitemap exceeds the 50 MB limit.",
-                "Split into smaller sitemaps or use gzip compression.",
-            ))
+            issues.append(
+                _issue(
+                    "sitemap",
+                    "sitemap_file_too_large",
+                    "medium",
+                    f"Sitemap file too large ({mb:.1f} MB, max 50 MB)",
+                    "Uncompressed sitemap exceeds the 50 MB limit.",
+                    "Split into smaller sitemaps or use gzip compression.",
+                )
+            )
 
         # Check individual URLs
         stale_count = 0
@@ -356,12 +436,16 @@ class RobotsSitemapAuditor:
                 if status >= 300:
                     broken_count += 1
                     if broken_count <= 5:  # Limit individual issues
-                        issues.append(_issue(
-                            "sitemap", "sitemap_broken_url", "high",
-                            f"Sitemap contains HTTP {status} URL: {entry.loc}",
-                            f"URL in sitemap returns status {status}. Only 200 URLs belong in sitemaps.",
-                            "Remove non-200 URLs from sitemap or fix the page.",
-                        ))
+                        issues.append(
+                            _issue(
+                                "sitemap",
+                                "sitemap_broken_url",
+                                "high",
+                                f"Sitemap contains HTTP {status} URL: {entry.loc}",
+                                f"URL in sitemap returns status {status}. Only 200 URLs belong in sitemaps.",
+                                "Remove non-200 URLs from sitemap or fix the page.",
+                            )
+                        )
 
             # Non-canonical URLs
             if canonical_urls is not None and entry.loc not in canonical_urls:
@@ -372,7 +456,9 @@ class RobotsSitemapAuditor:
                 try:
                     # Support both date and datetime formats
                     lastmod_str = entry.lastmod[:10]  # YYYY-MM-DD
-                    lastmod_date = datetime.strptime(lastmod_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                    lastmod_date = datetime.strptime(lastmod_str, "%Y-%m-%d").replace(
+                        tzinfo=timezone.utc
+                    )
                     if lastmod_date < stale_threshold:
                         stale_count += 1
                 except (ValueError, IndexError):
@@ -386,55 +472,76 @@ class RobotsSitemapAuditor:
             missing = crawled_urls - sitemap_locs
             if missing:
                 sample = list(missing)[:5]
-                issues.append(_issue(
-                    "sitemap", "sitemap_missing_pages", "medium",
-                    f"{len(missing)} crawled pages not in sitemap",
-                    f"Pages found during crawl but missing from sitemap: {', '.join(sample)}",
-                    "Add all indexable pages to the sitemap for faster discovery.",
-                ))
+                issues.append(
+                    _issue(
+                        "sitemap",
+                        "sitemap_missing_pages",
+                        "medium",
+                        f"{len(missing)} crawled pages not in sitemap",
+                        f"Pages found during crawl but missing from sitemap: {', '.join(sample)}",
+                        "Add all indexable pages to the sitemap for faster discovery.",
+                    )
+                )
 
         # Aggregate stale lastmod
         if stale_count > 0:
-            issues.append(_issue(
-                "sitemap", "sitemap_stale_lastmod", "low",
-                f"{stale_count} sitemap URLs have lastmod older than {LASTMOD_STALE_DAYS} days",
-                "Stale lastmod dates reduce crawl priority. Search engines may skip these URLs.",
-                "Update lastmod to reflect actual content changes.",
-            ))
+            issues.append(
+                _issue(
+                    "sitemap",
+                    "sitemap_stale_lastmod",
+                    "low",
+                    f"{stale_count} sitemap URLs have lastmod older than {LASTMOD_STALE_DAYS} days",
+                    "Stale lastmod dates reduce crawl priority. Search engines may skip these URLs.",
+                    "Update lastmod to reflect actual content changes.",
+                )
+            )
 
         # No lastmod at all
         if no_lastmod_count == len(sitemap.urls):
-            issues.append(_issue(
-                "sitemap", "sitemap_no_lastmod", "medium",
-                "No lastmod dates in sitemap",
-                "None of the sitemap URLs have lastmod. Search engines can't prioritize fresh content.",
-                "Add accurate lastmod dates to all sitemap entries.",
-            ))
+            issues.append(
+                _issue(
+                    "sitemap",
+                    "sitemap_no_lastmod",
+                    "medium",
+                    "No lastmod dates in sitemap",
+                    "None of the sitemap URLs have lastmod. Search engines can't prioritize fresh content.",
+                    "Add accurate lastmod dates to all sitemap entries.",
+                )
+            )
 
         # Non-canonical URLs in sitemap
         if non_canonical_count > 0:
-            issues.append(_issue(
-                "sitemap", "sitemap_non_canonical_urls", "high",
-                f"{non_canonical_count} non-canonical URLs in sitemap",
-                "Sitemap contains URLs that are not the canonical version. "
-                "This wastes crawl budget and sends conflicting signals.",
-                "Only include canonical URLs in the sitemap.",
-            ))
+            issues.append(
+                _issue(
+                    "sitemap",
+                    "sitemap_non_canonical_urls",
+                    "high",
+                    f"{non_canonical_count} non-canonical URLs in sitemap",
+                    "Sitemap contains URLs that are not the canonical version. "
+                    "This wastes crawl budget and sends conflicting signals.",
+                    "Only include canonical URLs in the sitemap.",
+                )
+            )
 
         # Broken URL summary (if more than 5)
         if broken_count > 5:
-            issues.append(_issue(
-                "sitemap", "sitemap_many_broken_urls", "critical",
-                f"{broken_count} broken URLs in sitemap",
-                f"Sitemap contains {broken_count} URLs with non-200 status codes.",
-                "Audit and clean up the sitemap. Remove redirected, 404, and 5xx pages.",
-            ))
+            issues.append(
+                _issue(
+                    "sitemap",
+                    "sitemap_many_broken_urls",
+                    "critical",
+                    f"{broken_count} broken URLs in sitemap",
+                    f"Sitemap contains {broken_count} URLs with non-200 status codes.",
+                    "Audit and clean up the sitemap. Remove redirected, 404, and 5xx pages.",
+                )
+            )
 
         return issues
 
 
-def _issue(category: str, type_: str, severity: str,
-           title: str, description: str, fix: str) -> Dict[str, Any]:
+def _issue(
+    category: str, type_: str, severity: str, title: str, description: str, fix: str
+) -> Dict[str, Any]:
     return {
         "category": category,
         "type": type_,

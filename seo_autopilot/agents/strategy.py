@@ -29,24 +29,18 @@ EFFORT_BY_TYPE: Dict[str, float] = {
     "missing_html_lang": 0.25,
     "missing_canonical": 0.5,
     "noindex_detected": 0.25,
-
     "missing_og_title": 0.25,
     "missing_og_image": 1.0,
     "missing_twitter_card": 0.25,
     "images_without_alt": 0.5,
-
     "missing_organization_schema": 1.5,
     "no_jsonld": 1.5,
-
     "no_https": 4.0,
     "missing_security_headers": 1.0,
-
     "slow_response": 8.0,
     "fetch_error": 2.0,
-
     "low_ctr_opportunity": 1.5,
     "striking_distance": 3.0,
-
     "poor_lighthouse_performance": 8.0,
     "moderate_lighthouse_performance": 4.0,
     "poor_lcp": 4.0,
@@ -105,23 +99,35 @@ class StrategyAgent(Agent):
             await self.emit_started()
 
             # Pull issues from every previous agent in the shared context
-            all_issues: List[Dict[str, Any]] = list(self.context.all_issues) if self.context else []
+            all_issues: List[Dict[str, Any]] = (
+                list(self.context.all_issues) if self.context else []
+            )
 
             ranked = self._rank(all_issues)
 
             # Group into quick-wins, this-week, backlog
-            quick_wins = [i for i in ranked if i["effort_hours"] <= 0.5 and i["impact_score"] >= 40]
-            this_week = [i for i in ranked if i not in quick_wins and i["effort_hours"] <= 4]
+            quick_wins = [
+                i
+                for i in ranked
+                if i["effort_hours"] <= 0.5 and i["impact_score"] >= 40
+            ]
+            this_week = [
+                i for i in ranked if i not in quick_wins and i["effort_hours"] <= 4
+            ]
             backlog = [i for i in ranked if i not in quick_wins and i not in this_week]
 
-            result.metrics.update({
-                "total_issues": len(all_issues),
-                "quick_wins": len(quick_wins),
-                "this_week": len(this_week),
-                "backlog": len(backlog),
-                "total_effort_hours": round(sum(i["effort_hours"] for i in ranked), 1),
-                "top_actions": ranked[:10],
-            })
+            result.metrics.update(
+                {
+                    "total_issues": len(all_issues),
+                    "quick_wins": len(quick_wins),
+                    "this_week": len(this_week),
+                    "backlog": len(backlog),
+                    "total_effort_hours": round(
+                        sum(i["effort_hours"] for i in ranked), 1
+                    ),
+                    "top_actions": ranked[:10],
+                }
+            )
             result.issues = ranked  # overwrite with prioritized list
             result.status = AgentStatus.COMPLETED
             result.log_output = (

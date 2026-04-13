@@ -32,7 +32,9 @@ class DataSource(ABC):
         pass
 
     @abstractmethod
-    async def pull_analytics(self, domain: str, days: int = 28) -> Optional[SearchAnalytics]:
+    async def pull_analytics(
+        self, domain: str, days: int = 28
+    ) -> Optional[SearchAnalytics]:
         """Pull search analytics (e.g. GSC, Semrush)"""
         pass
 

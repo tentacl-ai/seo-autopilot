@@ -101,7 +101,10 @@ class SEOCrawler:
         self._client = httpx.AsyncClient(
             timeout=self.timeout,
             follow_redirects=True,
-            headers={"User-Agent": USER_AGENT, "Accept": "text/html,application/xhtml+xml"},
+            headers={
+                "User-Agent": USER_AGENT,
+                "Accept": "text/html,application/xhtml+xml",
+            },
         )
         return self
 
@@ -124,7 +127,9 @@ class SEOCrawler:
             try:
                 sitemap_urls = await self._parse_sitemap(sitemap_url, max_depth=2)
                 if sitemap_urls:
-                    logger.info(f"Discovered {len(sitemap_urls)} URLs via {sitemap_url}")
+                    logger.info(
+                        f"Discovered {len(sitemap_urls)} URLs via {sitemap_url}"
+                    )
                     urls = sitemap_urls
                     break
             except Exception as exc:
@@ -175,7 +180,9 @@ class SEOCrawler:
             for sm in root:
                 loc_el = next((c for c in sm if tag(c) == "loc"), None)
                 if loc_el is not None and loc_el.text:
-                    urls.extend(await self._parse_sitemap(loc_el.text.strip(), max_depth - 1))
+                    urls.extend(
+                        await self._parse_sitemap(loc_el.text.strip(), max_depth - 1)
+                    )
         elif tag(root) == "urlset":
             for u in root:
                 loc_el = next((c for c in u if tag(c) == "loc"), None)
@@ -312,10 +319,12 @@ def _parse_html_into(page: PageData, html: str) -> None:
         if "canonical" in rel and link.get("href"):
             page.canonical = link["href"].strip()
         if "alternate" in rel and link.get("hreflang"):
-            page.hreflang.append({
-                "hreflang": link["hreflang"],
-                "href": link.get("href", ""),
-            })
+            page.hreflang.append(
+                {
+                    "hreflang": link["hreflang"],
+                    "href": link.get("href", ""),
+                }
+            )
 
     # headings
     page.h1 = [h.get_text(strip=True) for h in soup.find_all("h1")]
@@ -357,7 +366,9 @@ def _parse_html_into(page: PageData, html: str) -> None:
     # images
     images = soup.find_all("img")
     page.images_total = len(images)
-    page.images_without_alt = sum(1 for img in images if not (img.get("alt") or "").strip())
+    page.images_without_alt = sum(
+        1 for img in images if not (img.get("alt") or "").strip()
+    )
 
     # word count (visible text minus script/style) - done LAST since it mutates soup
     for s in soup(["script", "style", "noscript"]):

@@ -78,12 +78,18 @@ class ContentAgent(Agent):
             fixes.append(_generic_security_headers_nginx())
 
             result.fixes = fixes
-            result.metrics.update({
-                "claude_enabled": claude_client is not None,
-                "fixes_generated": len(fixes),
-                "fixes_from_ai": sum(1 for f in fixes if f.get("source") == "claude"),
-                "fixes_from_template": sum(1 for f in fixes if f.get("source") == "template"),
-            })
+            result.metrics.update(
+                {
+                    "claude_enabled": claude_client is not None,
+                    "fixes_generated": len(fixes),
+                    "fixes_from_ai": sum(
+                        1 for f in fixes if f.get("source") == "claude"
+                    ),
+                    "fixes_from_template": sum(
+                        1 for f in fixes if f.get("source") == "template"
+                    ),
+                }
+            )
             result.status = AgentStatus.COMPLETED
             result.log_output = (
                 f"Generated {len(fixes)} fixes "
@@ -129,13 +135,18 @@ def _get_claude_client():
         return None
     try:
         import anthropic  # noqa
-        return anthropic.Anthropic(api_key=settings.CLAUDE_API_KEY, timeout=CLAUDE_TIMEOUT)
+
+        return anthropic.Anthropic(
+            api_key=settings.CLAUDE_API_KEY, timeout=CLAUDE_TIMEOUT
+        )
     except ImportError:
         logger.warning("anthropic package not installed")
         return None
 
 
-async def _claude_fix(client, issue: Dict[str, Any], name: str, domain: str) -> Optional[Dict[str, Any]]:
+async def _claude_fix(
+    client, issue: Dict[str, Any], name: str, domain: str
+) -> Optional[Dict[str, Any]]:
     """Call Claude synchronously (client is sync). Wrap in run_in_executor for true async."""
     import asyncio
 
@@ -179,7 +190,11 @@ def _build_prompt(issue: Dict[str, Any], name: str, domain: str) -> str:
             f"Kontext: {issue.get('description', '')}. "
             f"Gib NUR den Titel-Text aus, keine Erklärung, keine Anführungszeichen."
         )
-    if itype in ("missing_meta_description", "short_meta_description", "long_meta_description"):
+    if itype in (
+        "missing_meta_description",
+        "short_meta_description",
+        "long_meta_description",
+    ):
         # Prompt: generate an optimal meta description in German
         return (
             f"Schreibe eine optimale Meta-Description (140-160 Zeichen, deutsch) für "
@@ -221,7 +236,9 @@ def _build_prompt(issue: Dict[str, Any], name: str, domain: str) -> str:
     )
 
 
-def _template_fix(issue: Dict[str, Any], name: str, domain: str) -> Optional[Dict[str, Any]]:
+def _template_fix(
+    issue: Dict[str, Any], name: str, domain: str
+) -> Optional[Dict[str, Any]]:
     """Deterministic fallback when Claude is not available."""
     t = issue.get("type", "")
     url = issue.get("affected_url") or domain

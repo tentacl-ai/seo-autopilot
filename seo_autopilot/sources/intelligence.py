@@ -23,10 +23,13 @@ logger = logging.getLogger(__name__)
 
 try:
     import feedparser
+
     HAS_FEEDPARSER = True
 except ImportError:
     HAS_FEEDPARSER = False
-    logger.info("[intelligence] feedparser not installed — feed polling disabled. Install with: pip install feedparser")
+    logger.info(
+        "[intelligence] feedparser not installed — feed polling disabled. Install with: pip install feedparser"
+    )
 
 # RSS feed sources
 SEO_FEEDS: Dict[str, str] = {
@@ -47,17 +50,34 @@ SEO_FEEDS: Dict[str, str] = {
 # Keywords by priority
 PRIORITY_KEYWORDS: Dict[str, List[str]] = {
     "critical": [
-        "core update", "broad core update", "spam update",
-        "algorithm update", "ranking change", "search update",
+        "core update",
+        "broad core update",
+        "spam update",
+        "algorithm update",
+        "ranking change",
+        "search update",
     ],
     "high": [
-        "core web vitals", "inp", "ai overview", "ai mode",
-        "indexing", "crawling", "structured data", "rich results",
+        "core web vitals",
+        "inp",
+        "ai overview",
+        "ai mode",
+        "indexing",
+        "crawling",
+        "structured data",
+        "rich results",
     ],
     "medium": [
-        "e-e-a-t", "schema", "geo", "ai search",
-        "chatgpt search", "gemini", "perplexity",
-        "helpful content", "link spam", "review update",
+        "e-e-a-t",
+        "schema",
+        "geo",
+        "ai search",
+        "chatgpt search",
+        "gemini",
+        "perplexity",
+        "helpful content",
+        "link spam",
+        "review update",
     ],
 }
 
@@ -68,6 +88,7 @@ MIN_SOURCES_FOR_CONFIRMED = 2
 @dataclass
 class FeedItem:
     """A single RSS feed entry."""
+
     title: str
     url: str
     source: str
@@ -79,12 +100,15 @@ class FeedItem:
 
     def __post_init__(self):
         if not self.item_id:
-            self.item_id = hashlib.md5(f"{self.source}:{self.url}".encode()).hexdigest()[:12]
+            self.item_id = hashlib.md5(
+                f"{self.source}:{self.url}".encode()
+            ).hexdigest()[:12]
 
 
 @dataclass
 class AlgorithmEvent:
     """A detected algorithmic event (confirmed by 2+ sources)."""
+
     event_id: str
     title: str
     priority: str
@@ -131,10 +155,14 @@ class IntelligenceFeed:
                 logger.warning(f"[intelligence] Feed {source_name} failed: {exc}")
 
         self._items.extend(new_items)
-        logger.info(f"[intelligence] Polled {len(self.feeds)} feeds, {len(new_items)} new items")
+        logger.info(
+            f"[intelligence] Polled {len(self.feeds)} feeds, {len(new_items)} new items"
+        )
         return new_items
 
-    def detect_events(self, items: Optional[List[FeedItem]] = None) -> List[AlgorithmEvent]:
+    def detect_events(
+        self, items: Optional[List[FeedItem]] = None
+    ) -> List[AlgorithmEvent]:
         """Detects algorithmic events from feed items.
 
         An event is considered confirmed when at least 2 different sources
@@ -169,16 +197,18 @@ class IntelligenceFeed:
                 dates = [i.published for i in group_items if i.published]
                 first_seen = min(dates) if dates else None
 
-                events.append(AlgorithmEvent(
-                    event_id=event_id,
-                    title=f"Algorithm Event: {keyword.title()}",
-                    priority=group_items[0].priority,
-                    sources=sources,
-                    items=group_items[:5],
-                    first_seen=first_seen,
-                    confirmed=True,
-                    keywords=[keyword],
-                ))
+                events.append(
+                    AlgorithmEvent(
+                        event_id=event_id,
+                        title=f"Algorithm Event: {keyword.title()}",
+                        priority=group_items[0].priority,
+                        sources=sources,
+                        items=group_items[:5],
+                        first_seen=first_seen,
+                        confirmed=True,
+                        keywords=[keyword],
+                    )
+                )
 
         return events
 
@@ -187,7 +217,10 @@ class IntelligenceFeed:
         priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
         sorted_items = sorted(
             self._items,
-            key=lambda i: (priority_order.get(i.priority, 3), -(i.published or datetime.min.replace(tzinfo=timezone.utc)).timestamp()),
+            key=lambda i: (
+                priority_order.get(i.priority, 3),
+                -(i.published or datetime.min.replace(tzinfo=timezone.utc)).timestamp(),
+            ),
         )
         return sorted_items[:limit]
 
@@ -205,22 +238,26 @@ class IntelligenceFeed:
             published = None
             if hasattr(entry, "published_parsed") and entry.published_parsed:
                 try:
-                    published = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
+                    published = datetime(
+                        *entry.published_parsed[:6], tzinfo=timezone.utc
+                    )
                 except (TypeError, ValueError):
                     pass
 
             # Determine priority
             priority, matched = _classify_priority(f"{title} {summary}")
 
-            items.append(FeedItem(
-                title=title,
-                url=link,
-                source=source,
-                published=published,
-                summary=summary,
-                priority=priority,
-                matched_keywords=matched,
-            ))
+            items.append(
+                FeedItem(
+                    title=title,
+                    url=link,
+                    source=source,
+                    published=published,
+                    summary=summary,
+                    priority=priority,
+                    matched_keywords=matched,
+                )
+            )
 
         return items
 

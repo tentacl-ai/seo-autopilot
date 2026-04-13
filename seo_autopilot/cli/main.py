@@ -35,10 +35,13 @@ def config():
 @click.option("--name", prompt="Project Name", help="Display name")
 @click.option("--adapter-type", default="static", help="static | wordpress | fastapi")
 @click.option("--root-path", default=None, help="For static adapter")
-@click.option("--cron", default="0 7 * * 1", help="Cron expression (default: Monday 7am)")
+@click.option(
+    "--cron", default="0 7 * * 1", help="Cron expression (default: Monday 7am)"
+)
 def add(id, domain, name, adapter_type, root_path, cron):
     """Add a project"""
     from ..core.project_manager import ProjectManager
+
     pm = ProjectManager(settings.PROJECT_CONFIG_PATH)
 
     try:
@@ -67,6 +70,7 @@ def add(id, domain, name, adapter_type, root_path, cron):
 def list():
     """List all projects"""
     from ..core.project_manager import ProjectManager
+
     pm = ProjectManager(settings.PROJECT_CONFIG_PATH)
     projects = pm.list_projects()
 
@@ -89,6 +93,7 @@ def list():
 def remove(id):
     """Remove a project"""
     from ..core.project_manager import ProjectManager
+
     pm = ProjectManager(settings.PROJECT_CONFIG_PATH)
 
     if not click.confirm(f"Delete {id}?"):
@@ -157,6 +162,7 @@ def api(host, port):
 def version():
     """Show version"""
     from .. import __version__
+
     click.echo(f"SEO Autopilot v{__version__}")
 
 

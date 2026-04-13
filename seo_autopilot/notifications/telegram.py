@@ -23,12 +23,16 @@ TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
 MAX_MESSAGE_LENGTH = 4096
 
 
-async def send_audit_notification(ctx: AuditContext, report_path: Optional[Path] = None) -> bool:
+async def send_audit_notification(
+    ctx: AuditContext, report_path: Optional[Path] = None
+) -> bool:
     """Send a Telegram message summarising the audit. Returns True on success."""
     token = settings.TELEGRAM_BOT_TOKEN
     chat_id = settings.TELEGRAM_CHAT_ID
     if not token or not chat_id:
-        logger.info("Telegram not configured (no TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID) - skipping")
+        logger.info(
+            "Telegram not configured (no TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID) - skipping"
+        )
         return False
 
     text = _format_message(ctx, report_path)
@@ -36,12 +40,15 @@ async def send_audit_notification(ctx: AuditContext, report_path: Optional[Path]
 
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(url, data={
-                "chat_id": chat_id,
-                "text": text[:MAX_MESSAGE_LENGTH],
-                "parse_mode": "Markdown",
-                "disable_web_page_preview": "true",
-            })
+            resp = await client.post(
+                url,
+                data={
+                    "chat_id": chat_id,
+                    "text": text[:MAX_MESSAGE_LENGTH],
+                    "parse_mode": "Markdown",
+                    "disable_web_page_preview": "true",
+                },
+            )
         if resp.status_code != 200:
             logger.warning(f"Telegram API error {resp.status_code}: {resp.text}")
             return False
@@ -56,7 +63,9 @@ def _format_message(ctx: AuditContext, report_path: Optional[Path]) -> str:
     sev = ctx.issues_by_severity()
     summary = ctx.summary()
 
-    score_emoji = "🟢" if (ctx.score or 0) >= 85 else "🟡" if (ctx.score or 0) >= 60 else "🔴"
+    score_emoji = (
+        "🟢" if (ctx.score or 0) >= 85 else "🟡" if (ctx.score or 0) >= 60 else "🔴"
+    )
 
     lines = [
         f"*SEO Audit · {summary['project_name']}*",

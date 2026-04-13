@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DeltaReport:
     """Result of comparing two audit runs."""
+
     current_audit_id: str
     previous_audit_id: str
     score_current: float = 0.0
@@ -66,7 +67,9 @@ class DeltaReport:
         """Significant regression: score drops by > 5 points or new critical issues."""
         if self.score_delta < -5:
             return True
-        critical_new = [i for i in self.new_issues if i.get("severity") in ("critical", "high")]
+        critical_new = [
+            i for i in self.new_issues if i.get("severity") in ("critical", "high")
+        ]
         return len(critical_new) >= 2
 
 
@@ -122,11 +125,15 @@ class DeltaAnalyzer:
             report.persistent_issues.append(current_issue)
 
             # Regression: issue got worse (severity increased)
-            if _severity_rank(current_issue.get("severity", "")) > _severity_rank(previous_issue.get("severity", "")):
-                report.regressed_issues.append({
-                    **current_issue,
-                    "previous_severity": previous_issue.get("severity"),
-                })
+            if _severity_rank(current_issue.get("severity", "")) > _severity_rank(
+                previous_issue.get("severity", "")
+            ):
+                report.regressed_issues.append(
+                    {
+                        **current_issue,
+                        "previous_severity": previous_issue.get("severity"),
+                    }
+                )
 
         # Page-level comparison (issues per URL)
         current_by_url = _group_by_url(current_issues)
@@ -137,19 +144,23 @@ class DeltaAnalyzer:
             curr_count = len(current_by_url.get(url, []))
             prev_count = len(previous_by_url.get(url, []))
             if curr_count < prev_count:
-                report.improved_pages.append({
-                    "url": url,
-                    "issues_before": prev_count,
-                    "issues_after": curr_count,
-                    "delta": curr_count - prev_count,
-                })
+                report.improved_pages.append(
+                    {
+                        "url": url,
+                        "issues_before": prev_count,
+                        "issues_after": curr_count,
+                        "delta": curr_count - prev_count,
+                    }
+                )
             elif curr_count > prev_count:
-                report.degraded_pages.append({
-                    "url": url,
-                    "issues_before": prev_count,
-                    "issues_after": curr_count,
-                    "delta": curr_count - prev_count,
-                })
+                report.degraded_pages.append(
+                    {
+                        "url": url,
+                        "issues_before": prev_count,
+                        "issues_after": curr_count,
+                        "delta": curr_count - prev_count,
+                    }
+                )
 
         # CWV comparison
         report.cwv_changes = _compare_cwv(current_metrics, previous_metrics)
@@ -190,7 +201,9 @@ class DeltaAnalyzer:
         if report.new_issues:
             lines.append(f"New issues: {len(report.new_issues)}")
             for issue in report.new_issues[:5]:
-                lines.append(f"  [{issue.get('severity', '?'):6}] {issue.get('title', '')[:60]}")
+                lines.append(
+                    f"  [{issue.get('severity', '?'):6}] {issue.get('title', '')[:60]}"
+                )
 
         if report.regressed_issues:
             lines.append(f"\nDegraded: {len(report.regressed_issues)}")
@@ -203,7 +216,9 @@ class DeltaAnalyzer:
         if report.degraded_pages:
             lines.append(f"\nDegraded pages: {len(report.degraded_pages)}")
             for page in report.degraded_pages[:3]:
-                lines.append(f"  {page['url']}: {page['issues_before']} -> {page['issues_after']} issues")
+                lines.append(
+                    f"  {page['url']}: {page['issues_before']} -> {page['issues_after']} issues"
+                )
 
         return "\n".join(lines)
 

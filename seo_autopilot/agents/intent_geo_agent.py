@@ -57,6 +57,7 @@ Scoring guide:
 @dataclass
 class KeywordAnalysis:
     """Result of analyzing one keyword+page pair."""
+
     keyword: str
     url: str
     position: float
@@ -75,6 +76,7 @@ class KeywordAnalysis:
 @dataclass
 class IntentGEOResult:
     """Full result of intent + GEO analysis."""
+
     analyses: List[KeywordAnalysis] = field(default_factory=list)
     avg_intent_match: float = 0.0
     avg_geo_readiness: float = 0.0
@@ -92,7 +94,8 @@ def select_keywords(
     Sorts by impressions descending (highest opportunity first).
     """
     candidates = [
-        kw for kw in gsc_keywords
+        kw
+        for kw in gsc_keywords
         if MIN_POSITION <= kw.get("position", 0) <= MAX_POSITION
         and kw.get("impressions", 0) >= MIN_IMPRESSIONS
     ]
@@ -201,7 +204,9 @@ async def analyze_keywords(
     # Select keywords
     selected = select_keywords(gsc_keywords)
     if not selected:
-        result.skipped_reason = "No keywords matching criteria (pos 4-30, impressions >= 100)"
+        result.skipped_reason = (
+            "No keywords matching criteria (pos 4-30, impressions >= 100)"
+        )
         logger.info(f"[intent_geo] {result.skipped_reason}")
         return result
 
@@ -235,12 +240,16 @@ async def analyze_keywords(
                 analysis.geo_readiness = int(parsed.get("geo_readiness", 0))
                 analysis.geo_explanation = parsed.get("geo_explanation", "")
                 analysis.content_gaps = parsed.get("content_gaps", [])
-                analysis.suggested_improvements = parsed.get("suggested_improvements", [])
+                analysis.suggested_improvements = parsed.get(
+                    "suggested_improvements", []
+                )
             else:
                 analysis.error = "Failed to parse API response"
         except Exception as exc:
             analysis.error = str(exc)
-            logger.warning(f"[intent_geo] API call failed for '{kw.get('keyword', '')}': {exc}")
+            logger.warning(
+                f"[intent_geo] API call failed for '{kw.get('keyword', '')}': {exc}"
+            )
 
         result.analyses.append(analysis)
 
@@ -272,65 +281,75 @@ def _generate_issues(result: IntentGEOResult) -> List[Dict[str, Any]]:
             continue
 
         if a.intent_match < 40:
-            issues.append({
-                "category": "content",
-                "type": "poor_intent_match",
-                "severity": "high",
-                "title": f"Poor intent match for '{a.keyword}' ({a.intent_match}/100)",
-                "affected_url": a.url,
-                "description": (
-                    f"Page at position {a.position:.0f} does not match search intent "
-                    f"for '{a.keyword}'. {a.intent_explanation}"
-                ),
-                "fix_suggestion": (
-                    "; ".join(a.suggested_improvements[:2]) if a.suggested_improvements
-                    else "Rewrite content to match the search intent."
-                ),
-                "estimated_impact": f"Keyword has {a.impressions} impressions/week",
-            })
+            issues.append(
+                {
+                    "category": "content",
+                    "type": "poor_intent_match",
+                    "severity": "high",
+                    "title": f"Poor intent match for '{a.keyword}' ({a.intent_match}/100)",
+                    "affected_url": a.url,
+                    "description": (
+                        f"Page at position {a.position:.0f} does not match search intent "
+                        f"for '{a.keyword}'. {a.intent_explanation}"
+                    ),
+                    "fix_suggestion": (
+                        "; ".join(a.suggested_improvements[:2])
+                        if a.suggested_improvements
+                        else "Rewrite content to match the search intent."
+                    ),
+                    "estimated_impact": f"Keyword has {a.impressions} impressions/week",
+                }
+            )
         elif a.intent_match < 70:
-            issues.append({
-                "category": "content",
-                "type": "moderate_intent_match",
-                "severity": "medium",
-                "title": f"Moderate intent match for '{a.keyword}' ({a.intent_match}/100)",
-                "affected_url": a.url,
-                "description": (
-                    f"Page partially matches intent for '{a.keyword}' (pos {a.position:.0f}). "
-                    f"{a.intent_explanation}"
-                ),
-                "fix_suggestion": (
-                    "; ".join(a.suggested_improvements[:2]) if a.suggested_improvements
-                    else "Strengthen content alignment with search intent."
-                ),
-                "estimated_impact": f"Keyword has {a.impressions} impressions/week",
-            })
+            issues.append(
+                {
+                    "category": "content",
+                    "type": "moderate_intent_match",
+                    "severity": "medium",
+                    "title": f"Moderate intent match for '{a.keyword}' ({a.intent_match}/100)",
+                    "affected_url": a.url,
+                    "description": (
+                        f"Page partially matches intent for '{a.keyword}' (pos {a.position:.0f}). "
+                        f"{a.intent_explanation}"
+                    ),
+                    "fix_suggestion": (
+                        "; ".join(a.suggested_improvements[:2])
+                        if a.suggested_improvements
+                        else "Strengthen content alignment with search intent."
+                    ),
+                    "estimated_impact": f"Keyword has {a.impressions} impressions/week",
+                }
+            )
 
         if a.geo_readiness < 40:
-            issues.append({
-                "category": "geo",
-                "type": "poor_geo_readiness",
-                "severity": "high",
-                "title": f"Low GEO readiness for '{a.keyword}' ({a.geo_readiness}/100)",
-                "affected_url": a.url,
-                "description": (
-                    f"AI systems unlikely to cite this page for '{a.keyword}'. "
-                    f"{a.geo_explanation}"
-                ),
-                "fix_suggestion": "Add structured answers, statistics, and clear H2 sections.",
-                "estimated_impact": "",
-            })
+            issues.append(
+                {
+                    "category": "geo",
+                    "type": "poor_geo_readiness",
+                    "severity": "high",
+                    "title": f"Low GEO readiness for '{a.keyword}' ({a.geo_readiness}/100)",
+                    "affected_url": a.url,
+                    "description": (
+                        f"AI systems unlikely to cite this page for '{a.keyword}'. "
+                        f"{a.geo_explanation}"
+                    ),
+                    "fix_suggestion": "Add structured answers, statistics, and clear H2 sections.",
+                    "estimated_impact": "",
+                }
+            )
 
         if a.content_gaps:
-            issues.append({
-                "category": "content",
-                "type": "content_gaps_detected",
-                "severity": "medium",
-                "title": f"Content gaps for '{a.keyword}'",
-                "affected_url": a.url,
-                "description": f"Missing vs competitors: {'; '.join(a.content_gaps[:3])}",
-                "fix_suggestion": f"Add sections covering: {'; '.join(a.content_gaps[:3])}",
-                "estimated_impact": "",
-            })
+            issues.append(
+                {
+                    "category": "content",
+                    "type": "content_gaps_detected",
+                    "severity": "medium",
+                    "title": f"Content gaps for '{a.keyword}'",
+                    "affected_url": a.url,
+                    "description": f"Missing vs competitors: {'; '.join(a.content_gaps[:3])}",
+                    "fix_suggestion": f"Add sections covering: {'; '.join(a.content_gaps[:3])}",
+                    "estimated_impact": "",
+                }
+            )
 
     return issues

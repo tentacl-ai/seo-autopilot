@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CanonicalResolution:
     """Result of canonical resolution for a URL."""
+
     url: str
     declared_canonical: Optional[str] = None  # from HTML <link rel="canonical">
     http_header_canonical: Optional[str] = None  # from HTTP Link Header
@@ -38,6 +39,7 @@ class CanonicalResolution:
 @dataclass
 class PageCanonicalData:
     """Minimal data the CanonicalEngine needs per page."""
+
     url: str
     final_url: str = ""
     status_code: int = 200
@@ -63,7 +65,9 @@ class CanonicalEngine:
         resolution = CanonicalResolution(url=url)
         resolution.declared_canonical = page.canonical
         resolution.http_header_canonical = page.http_link_canonical
-        resolution.sitemap_listed = url in self.sitemap_urls or page.url in self.sitemap_urls
+        resolution.sitemap_listed = (
+            url in self.sitemap_urls or page.url in self.sitemap_urls
+        )
 
         # Signal hierarchy: HTTP Header > HTML > Sitemap > Self
         if page.http_link_canonical:
@@ -87,12 +91,11 @@ class CanonicalEngine:
 
         return resolution
 
-    def resolve_all(self, pages: List[PageCanonicalData]) -> Dict[str, CanonicalResolution]:
+    def resolve_all(
+        self, pages: List[PageCanonicalData]
+    ) -> Dict[str, CanonicalResolution]:
         """Resolve all pages, returns Dict url -> CanonicalResolution."""
-        return {
-            _normalize_url(p.final_url or p.url): self.resolve(p)
-            for p in pages
-        }
+        return {_normalize_url(p.final_url or p.url): self.resolve(p) for p in pages}
 
     def detect_conflicts(self, pages: List[PageCanonicalData]) -> List[Dict[str, Any]]:
         """Detects canonical conflicts and returns issues."""
@@ -116,74 +119,106 @@ class CanonicalEngine:
 
             # 1. Missing self-canonical
             if not res.declared_canonical and not res.http_header_canonical:
-                issues.append(_canonical_issue(
-                    "canonical_missing", "medium", url,
-                    "No self-canonical set",
-                    "Page has neither HTML <link rel=canonical> nor HTTP Link Header.",
-                    'Add <link rel="canonical" href="..."> with the page\'s own URL.',
-                ))
+                issues.append(
+                    _canonical_issue(
+                        "canonical_missing",
+                        "medium",
+                        url,
+                        "No self-canonical set",
+                        "Page has neither HTML <link rel=canonical> nor HTTP Link Header.",
+                        'Add <link rel="canonical" href="..."> with the page\'s own URL.',
+                    )
+                )
 
             # 2. Canonical points to redirect (3xx)
             if canonical != url and canonical in url_status:
                 target_status = url_status[canonical]
                 if 300 <= target_status < 400:
-                    issues.append(_canonical_issue(
-                        "canonical_points_to_redirect", "high", url,
-                        f"Canonical points to redirect ({target_status})",
-                        f"Canonical {canonical} returns HTTP {target_status}.",
-                        "Canonical must point to the final URL, not a redirect URL.",
-                    ))
+                    issues.append(
+                        _canonical_issue(
+                            "canonical_points_to_redirect",
+                            "high",
+                            url,
+                            f"Canonical points to redirect ({target_status})",
+                            f"Canonical {canonical} returns HTTP {target_status}.",
+                            "Canonical must point to the final URL, not a redirect URL.",
+                        )
+                    )
 
             # 3. Canonical points to 404/5xx
             if canonical != url and canonical in url_status:
                 target_status = url_status[canonical]
                 if target_status >= 400:
                     sev = "critical" if target_status == 404 else "high"
-                    issues.append(_canonical_issue(
-                        "canonical_points_to_error", sev, url,
-                        f"Canonical points to HTTP {target_status}",
-                        f"Canonical {canonical} returns HTTP {target_status}.",
-                        "Change canonical to a reachable URL or remove it.",
-                    ))
+                    issues.append(
+                        _canonical_issue(
+                            "canonical_points_to_error",
+                            sev,
+                            url,
+                            f"Canonical points to HTTP {target_status}",
+                            f"Canonical {canonical} returns HTTP {target_status}.",
+                            "Change canonical to a reachable URL or remove it.",
+                        )
+                    )
 
             # 4. Canonical conflicts with sitemap
-            if canonical != url and url in self.sitemap_urls and canonical not in self.sitemap_urls:
-                issues.append(_canonical_issue(
-                    "canonical_conflicts_sitemap", "medium", url,
-                    "Canonical conflicts with sitemap",
-                    f"URL is in sitemap, canonical points to {canonical} (not in sitemap).",
-                    "Correct either the canonical or the sitemap entry.",
-                ))
+            if (
+                canonical != url
+                and url in self.sitemap_urls
+                and canonical not in self.sitemap_urls
+            ):
+                issues.append(
+                    _canonical_issue(
+                        "canonical_conflicts_sitemap",
+                        "medium",
+                        url,
+                        "Canonical conflicts with sitemap",
+                        f"URL is in sitemap, canonical points to {canonical} (not in sitemap).",
+                        "Correct either the canonical or the sitemap entry.",
+                    )
+                )
 
             # 5. Canonical points to noindex URL
             if canonical != url and canonical in url_robots:
                 target_robots = url_robots.get(canonical) or ""
                 if "noindex" in target_robots.lower():
-                    issues.append(_canonical_issue(
-                        "canonical_points_to_noindex", "high", url,
-                        "Canonical points to noindex page",
-                        f"Canonical {canonical} has robots: {target_robots}.",
-                        "Canonical must not point to noindex pages.",
-                    ))
+                    issues.append(
+                        _canonical_issue(
+                            "canonical_points_to_noindex",
+                            "high",
+                            url,
+                            "Canonical points to noindex page",
+                            f"Canonical {canonical} has robots: {target_robots}.",
+                            "Canonical must not point to noindex pages.",
+                        )
+                    )
 
             # 6. Canonical points outside hreflang cluster
             page_hreflangs = url_hreflang.get(url, [])
             if canonical != url and page_hreflangs:
-                cluster_urls = {_normalize_url(h["href"]) for h in page_hreflangs if h.get("href")}
+                cluster_urls = {
+                    _normalize_url(h["href"]) for h in page_hreflangs if h.get("href")
+                }
                 if canonical not in cluster_urls and url in cluster_urls:
-                    issues.append(_canonical_issue(
-                        "canonical_conflicts_hreflang", "high", url,
-                        "Canonical points outside hreflang cluster",
-                        f"Canonical {canonical} is not part of the hreflang cluster.",
-                        "Canonical must stay within the hreflang cluster.",
-                    ))
+                    issues.append(
+                        _canonical_issue(
+                            "canonical_conflicts_hreflang",
+                            "high",
+                            url,
+                            "Canonical points outside hreflang cluster",
+                            f"Canonical {canonical} is not part of the hreflang cluster.",
+                            "Canonical must stay within the hreflang cluster.",
+                        )
+                    )
 
         # 7. Detect canonical chains (A -> B -> C)
         issues.extend(self._detect_chains(resolutions))
 
         return issues
 
-    def _detect_chains(self, resolutions: Dict[str, CanonicalResolution]) -> List[Dict[str, Any]]:
+    def _detect_chains(
+        self, resolutions: Dict[str, CanonicalResolution]
+    ) -> List[Dict[str, Any]]:
         """Detects canonical chains (A canonical B canonical C)."""
         issues = []
         for url, res in resolutions.items():
@@ -195,16 +230,21 @@ class CanonicalEngine:
                 target_res = resolutions[canonical]
                 target_canonical = target_res.resolved_canonical
                 if target_canonical and target_canonical != canonical:
-                    issues.append(_canonical_issue(
-                        "canonical_chain", "medium", url,
-                        f"Canonical chain: {url} -> {canonical} -> {target_canonical}",
-                        "Canonical chains waste crawl budget and weaken signals.",
-                        f"Set canonical directly to {target_canonical}.",
-                    ))
+                    issues.append(
+                        _canonical_issue(
+                            "canonical_chain",
+                            "medium",
+                            url,
+                            f"Canonical chain: {url} -> {canonical} -> {target_canonical}",
+                            "Canonical chains waste crawl budget and weaken signals.",
+                            f"Set canonical directly to {target_canonical}.",
+                        )
+                    )
         return issues
 
-    def is_canonical_pair(self, url_a: str, url_b: str,
-                          resolutions: Dict[str, CanonicalResolution]) -> bool:
+    def is_canonical_pair(
+        self, url_a: str, url_b: str, resolutions: Dict[str, CanonicalResolution]
+    ) -> bool:
         """Checks whether a canonical relationship exists between two URLs.
 
         Used by duplicate content detection to avoid false positives.
@@ -234,8 +274,9 @@ def _normalize_url(url: str) -> str:
     return normalized
 
 
-def _canonical_issue(type_: str, severity: str, url: str,
-                     title: str, description: str, fix: str) -> Dict[str, Any]:
+def _canonical_issue(
+    type_: str, severity: str, url: str, title: str, description: str, fix: str
+) -> Dict[str, Any]:
     return {
         "category": "canonical",
         "type": type_,

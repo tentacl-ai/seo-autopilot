@@ -65,14 +65,21 @@ class DuplicateContentDetector:
             if 0 < wc < THIN_CONTENT_THRESHOLD:
                 url = page.get("url", "")
                 # Exclude legal pages
-                if any(k in url.lower() for k in ("impressum", "datenschutz", "privacy", "terms", "agb")):
+                if any(
+                    k in url.lower()
+                    for k in ("impressum", "datenschutz", "privacy", "terms", "agb")
+                ):
                     continue
-                issues.append(_duplicate_issue(
-                    "thin_content", "medium", url,
-                    f"Thin content: {wc} words",
-                    f"Page has only {wc} words (minimum: {THIN_CONTENT_THRESHOLD}).",
-                    "Expand the content or merge with a similar page.",
-                ))
+                issues.append(
+                    _duplicate_issue(
+                        "thin_content",
+                        "medium",
+                        url,
+                        f"Thin content: {wc} words",
+                        f"Page has only {wc} words (minimum: {THIN_CONTENT_THRESHOLD}).",
+                        "Expand the content or merge with a similar page.",
+                    )
+                )
 
         # 2. SimHash near-duplicates
         simhashes: List[tuple] = []  # (url, simhash_value)
@@ -94,7 +101,7 @@ class DuplicateContentDetector:
 
         # Pairwise comparison (O(n^2) but n is typically < 50)
         for i, (url_a, hash_a) in enumerate(simhashes):
-            for url_b, hash_b in simhashes[i + 1:]:
+            for url_b, hash_b in simhashes[i + 1 :]:
                 dist = hamming_distance(hash_a, hash_b)
                 if dist <= HAMMING_THRESHOLD:
                     # Canonical pair? -> Skip
@@ -104,20 +111,28 @@ class DuplicateContentDetector:
                     if self._same_cluster(url_a, url_b):
                         continue
 
-                    issues.append(_duplicate_issue(
-                        "near_duplicate_content", "high", url_a,
-                        f"Near-duplicate: {url_a} and {url_b}",
-                        f"SimHash Hamming distance: {dist} (threshold: {HAMMING_THRESHOLD}). "
-                        f"Pages have very similar content.",
-                        f"Set canonical or merge pages. "
-                        f"Recommendation: Set canonical from {url_b} to {url_a}.",
-                    ))
+                    issues.append(
+                        _duplicate_issue(
+                            "near_duplicate_content",
+                            "high",
+                            url_a,
+                            f"Near-duplicate: {url_a} and {url_b}",
+                            f"SimHash Hamming distance: {dist} (threshold: {HAMMING_THRESHOLD}). "
+                            f"Pages have very similar content.",
+                            f"Set canonical or merge pages. "
+                            f"Recommendation: Set canonical from {url_b} to {url_a}.",
+                        )
+                    )
 
         # 3. Keyword cannibalization (same H1 on 2+ pages)
         h1_pages: Dict[str, List[str]] = defaultdict(list)
         for page in pages:
             h1_list = page.get("h1", [])
-            h1 = h1_list[0].strip().lower() if isinstance(h1_list, list) and h1_list else ""
+            h1 = (
+                h1_list[0].strip().lower()
+                if isinstance(h1_list, list) and h1_list
+                else ""
+            )
             if h1 and len(h1) > 5:
                 url = page.get("url", "")
                 # Skip if in same cluster
@@ -129,17 +144,24 @@ class DuplicateContentDetector:
             # Filter: Only URLs NOT in the same cluster
             non_cluster_groups = self._group_by_cluster(urls)
             if len(non_cluster_groups) >= 2:
-                issues.append(_duplicate_issue(
-                    "keyword_cannibalization", "high", urls[0],
-                    f"Keyword cannibalization: H1 '{h1}' on {len(urls)} pages",
-                    f"URLs: {', '.join(urls[:5])}",
-                    "Differentiate the H1 tags or set canonical to the strongest page.",
-                ))
+                issues.append(
+                    _duplicate_issue(
+                        "keyword_cannibalization",
+                        "high",
+                        urls[0],
+                        f"Keyword cannibalization: H1 '{h1}' on {len(urls)} pages",
+                        f"URLs: {', '.join(urls[:5])}",
+                        "Differentiate the H1 tags or set canonical to the strongest page.",
+                    )
+                )
 
         return issues
 
     def _is_canonical_pair(self, url_a: str, url_b: str) -> bool:
-        return (url_a, url_b) in self.canonical_pairs or (url_b, url_a) in self.canonical_pairs
+        return (url_a, url_b) in self.canonical_pairs or (
+            url_b,
+            url_a,
+        ) in self.canonical_pairs
 
     def _same_cluster(self, url_a: str, url_b: str) -> bool:
         ca = self._url_cluster.get(url_a)
@@ -159,7 +181,7 @@ class DuplicateContentDetector:
 # SimHash implementation (64-bit, no external dependency)
 # ---------------------------------------------------------------
 
-_WORD_RE = re.compile(r'\w+', re.UNICODE)
+_WORD_RE = re.compile(r"\w+", re.UNICODE)
 
 
 def simhash(text: str, hashbits: int = SIMHASH_BITS) -> int:
@@ -186,7 +208,7 @@ def simhash(text: str, hashbits: int = SIMHASH_BITS) -> int:
     fingerprint = 0
     for i in range(hashbits):
         if v[i] >= 0:
-            fingerprint |= (1 << i)
+            fingerprint |= 1 << i
     return fingerprint
 
 
@@ -195,8 +217,9 @@ def hamming_distance(a: int, b: int) -> int:
     return bin(a ^ b).count("1")
 
 
-def _duplicate_issue(type_: str, severity: str, url: str,
-                     title: str, description: str, fix: str) -> Dict[str, Any]:
+def _duplicate_issue(
+    type_: str, severity: str, url: str, title: str, description: str, fix: str
+) -> Dict[str, Any]:
     return {
         "category": "duplicate_content",
         "type": type_,

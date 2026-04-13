@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="SEO Autopilot API",
     description="Multi-tenant SEO automation platform",
-    version="1.0.1"
+    version="1.0.1",
 )
 
 # CORS
@@ -361,12 +361,14 @@ async def run_audit_for_project(project_id: str) -> Optional[str]:
 
     ctx = AuditContext(audit_id=audit_id, project_id=project_id, project_config=project)
 
-    await event_bus.emit(Event(
-        type=EventType.AUDIT_STARTED,
-        project_id=project_id,
-        timestamp=datetime.utcnow(),
-        data={"audit_id": audit_id, "project_name": project.name},
-    ))
+    await event_bus.emit(
+        Event(
+            type=EventType.AUDIT_STARTED,
+            project_id=project_id,
+            timestamp=datetime.utcnow(),
+            data={"audit_id": audit_id, "project_name": project.name},
+        )
+    )
 
     agent_classes = [AnalyzerAgent, KeywordAgent, StrategyAgent, ContentAgent]
 
@@ -400,12 +402,14 @@ async def run_audit_for_project(project_id: str) -> Optional[str]:
         except Exception as exc:
             logger.warning(f"Telegram notification failed: {exc}")
 
-        await event_bus.emit(Event(
-            type=EventType.AUDIT_COMPLETED,
-            project_id=project_id,
-            timestamp=datetime.utcnow(),
-            data=ctx.summary(),
-        ))
+        await event_bus.emit(
+            Event(
+                type=EventType.AUDIT_COMPLETED,
+                project_id=project_id,
+                timestamp=datetime.utcnow(),
+                data=ctx.summary(),
+            )
+        )
 
         project_manager.update_project(project_id, last_run_at=datetime.utcnow())
 
@@ -421,12 +425,14 @@ async def run_audit_for_project(project_id: str) -> Optional[str]:
         ctx.error = str(exc)
         ctx.completed_at = datetime.utcnow()
         logger.exception("Audit failed")
-        await event_bus.emit(Event(
-            type=EventType.AUDIT_FAILED,
-            project_id=project_id,
-            timestamp=datetime.utcnow(),
-            data={"audit_id": audit_id, "error": str(exc)},
-        ))
+        await event_bus.emit(
+            Event(
+                type=EventType.AUDIT_FAILED,
+                project_id=project_id,
+                timestamp=datetime.utcnow(),
+                data={"audit_id": audit_id, "error": str(exc)},
+            )
+        )
         return audit_id
 
 
@@ -446,7 +452,9 @@ async def get_intelligence_impact(project_id: str):
     """Return the latest impact report for a project."""
     report = intelligence_agent.get_impact_report(project_id)
     if not report:
-        raise HTTPException(status_code=404, detail="No impact report found for this project")
+        raise HTTPException(
+            status_code=404, detail="No impact report found for this project"
+        )
     return report
 
 

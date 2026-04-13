@@ -87,10 +87,7 @@ class EventBus:
 
         # Rufe alle Subscriber auf
         if event.type in self._subscribers:
-            tasks = [
-                callback(event)
-                for callback in self._subscribers[event.type]
-            ]
+            tasks = [callback(event) for callback in self._subscribers[event.type]]
             if tasks:
                 await asyncio.gather(*tasks, return_exceptions=True)
 

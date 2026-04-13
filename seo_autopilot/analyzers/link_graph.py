@@ -30,7 +30,7 @@ class LinkGraph:
 
     def __init__(self):
         self.outlinks: Dict[str, Set[str]] = defaultdict(set)  # url -> {linked_urls}
-        self.inlinks: Dict[str, Set[str]] = defaultdict(set)   # url -> {linking_urls}
+        self.inlinks: Dict[str, Set[str]] = defaultdict(set)  # url -> {linking_urls}
         self.all_urls: Set[str] = set()
         self.broken_links: Dict[str, int] = {}  # url -> status_code (4xx/5xx)
 
@@ -110,7 +110,9 @@ class LinkGraph:
                 orphans.append(url)
         return orphans
 
-    def detect_issues(self, pages: List[Dict[str, Any]], homepage: str) -> List[Dict[str, Any]]:
+    def detect_issues(
+        self, pages: List[Dict[str, Any]], homepage: str
+    ) -> List[Dict[str, Any]]:
         """Builds graph and detects all link issues."""
         self.build(pages, homepage)
         issues: List[Dict[str, Any]] = []
@@ -122,32 +124,44 @@ class LinkGraph:
         for url in self.orphan_pages():
             if url in self.broken_links:
                 continue  # Broken pages are not an orphan issue
-            issues.append(_link_issue(
-                "orphan_page", "medium", url,
-                f"Orphan page: no internal link to {url}",
-                "Page has no incoming internal links and is only reachable via sitemap/direct link.",
-                "Link the page from thematically relevant pages.",
-            ))
+            issues.append(
+                _link_issue(
+                    "orphan_page",
+                    "medium",
+                    url,
+                    f"Orphan page: no internal link to {url}",
+                    "Page has no incoming internal links and is only reachable via sitemap/direct link.",
+                    "Link the page from thematically relevant pages.",
+                )
+            )
 
         # 2. Deep pages (click depth > 3)
         for url, depth in depths.items():
             if depth > MAX_CLICK_DEPTH:
-                issues.append(_link_issue(
-                    "deep_page", "low", url,
-                    f"Deep page: click depth {depth} (max {MAX_CLICK_DEPTH})",
-                    f"Page is {depth} clicks away from the homepage.",
-                    "Link from a page with lower depth.",
-                ))
+                issues.append(
+                    _link_issue(
+                        "deep_page",
+                        "low",
+                        url,
+                        f"Deep page: click depth {depth} (max {MAX_CLICK_DEPTH})",
+                        f"Page is {depth} clicks away from the homepage.",
+                        "Link from a page with lower depth.",
+                    )
+                )
 
         # 3. Unreachable pages (not in depth map)
         for url in self.all_urls:
             if url not in depths and url not in self.broken_links:
-                issues.append(_link_issue(
-                    "unreachable_page", "high", url,
-                    f"Not reachable from homepage: {url}",
-                    "Page is not reachable via internal links from the homepage.",
-                    "Ensure the page is linked from the main navigation or content pages.",
-                ))
+                issues.append(
+                    _link_issue(
+                        "unreachable_page",
+                        "high",
+                        url,
+                        f"Not reachable from homepage: {url}",
+                        "Page is not reachable via internal links from the homepage.",
+                        "Ensure the page is linked from the main navigation or content pages.",
+                    )
+                )
 
         # 4. Broken internal links
         for page in pages:
@@ -156,24 +170,32 @@ class LinkGraph:
                 target_norm = _normalize(target)
                 if target_norm in self.broken_links:
                     status = self.broken_links[target_norm]
-                    issues.append(_link_issue(
-                        "broken_internal_link", "high" if status == 404 else "medium", url,
-                        f"Broken link: {url} -> {target_norm} (HTTP {status})",
-                        f"Internal link points to page with HTTP {status}.",
-                        "Remove the link or change it to a working URL.",
-                    ))
+                    issues.append(
+                        _link_issue(
+                            "broken_internal_link",
+                            "high" if status == 404 else "medium",
+                            url,
+                            f"Broken link: {url} -> {target_norm} (HTTP {status})",
+                            f"Internal link points to page with HTTP {status}.",
+                            "Remove the link or change it to a working URL.",
+                        )
+                    )
 
         # 5. Link equity sinks
         for url in self.all_urls:
             incount = len(self.inlinks.get(url, set()))
             outcount = len(self.outlinks.get(url, set()))
             if incount >= 5 and outcount == 0 and url not in self.broken_links:
-                issues.append(_link_issue(
-                    "link_equity_sink", "low", url,
-                    f"Link equity sink: {incount} incoming, 0 outgoing",
-                    "Page receives a lot of link equity but passes none on.",
-                    "Add internal links to relevant pages.",
-                ))
+                issues.append(
+                    _link_issue(
+                        "link_equity_sink",
+                        "low",
+                        url,
+                        f"Link equity sink: {incount} incoming, 0 outgoing",
+                        "Page receives a lot of link equity but passes none on.",
+                        "Add internal links to relevant pages.",
+                    )
+                )
 
         return issues
 
@@ -188,8 +210,9 @@ def _normalize(url: str) -> str:
     return url.lower()
 
 
-def _link_issue(type_: str, severity: str, url: str,
-                title: str, description: str, fix: str) -> Dict[str, Any]:
+def _link_issue(
+    type_: str, severity: str, url: str, title: str, description: str, fix: str
+) -> Dict[str, Any]:
     return {
         "category": "link_graph",
         "type": type_,

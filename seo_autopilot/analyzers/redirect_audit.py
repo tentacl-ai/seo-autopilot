@@ -18,14 +18,20 @@ logger = logging.getLogger(__name__)
 
 MAX_REDIRECTS = 10
 SOFT_404_PHRASES = [
-    "not found", "404", "keine seite", "nicht gefunden",
-    "page not found", "seite nicht gefunden", "does not exist",
+    "not found",
+    "404",
+    "keine seite",
+    "nicht gefunden",
+    "page not found",
+    "seite nicht gefunden",
+    "does not exist",
 ]
 
 
 @dataclass
 class RedirectHop:
     """A single redirect step."""
+
     url: str
     status_code: int
     location: str  # target URL
@@ -34,6 +40,7 @@ class RedirectHop:
 @dataclass
 class RedirectChain:
     """Complete redirect chain from start to final."""
+
     start_url: str
     hops: List[RedirectHop] = field(default_factory=list)
     final_url: str = ""
@@ -45,6 +52,7 @@ class RedirectChain:
 @dataclass
 class PageForRedirectAudit:
     """Minimal data per page for the redirect audit."""
+
     url: str
     final_url: str = ""
     status_code: int = 200
@@ -60,7 +68,9 @@ class RedirectAuditor:
     def __init__(self, timeout: float = 15.0):
         self.timeout = timeout
 
-    async def trace_chain(self, url: str, client: Optional[httpx.AsyncClient] = None) -> RedirectChain:
+    async def trace_chain(
+        self, url: str, client: Optional[httpx.AsyncClient] = None
+    ) -> RedirectChain:
         """Follows redirects to the final URL, measures length and types."""
         chain = RedirectChain(start_url=url)
         seen: Set[str] = set()
@@ -91,11 +101,13 @@ class RedirectAuditor:
                         chain.final_url = current
                         chain.final_status = resp.status_code
                         break
-                    chain.hops.append(RedirectHop(
-                        url=current,
-                        status_code=resp.status_code,
-                        location=location,
-                    ))
+                    chain.hops.append(
+                        RedirectHop(
+                            url=current,
+                            status_code=resp.status_code,
+                            location=location,
+                        )
+                    )
                     current = location
                 else:
                     chain.final_url = current
@@ -124,42 +136,60 @@ class RedirectAuditor:
         if chains:
             for chain in chains:
                 if chain.is_loop:
-                    issues.append(_redirect_issue(
-                        "redirect_loop", "critical", chain.start_url,
-                        f"Redirect loop detected: {chain.start_url}",
-                        f"URL redirects back to itself after {chain.chain_length} hops.",
-                        "Resolve the redirect loop, point directly to the final URL.",
-                    ))
+                    issues.append(
+                        _redirect_issue(
+                            "redirect_loop",
+                            "critical",
+                            chain.start_url,
+                            f"Redirect loop detected: {chain.start_url}",
+                            f"URL redirects back to itself after {chain.chain_length} hops.",
+                            "Resolve the redirect loop, point directly to the final URL.",
+                        )
+                    )
                 elif chain.chain_length > 1:
-                    hop_urls = " -> ".join([h.url for h in chain.hops] + [chain.final_url])
-                    issues.append(_redirect_issue(
-                        "redirect_chain", "medium", chain.start_url,
-                        f"Redirect chain ({chain.chain_length} hops)",
-                        f"Chain: {hop_urls}",
-                        f"Set redirect directly to {chain.final_url}.",
-                    ))
+                    hop_urls = " -> ".join(
+                        [h.url for h in chain.hops] + [chain.final_url]
+                    )
+                    issues.append(
+                        _redirect_issue(
+                            "redirect_chain",
+                            "medium",
+                            chain.start_url,
+                            f"Redirect chain ({chain.chain_length} hops)",
+                            f"Chain: {hop_urls}",
+                            f"Set redirect directly to {chain.final_url}.",
+                        )
+                    )
 
                 # 302 should be 301 (permanent content move)
                 for hop in chain.hops:
                     if hop.status_code == 302:
-                        issues.append(_redirect_issue(
-                            "redirect_302_should_be_301", "medium", hop.url,
-                            f"302 instead of 301: {hop.url}",
-                            f"302 (temporary) to {hop.location}. If permanent, use 301.",
-                            "Replace 302 with 301 if the redirect is permanent (link equity!).",
-                        ))
+                        issues.append(
+                            _redirect_issue(
+                                "redirect_302_should_be_301",
+                                "medium",
+                                hop.url,
+                                f"302 instead of 301: {hop.url}",
+                                f"302 (temporary) to {hop.location}. If permanent, use 301.",
+                                "Replace 302 with 301 if the redirect is permanent (link equity!).",
+                            )
+                        )
 
                 # Redirect to different domain
                 if chain.hops:
                     start_domain = urlparse(chain.start_url).netloc
                     final_domain = urlparse(chain.final_url).netloc
                     if start_domain != final_domain:
-                        issues.append(_redirect_issue(
-                            "redirect_to_different_domain", "high", chain.start_url,
-                            f"Redirect to different domain: {final_domain}",
-                            f"{chain.start_url} -> {chain.final_url}",
-                            "Check whether the domain change is intentional.",
-                        ))
+                        issues.append(
+                            _redirect_issue(
+                                "redirect_to_different_domain",
+                                "high",
+                                chain.start_url,
+                                f"Redirect to different domain: {final_domain}",
+                                f"{chain.start_url} -> {chain.final_url}",
+                                "Check whether the domain change is intentional.",
+                            )
+                        )
 
         # Internal links to redirects
         redirect_urls = set()
@@ -171,33 +201,45 @@ class RedirectAuditor:
         for page in pages:
             for target in page.internal_link_targets:
                 if target in redirect_urls:
-                    issues.append(_redirect_issue(
-                        "internal_link_to_redirect", "low", page.url,
-                        f"Internal link to redirect: {target}",
-                        f"Page {page.url} links to {target} (redirected).",
-                        "Change internal link to point directly to the final URL.",
-                    ))
+                    issues.append(
+                        _redirect_issue(
+                            "internal_link_to_redirect",
+                            "low",
+                            page.url,
+                            f"Internal link to redirect: {target}",
+                            f"Page {page.url} links to {target} (redirected).",
+                            "Change internal link to point directly to the final URL.",
+                        )
+                    )
 
         # 5xx cluster
         error_pages = [p for p in pages if p.status_code >= 500]
         if len(error_pages) >= 3:
             urls = [p.url for p in error_pages[:5]]
-            issues.append(_redirect_issue(
-                "5xx_cluster", "critical", error_pages[0].url,
-                f"Server error cluster: {len(error_pages)} pages with 5xx",
-                f"Affected URLs: {', '.join(urls)}",
-                "Check server logs, fix the root cause.",
-            ))
+            issues.append(
+                _redirect_issue(
+                    "5xx_cluster",
+                    "critical",
+                    error_pages[0].url,
+                    f"Server error cluster: {len(error_pages)} pages with 5xx",
+                    f"Affected URLs: {', '.join(urls)}",
+                    "Check server logs, fix the root cause.",
+                )
+            )
 
         # Soft-404 detection
         for page in pages:
             if page.status_code == 200 and is_soft_404(page):
-                issues.append(_redirect_issue(
-                    "soft_404", "medium", page.url,
-                    f"Soft-404 detected: {page.url}",
-                    "Page returns HTTP 200, but content indicates 'not found'.",
-                    "Return a real 404 status or fill the page with content.",
-                ))
+                issues.append(
+                    _redirect_issue(
+                        "soft_404",
+                        "medium",
+                        page.url,
+                        f"Soft-404 detected: {page.url}",
+                        "Page returns HTTP 200, but content indicates 'not found'.",
+                        "Return a real 404 status or fill the page with content.",
+                    )
+                )
 
         return issues
 
@@ -215,8 +257,9 @@ def is_soft_404(page: PageForRedirectAudit) -> bool:
     return sum(signals) >= 2
 
 
-def _redirect_issue(type_: str, severity: str, url: str,
-                    title: str, description: str, fix: str) -> Dict[str, Any]:
+def _redirect_issue(
+    type_: str, severity: str, url: str, title: str, description: str, fix: str
+) -> Dict[str, Any]:
     return {
         "category": "redirect",
         "type": type_,

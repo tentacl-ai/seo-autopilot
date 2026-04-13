@@ -55,7 +55,9 @@ async def persist_audit(ctx: AuditContext) -> str:
         kw_metrics = getattr(kw_result, "metrics", {}) if kw_result else {}
 
         analyzer_result = ctx.agent_results.get("analyzer")
-        analyzer_metrics = getattr(analyzer_result, "metrics", {}) if analyzer_result else {}
+        analyzer_metrics = (
+            getattr(analyzer_result, "metrics", {}) if analyzer_result else {}
+        )
 
         audit_row = SEOAudit(
             id=audit_uuid,
@@ -65,7 +67,8 @@ async def persist_audit(ctx: AuditContext) -> str:
             completed_at=ctx.completed_at,
             duration_seconds=(
                 int((ctx.completed_at - ctx.started_at).total_seconds())
-                if ctx.completed_at else None
+                if ctx.completed_at
+                else None
             ),
             status=ctx.status,
             total_pages=analyzer_metrics.get("pages_crawled"),
@@ -76,56 +79,67 @@ async def persist_audit(ctx: AuditContext) -> str:
             gsc_impressions=kw_metrics.get("total_impressions"),
             gsc_ctr=kw_metrics.get("avg_ctr"),
             gsc_avg_position=kw_metrics.get("avg_position"),
-            analytics_data=_jsonify({
-                "top_queries": kw_metrics.get("top_queries", []),
-                "top_pages": kw_metrics.get("top_pages", []),
-            }),
+            analytics_data=_jsonify(
+                {
+                    "top_queries": kw_metrics.get("top_queries", []),
+                    "top_pages": kw_metrics.get("top_pages", []),
+                }
+            ),
             log_output="\n".join(
                 getattr(r, "log_output", "") for r in ctx.agent_results.values()
             ),
-            errors=_jsonify([
-                {"agent": name, "errors": getattr(r, "errors", [])}
-                for name, r in ctx.agent_results.items() if getattr(r, "errors", [])
-            ]),
+            errors=_jsonify(
+                [
+                    {"agent": name, "errors": getattr(r, "errors", [])}
+                    for name, r in ctx.agent_results.items()
+                    if getattr(r, "errors", [])
+                ]
+            ),
         )
         session.add(audit_row)
 
         # 3. insert issues
         for issue in ctx.all_issues:
-            session.add(SEOIssue(
-                id=str(uuid.uuid4()),
-                project_id=ctx.project_id,
-                audit_id=audit_uuid,
-                tenant_id=ctx.project_config.tenant_id,
-                category=issue.get("category", "other"),
-                type=issue.get("type", "unknown"),
-                severity=issue.get("severity", "low"),
-                priority=issue.get("priority", "low"),
-                title=issue.get("title", "")[:255],
-                description=issue.get("description", ""),
-                affected_items=_jsonify({
-                    "url": issue.get("affected_url"),
-                    "keyword": issue.get("keyword"),
-                }),
-                count=1,
-                fix_suggestion=issue.get("fix_suggestion", ""),
-                estimated_impact=str(issue.get("estimated_impact", ""))[:255],
-            ))
+            session.add(
+                SEOIssue(
+                    id=str(uuid.uuid4()),
+                    project_id=ctx.project_id,
+                    audit_id=audit_uuid,
+                    tenant_id=ctx.project_config.tenant_id,
+                    category=issue.get("category", "other"),
+                    type=issue.get("type", "unknown"),
+                    severity=issue.get("severity", "low"),
+                    priority=issue.get("priority", "low"),
+                    title=issue.get("title", "")[:255],
+                    description=issue.get("description", ""),
+                    affected_items=_jsonify(
+                        {
+                            "url": issue.get("affected_url"),
+                            "keyword": issue.get("keyword"),
+                        }
+                    ),
+                    count=1,
+                    fix_suggestion=issue.get("fix_suggestion", ""),
+                    estimated_impact=str(issue.get("estimated_impact", ""))[:255],
+                )
+            )
 
         # 4. insert keywords
         for kw in kw_metrics.get("top_queries", [])[:50]:
-            session.add(SEOKeyword(
-                id=str(uuid.uuid4()),
-                project_id=ctx.project_id,
-                audit_id=audit_uuid,
-                tenant_id=ctx.project_config.tenant_id,
-                query=(kw.get("query") or "")[:255],
-                clicks=kw.get("clicks"),
-                impressions=kw.get("impressions"),
-                position=kw.get("position"),
-                ctr=(kw.get("clicks", 0) / max(kw.get("impressions", 1), 1)),
-                status="active",
-            ))
+            session.add(
+                SEOKeyword(
+                    id=str(uuid.uuid4()),
+                    project_id=ctx.project_id,
+                    audit_id=audit_uuid,
+                    tenant_id=ctx.project_config.tenant_id,
+                    query=(kw.get("query") or "")[:255],
+                    clicks=kw.get("clicks"),
+                    impressions=kw.get("impressions"),
+                    position=kw.get("position"),
+                    ctr=(kw.get("clicks", 0) / max(kw.get("impressions", 1), 1)),
+                    status="active",
+                )
+            )
 
     logger.info(f"Persisted audit {audit_uuid} with {len(ctx.all_issues)} issues")
     return audit_uuid

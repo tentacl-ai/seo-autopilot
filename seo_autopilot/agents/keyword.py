@@ -55,14 +55,14 @@ class KeywordAgent(Agent):
 
             if analytics is None:
                 result.status = AgentStatus.SKIPPED
-                result.log_output = (
-                    "GSC data source unavailable or not configured - skipping keyword analysis"
+                result.log_output = "GSC data source unavailable or not configured - skipping keyword analysis"
+                result.metrics.update(
+                    {
+                        "gsc_available": False,
+                        "total_keywords": 0,
+                        "opportunities_found": 0,
+                    }
                 )
-                result.metrics.update({
-                    "gsc_available": False,
-                    "total_keywords": 0,
-                    "opportunities_found": 0,
-                })
                 return result
 
             keywords = analytics.top_queries
@@ -72,19 +72,21 @@ class KeywordAgent(Agent):
             result.issues = opportunities + striking_distance
 
             # Persist raw GSC data in metrics so downstream agents/report use it
-            result.metrics.update({
-                "gsc_available": True,
-                "total_keywords": len(keywords),
-                "total_clicks": analytics.total_clicks,
-                "total_impressions": analytics.total_impressions,
-                "avg_ctr": analytics.avg_ctr,
-                "avg_position": analytics.avg_position,
-                "top_queries": keywords[:20],
-                "top_pages": analytics.top_pages[:20],
-                "by_device": analytics.by_device,
-                "opportunities_found": len(opportunities),
-                "striking_distance_count": len(striking_distance),
-            })
+            result.metrics.update(
+                {
+                    "gsc_available": True,
+                    "total_keywords": len(keywords),
+                    "total_clicks": analytics.total_clicks,
+                    "total_impressions": analytics.total_impressions,
+                    "avg_ctr": analytics.avg_ctr,
+                    "avg_position": analytics.avg_position,
+                    "top_queries": keywords[:20],
+                    "top_pages": analytics.top_pages[:20],
+                    "by_device": analytics.by_device,
+                    "opportunities_found": len(opportunities),
+                    "striking_distance_count": len(striking_distance),
+                }
+            )
 
             result.status = AgentStatus.COMPLETED
             result.log_output = (
@@ -133,7 +135,9 @@ class KeywordAgent(Agent):
         await gsc.authenticate()
         return await gsc.pull_analytics(property_url, days=28)
 
-    def _find_opportunities(self, keywords: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _find_opportunities(
+        self, keywords: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """Low-CTR opportunities: ranking decent but clicks underperforming."""
         issues = []
         for kw in keywords:
@@ -144,54 +148,62 @@ class KeywordAgent(Agent):
                 continue
             ctr = clicks / impressions if impressions else 0
             if position <= 10 and ctr < LOW_CTR_THRESHOLD:
-                issues.append({
-                    "category": "keyword",
-                    "type": "low_ctr_opportunity",
-                    "severity": "high",
-                    "title": f"Low CTR for '{kw['query']}'",
-                    "keyword": kw["query"],
-                    "position": round(position, 1),
-                    "clicks": clicks,
-                    "impressions": impressions,
-                    "ctr": round(ctr * 100, 2),
-                    "description": (
-                        f"'{kw['query']}' ranks #{position:.1f} but only gets "
-                        f"{clicks} clicks on {impressions} impressions "
-                        f"(CTR {ctr * 100:.1f}%)."
-                    ),
-                    "fix_suggestion": (
-                        "Rewrite the page title and meta description. "
-                        "Include the exact keyword, add numbers/year, make it enticing."
-                    ),
-                    "estimated_impact": (
-                        f"Target CTR 5% would yield ~{int(impressions * 0.05)} clicks/month"
-                    ),
-                })
+                issues.append(
+                    {
+                        "category": "keyword",
+                        "type": "low_ctr_opportunity",
+                        "severity": "high",
+                        "title": f"Low CTR for '{kw['query']}'",
+                        "keyword": kw["query"],
+                        "position": round(position, 1),
+                        "clicks": clicks,
+                        "impressions": impressions,
+                        "ctr": round(ctr * 100, 2),
+                        "description": (
+                            f"'{kw['query']}' ranks #{position:.1f} but only gets "
+                            f"{clicks} clicks on {impressions} impressions "
+                            f"(CTR {ctr * 100:.1f}%)."
+                        ),
+                        "fix_suggestion": (
+                            "Rewrite the page title and meta description. "
+                            "Include the exact keyword, add numbers/year, make it enticing."
+                        ),
+                        "estimated_impact": (
+                            f"Target CTR 5% would yield ~{int(impressions * 0.05)} clicks/month"
+                        ),
+                    }
+                )
         return issues
 
-    def _find_striking_distance(self, keywords: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _find_striking_distance(
+        self, keywords: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """Queries on page 2 (pos 11-20) that could be pushed to page 1."""
         issues = []
         for kw in keywords:
             position = kw.get("position", 100)
             impressions = kw.get("impressions", 0)
-            if (STRIKING_DISTANCE_MIN <= position <= STRIKING_DISTANCE_MAX
-                    and impressions >= MIN_IMPRESSIONS):
-                issues.append({
-                    "category": "keyword",
-                    "type": "striking_distance",
-                    "severity": "medium",
-                    "title": f"Striking distance: '{kw['query']}' (pos {position:.1f})",
-                    "keyword": kw["query"],
-                    "position": round(position, 1),
-                    "impressions": impressions,
-                    "description": (
-                        f"'{kw['query']}' is on page 2 ({position:.1f}). "
-                        f"Moving to top 10 could unlock {impressions} impressions/month."
-                    ),
-                    "fix_suggestion": (
-                        "Improve on-page optimization, add internal links to the ranking page, "
-                        "and extend content depth on the primary keyword."
-                    ),
-                })
+            if (
+                STRIKING_DISTANCE_MIN <= position <= STRIKING_DISTANCE_MAX
+                and impressions >= MIN_IMPRESSIONS
+            ):
+                issues.append(
+                    {
+                        "category": "keyword",
+                        "type": "striking_distance",
+                        "severity": "medium",
+                        "title": f"Striking distance: '{kw['query']}' (pos {position:.1f})",
+                        "keyword": kw["query"],
+                        "position": round(position, 1),
+                        "impressions": impressions,
+                        "description": (
+                            f"'{kw['query']}' is on page 2 ({position:.1f}). "
+                            f"Moving to top 10 could unlock {impressions} impressions/month."
+                        ),
+                        "fix_suggestion": (
+                            "Improve on-page optimization, add internal links to the ranking page, "
+                            "and extend content depth on the primary keyword."
+                        ),
+                    }
+                )
         return issues

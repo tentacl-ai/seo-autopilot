@@ -84,13 +84,20 @@ class Agent(ABC):
     - store_results(): Persist findings
     """
 
-    def __init__(self, project_id: str, audit_id: str, project_config: ProjectConfig,
-                 context: Optional["AuditContext"] = None):
+    def __init__(
+        self,
+        project_id: str,
+        audit_id: str,
+        project_config: ProjectConfig,
+        context: Optional["AuditContext"] = None,
+    ):
         self.project_id = project_id
         self.audit_id = audit_id
         self.project_config = project_config
         self.context = context  # AuditContext, set by run_audit_for_project
-        self.logger = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
+        self.logger = logging.getLogger(
+            f"{self.__class__.__module__}.{self.__class__.__name__}"
+        )
 
     @property
     @abstractmethod

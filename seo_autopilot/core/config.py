@@ -31,8 +31,7 @@ class Settings(BaseSettings):
     # Database
     # Default: SQLite in project dir. For Postgres use: postgresql+asyncpg://user:pass@host/db
     DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        f"sqlite+aiosqlite:///{_PROJECT_ROOT / 'seo_autopilot.db'}"
+        "DATABASE_URL", f"sqlite+aiosqlite:///{_PROJECT_ROOT / 'seo_autopilot.db'}"
     )
     DB_ECHO: bool = DEBUG
 
@@ -48,7 +47,7 @@ class Settings(BaseSettings):
     # Data Sources
     GSC_CREDENTIALS_PATH: str = os.getenv(
         "GSC_CREDENTIALS_PATH",
-        str(_PROJECT_ROOT / "credentials" / "service-account.json")
+        str(_PROJECT_ROOT / "credentials" / "service-account.json"),
     )
     AHREFS_API_KEY: Optional[str] = os.getenv("AHREFS_API_KEY")
     SEMRUSH_API_KEY: Optional[str] = os.getenv("SEMRUSH_API_KEY")
@@ -66,8 +65,7 @@ class Settings(BaseSettings):
 
     # Project Config
     PROJECT_CONFIG_PATH: str = os.getenv(
-        "PROJECT_CONFIG_PATH",
-        str(_PROJECT_ROOT / "projects.yaml")
+        "PROJECT_CONFIG_PATH", str(_PROJECT_ROOT / "projects.yaml")
     )
 
     class Config:

@@ -139,34 +139,46 @@ class SchemaValidator:
                     schema_type = schema_type[0] if schema_type else ""
 
                 if not schema_type:
-                    issues.append(_schema_issue(
-                        "schema_syntax_error", "high", url,
-                        "JSON-LD block without @type",
-                        "A JSON-LD block has no @type — will be ignored by Google.",
-                        "Add @type (e.g. Organization, Article, Product).",
-                    ))
+                    issues.append(
+                        _schema_issue(
+                            "schema_syntax_error",
+                            "high",
+                            url,
+                            "JSON-LD block without @type",
+                            "A JSON-LD block has no @type — will be ignored by Google.",
+                            "Add @type (e.g. Organization, Article, Product).",
+                        )
+                    )
                     continue
 
                 # Required fields
                 result = self.validate_schema_block(schema, url)
                 if result["missing_required"]:
                     missing = ", ".join(result["missing_required"])
-                    issues.append(_schema_issue(
-                        "schema_missing_required_field", "medium", url,
-                        f"{schema_type}: required fields missing ({missing})",
-                        f"Schema @type={schema_type} is missing: {missing}. "
-                        f"Without these fields no rich result is possible.",
-                        f"Add the missing fields: {missing}.",
-                    ))
+                    issues.append(
+                        _schema_issue(
+                            "schema_missing_required_field",
+                            "medium",
+                            url,
+                            f"{schema_type}: required fields missing ({missing})",
+                            f"Schema @type={schema_type} is missing: {missing}. "
+                            f"Without these fields no rich result is possible.",
+                            f"Add the missing fields: {missing}.",
+                        )
+                    )
 
                 # Errors from special checks
                 for error in result.get("errors", []):
-                    issues.append(_schema_issue(
-                        "schema_syntax_error", "high", url,
-                        f"{schema_type}: {error}",
-                        error,
-                        "Fix the JSON-LD structure.",
-                    ))
+                    issues.append(
+                        _schema_issue(
+                            "schema_syntax_error",
+                            "high",
+                            url,
+                            f"{schema_type}: {error}",
+                            error,
+                            "Fix the JSON-LD structure.",
+                        )
+                    )
 
             # Rich result opportunities
             schema_types_on_page = set()
@@ -234,12 +246,16 @@ class SchemaValidator:
         if "BreadcrumbList" not in existing_types and "/" in url.replace("://", ""):
             path_depth = url.rstrip("/").count("/") - 2  # minus scheme://domain
             if path_depth > 0:
-                issues.append(_schema_issue(
-                    "schema_rich_result_opportunity", "info", url,
-                    "BreadcrumbList schema missing",
-                    "Page has URL depth > 1 but no BreadcrumbList schema.",
-                    "Add BreadcrumbList JSON-LD for breadcrumb rich results in Google.",
-                ))
+                issues.append(
+                    _schema_issue(
+                        "schema_rich_result_opportunity",
+                        "info",
+                        url,
+                        "BreadcrumbList schema missing",
+                        "Page has URL depth > 1 but no BreadcrumbList schema.",
+                        "Add BreadcrumbList JSON-LD for breadcrumb rich results in Google.",
+                    )
+                )
 
         return issues
 
@@ -256,8 +272,9 @@ def _has_field(schema: Dict, field_name: str) -> bool:
     return True
 
 
-def _schema_issue(type_: str, severity: str, url: str,
-                  title: str, description: str, fix: str) -> Dict[str, Any]:
+def _schema_issue(
+    type_: str, severity: str, url: str, title: str, description: str, fix: str
+) -> Dict[str, Any]:
     return {
         "category": "schema",
         "type": type_,

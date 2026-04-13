@@ -48,6 +48,7 @@ CWV_THRESHOLDS = {
 @dataclass
 class PageSpeedResult:
     """Lighthouse + CrUX result for a single URL."""
+
     url: str
     strategy: str = "mobile"
 
@@ -94,17 +95,37 @@ class PageSpeedResult:
         summary = {}
         # Bevorzuge Field-Daten (echte User), Fallback auf Lab-Daten
         if self.crux_lcp_ms is not None:
-            summary["lcp"] = {"value": self.crux_lcp_ms, "rating": self.crux_lcp_rating, "source": "field"}
+            summary["lcp"] = {
+                "value": self.crux_lcp_ms,
+                "rating": self.crux_lcp_rating,
+                "source": "field",
+            }
         elif self.lcp_ms is not None:
-            summary["lcp"] = {"value": self.lcp_ms, "rating": rate_metric("lcp", self.lcp_ms), "source": "lab"}
+            summary["lcp"] = {
+                "value": self.lcp_ms,
+                "rating": rate_metric("lcp", self.lcp_ms),
+                "source": "lab",
+            }
 
         if self.crux_cls is not None:
-            summary["cls"] = {"value": self.crux_cls, "rating": self.crux_cls_rating, "source": "field"}
+            summary["cls"] = {
+                "value": self.crux_cls,
+                "rating": self.crux_cls_rating,
+                "source": "field",
+            }
         elif self.cls is not None:
-            summary["cls"] = {"value": self.cls, "rating": rate_metric("cls", self.cls), "source": "lab"}
+            summary["cls"] = {
+                "value": self.cls,
+                "rating": rate_metric("cls", self.cls),
+                "source": "lab",
+            }
 
         if self.crux_inp_ms is not None:
-            summary["inp"] = {"value": self.crux_inp_ms, "rating": self.crux_inp_rating, "source": "field"}
+            summary["inp"] = {
+                "value": self.crux_inp_ms,
+                "rating": self.crux_inp_rating,
+                "source": "field",
+            }
         # INP hat kein Lab-Equivalent (TBT ist nur Proxy)
 
         return summary
@@ -164,13 +185,19 @@ async def fetch_pagespeed(
         # Category scores (0-100)
         categories_data = lr.get("categories", {})
         if "performance" in categories_data:
-            result.performance_score = int(categories_data["performance"]["score"] * 100)
+            result.performance_score = int(
+                categories_data["performance"]["score"] * 100
+            )
         if "seo" in categories_data:
             result.seo_score = int(categories_data["seo"]["score"] * 100)
         if "accessibility" in categories_data:
-            result.accessibility_score = int(categories_data["accessibility"]["score"] * 100)
+            result.accessibility_score = int(
+                categories_data["accessibility"]["score"] * 100
+            )
         if "best-practices" in categories_data:
-            result.best_practices_score = int(categories_data["best-practices"]["score"] * 100)
+            result.best_practices_score = int(
+                categories_data["best-practices"]["score"] * 100
+            )
 
         # Lab data from Lighthouse audits
         audits = lr.get("audits", {})
@@ -266,5 +293,9 @@ def _extract_crux_data(result: PageSpeedResult, data: Dict) -> None:
 
         if category:
             # PSI gibt "FAST", "AVERAGE", "SLOW" — wir normalisieren
-            rating_map = {"fast": "good", "average": "needs-improvement", "slow": "poor"}
+            rating_map = {
+                "fast": "good",
+                "average": "needs-improvement",
+                "slow": "poor",
+            }
             setattr(result, rating_attr, rating_map.get(category, category))

@@ -16,6 +16,7 @@ import logging
 try:
     from google.oauth2.service_account import Credentials
     from googleapiclient.discovery import build
+
     HAS_GOOGLE_API = True
 except ImportError:
     HAS_GOOGLE_API = False
@@ -38,7 +39,9 @@ class GSCDataSource(DataSource):
             credentials_path: Path to service account JSON
         """
         if not HAS_GOOGLE_API:
-            raise DataSourceError("Google API libraries not installed. Install: google-auth-oauthlib")
+            raise DataSourceError(
+                "Google API libraries not installed. Install: google-auth-oauthlib"
+            )
 
         self.credentials_path = Path(credentials_path)
         self.service = None
@@ -48,11 +51,12 @@ class GSCDataSource(DataSource):
         """Authenticate with service account"""
         try:
             if not self.credentials_path.exists():
-                raise FileNotFoundError(f"Credentials not found: {self.credentials_path}")
+                raise FileNotFoundError(
+                    f"Credentials not found: {self.credentials_path}"
+                )
 
             credentials = Credentials.from_service_account_file(
-                self.credentials_path,
-                scopes=self.SCOPES
+                self.credentials_path, scopes=self.SCOPES
             )
             self.service = build("webmasters", "v3", credentials=credentials)
             self.authenticated = True
@@ -77,7 +81,9 @@ class GSCDataSource(DataSource):
             logger.error(f"GSC connection test failed: {e}")
             return False
 
-    async def pull_analytics(self, domain: str, days: int = 28) -> Optional[SearchAnalytics]:
+    async def pull_analytics(
+        self, domain: str, days: int = 28
+    ) -> Optional[SearchAnalytics]:
         """
         Pull GSC analytics for a domain
 
@@ -103,10 +109,11 @@ class GSCDataSource(DataSource):
                 "rowLimit": 25000,
             }
 
-            response = self.service.searchanalytics().query(
-                siteUrl=domain,
-                body=request
-            ).execute()
+            response = (
+                self.service.searchanalytics()
+                .query(siteUrl=domain, body=request)
+                .execute()
+            )
 
             rows = response.get("rows", [])
             return self._parse_analytics(rows)
@@ -150,7 +157,12 @@ class GSCDataSource(DataSource):
             query = keys[0] if len(keys) > 0 else "unknown"
 
             if query not in queries:
-                queries[query] = {"clicks": 0, "impressions": 0, "position": 0, "count": 0}
+                queries[query] = {
+                    "clicks": 0,
+                    "impressions": 0,
+                    "position": 0,
+                    "count": 0,
+                }
             queries[query]["clicks"] += clicks
             queries[query]["impressions"] += impressions
             queries[query]["position"] += position
@@ -189,13 +201,13 @@ class GSCDataSource(DataSource):
         stats["top_queries"] = sorted(
             [{"query": q, **data} for q, data in queries.items()],
             key=lambda x: x["clicks"],
-            reverse=True
+            reverse=True,
         )[:10]
 
         stats["top_pages"] = sorted(
             [{"page": p, **data} for p, data in pages.items()],
             key=lambda x: x["clicks"],
-            reverse=True
+            reverse=True,
         )[:10]
 
         stats["by_device"] = devices
@@ -215,7 +227,9 @@ class GSCDataSource(DataSource):
 
     async def pull_backlinks(self, domain: str) -> Optional[List[Dict[str, Any]]]:
         """GSC has no backlink API – not implemented"""
-        logger.warning("GSC does not provide backlink data. Use Ahrefs/Semrush instead.")
+        logger.warning(
+            "GSC does not provide backlink data. Use Ahrefs/Semrush instead."
+        )
         return None
 
     async def pull_keywords(self, domain: str) -> Optional[List[Dict[str, Any]]]:

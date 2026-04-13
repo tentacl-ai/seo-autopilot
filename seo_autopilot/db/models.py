@@ -59,9 +59,15 @@ class SEOProject(Base):
     mobile_score = Column(Float)
 
     # Relationships
-    audits = relationship("SEOAudit", back_populates="project", cascade="all, delete-orphan")
-    keywords = relationship("SEOKeyword", back_populates="project", cascade="all, delete-orphan")
-    issues = relationship("SEOIssue", back_populates="project", cascade="all, delete-orphan")
+    audits = relationship(
+        "SEOAudit", back_populates="project", cascade="all, delete-orphan"
+    )
+    keywords = relationship(
+        "SEOKeyword", back_populates="project", cascade="all, delete-orphan"
+    )
+    issues = relationship(
+        "SEOIssue", back_populates="project", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (Index("ix_seo_projects_tenant_enabled", "tenant_id", "enabled"),)
 
@@ -72,7 +78,9 @@ class SEOAudit(Base):
     __tablename__ = "seo_audits"
 
     id = Column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
-    project_id = Column(String(64), ForeignKey("seo_projects.id"), nullable=False, index=True)
+    project_id = Column(
+        String(64), ForeignKey("seo_projects.id"), nullable=False, index=True
+    )
     tenant_id = Column(String(64), index=True)
 
     # Run metadata
@@ -103,7 +111,9 @@ class SEOAudit(Base):
     keywords = relationship("SEOKeyword", back_populates="audit")
     issues = relationship("SEOIssue", back_populates="audit")
 
-    __table_args__ = (Index("ix_seo_audits_project_completed", "project_id", "completed_at"),)
+    __table_args__ = (
+        Index("ix_seo_audits_project_completed", "project_id", "completed_at"),
+    )
 
 
 class SEOKeyword(Base):
@@ -112,7 +122,9 @@ class SEOKeyword(Base):
     __tablename__ = "seo_keywords"
 
     id = Column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
-    project_id = Column(String(64), ForeignKey("seo_projects.id"), nullable=False, index=True)
+    project_id = Column(
+        String(64), ForeignKey("seo_projects.id"), nullable=False, index=True
+    )
     audit_id = Column(String(64), ForeignKey("seo_audits.id"), index=True)
     tenant_id = Column(String(64), index=True)
 
@@ -156,13 +168,19 @@ class SEOIssue(Base):
     __tablename__ = "seo_issues"
 
     id = Column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
-    project_id = Column(String(64), ForeignKey("seo_projects.id"), nullable=False, index=True)
+    project_id = Column(
+        String(64), ForeignKey("seo_projects.id"), nullable=False, index=True
+    )
     audit_id = Column(String(64), ForeignKey("seo_audits.id"), index=True)
     tenant_id = Column(String(64), index=True)
 
     # Issue classification
-    category = Column(String(50), nullable=False)  # meta, performance, mobile, security, etc
-    type = Column(String(100))  # low_ctr_keywords, low_position, missing_meta, slow_core_web_vitals, etc
+    category = Column(
+        String(50), nullable=False
+    )  # meta, performance, mobile, security, etc
+    type = Column(
+        String(100)
+    )  # low_ctr_keywords, low_position, missing_meta, slow_core_web_vitals, etc
     severity = Column(String(20))  # critical, high, medium, low
     priority = Column(String(20))  # Must fix, Should fix, Nice to have
     status = Column(String(50), default="open")  # open, in_progress, fixed, wont_fix

@@ -24,11 +24,53 @@ logger = logging.getLogger(__name__)
 
 # Stop words ignored during keyword extraction
 STOP_WORDS = {
-    "der", "die", "das", "ein", "eine", "und", "oder", "ist", "sind",
-    "the", "a", "an", "and", "or", "is", "are", "in", "on", "at", "to",
-    "for", "of", "with", "by", "from", "was", "were", "been", "be",
-    "fuer", "mit", "von", "aus", "nach", "bei", "wie", "was", "wir",
-    "ihr", "sie", "ich", "du", "er", "es", "nicht", "auch", "noch",
+    "der",
+    "die",
+    "das",
+    "ein",
+    "eine",
+    "und",
+    "oder",
+    "ist",
+    "sind",
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "is",
+    "are",
+    "in",
+    "on",
+    "at",
+    "to",
+    "for",
+    "of",
+    "with",
+    "by",
+    "from",
+    "was",
+    "were",
+    "been",
+    "be",
+    "fuer",
+    "mit",
+    "von",
+    "aus",
+    "nach",
+    "bei",
+    "wie",
+    "was",
+    "wir",
+    "ihr",
+    "sie",
+    "ich",
+    "du",
+    "er",
+    "es",
+    "nicht",
+    "auch",
+    "noch",
 }
 
 MIN_CLUSTER_SIZE = 2  # Minimum 2 pages for a cluster
@@ -37,6 +79,7 @@ MIN_CLUSTER_SIZE = 2  # Minimum 2 pages for a cluster
 @dataclass
 class TopicCluster:
     """A detected topic cluster."""
+
     cluster_id: str
     topic_label: str
     pillar_url: Optional[str] = None
@@ -89,14 +132,17 @@ class TopicalAuthorityAnalyzer:
         if not clusters:
             # No clusters detected — with enough pages this is an issue
             if len(pages) >= 5:
-                issues.append(_authority_issue(
-                    "no_topic_clusters_detected", "high",
-                    pages[0].get("url", ""),
-                    "No topic clusters detected",
-                    f"Site has {len(pages)} pages but no recognizable cluster structure. "
-                    f"Thematically related pages should be grouped into pillar clusters.",
-                    "Create pillar pages for main topics and link cluster pages to them.",
-                ))
+                issues.append(
+                    _authority_issue(
+                        "no_topic_clusters_detected",
+                        "high",
+                        pages[0].get("url", ""),
+                        "No topic clusters detected",
+                        f"Site has {len(pages)} pages but no recognizable cluster structure. "
+                        f"Thematically related pages should be grouped into pillar clusters.",
+                        "Create pillar pages for main topics and link cluster pages to them.",
+                    )
+                )
             return issues
 
         all_cluster_urls: Set[str] = set()
@@ -108,46 +154,58 @@ class TopicalAuthorityAnalyzer:
         for cluster in clusters:
             # Missing pillar
             if not cluster.pillar_url:
-                issues.append(_authority_issue(
-                    "missing_pillar_page", "high",
-                    cluster.cluster_urls[0] if cluster.cluster_urls else "",
-                    f"Cluster '{cluster.topic_label}' without pillar page",
-                    f"Cluster has {len(cluster.cluster_urls)} pages but no recognizable pillar article.",
-                    "Create a comprehensive pillar page that summarizes all aspects of the topic.",
-                ))
+                issues.append(
+                    _authority_issue(
+                        "missing_pillar_page",
+                        "high",
+                        cluster.cluster_urls[0] if cluster.cluster_urls else "",
+                        f"Cluster '{cluster.topic_label}' without pillar page",
+                        f"Cluster has {len(cluster.cluster_urls)} pages but no recognizable pillar article.",
+                        "Create a comprehensive pillar page that summarizes all aspects of the topic.",
+                    )
+                )
 
             # Weak internal linking
             if cluster.internal_link_coverage < 0.5:
-                issues.append(_authority_issue(
-                    "weak_cluster_linking", "medium",
-                    cluster.pillar_url or cluster.cluster_urls[0],
-                    f"Cluster '{cluster.topic_label}': weak internal linking",
-                    f"Only {cluster.internal_link_coverage:.0%} of cluster pages are internally linked.",
-                    "Link all cluster pages to each other and to/from the pillar.",
-                ))
+                issues.append(
+                    _authority_issue(
+                        "weak_cluster_linking",
+                        "medium",
+                        cluster.pillar_url or cluster.cluster_urls[0],
+                        f"Cluster '{cluster.topic_label}': weak internal linking",
+                        f"Only {cluster.internal_link_coverage:.0%} of cluster pages are internally linked.",
+                        "Link all cluster pages to each other and to/from the pillar.",
+                    )
+                )
 
             # Cannibalization
             if cluster.cannibalization_risk:
-                issues.append(_authority_issue(
-                    "cluster_cannibalization", "high",
-                    cluster.pillar_url or cluster.cluster_urls[0],
-                    f"Cluster '{cluster.topic_label}': keyword cannibalization",
-                    "Multiple pages in the cluster have identical H1/title keywords.",
-                    "Differentiate the pages thematically or set canonicals.",
-                ))
+                issues.append(
+                    _authority_issue(
+                        "cluster_cannibalization",
+                        "high",
+                        cluster.pillar_url or cluster.cluster_urls[0],
+                        f"Cluster '{cluster.topic_label}': keyword cannibalization",
+                        "Multiple pages in the cluster have identical H1/title keywords.",
+                        "Differentiate the pages thematically or set canonicals.",
+                    )
+                )
 
         # Orphan pages (belong to no cluster)
         for page in pages:
             url = page.get("url", "")
             if url not in all_cluster_urls and page.get("word_count", 0) > 200:
                 # Only flag pages with real content
-                issues.append(_authority_issue(
-                    "orphan_cluster_page", "low",
-                    url,
-                    "Page belongs to no topic cluster",
-                    "Page is thematically isolated and does not benefit from cluster authority.",
-                    "Assign the page to an existing cluster or create a new one.",
-                ))
+                issues.append(
+                    _authority_issue(
+                        "orphan_cluster_page",
+                        "low",
+                        url,
+                        "Page belongs to no topic cluster",
+                        "Page is thematically isolated and does not benefit from cluster authority.",
+                        "Assign the page to an existing cluster or create a new one.",
+                    )
+                )
 
         # Coverage gaps via GSC
         if gsc_keywords:
@@ -155,13 +213,16 @@ class TopicalAuthorityAnalyzer:
                 gaps = self._find_coverage_gaps(cluster, gsc_keywords, pages)
                 cluster.gap_keywords = gaps
                 if gaps:
-                    issues.append(_authority_issue(
-                        "cluster_coverage_gap", "medium",
-                        cluster.pillar_url or cluster.cluster_urls[0],
-                        f"Cluster '{cluster.topic_label}': {len(gaps)} missing subtopics",
-                        f"GSC shows impressions for keywords without ranking URL: {', '.join(gaps[:5])}",
-                        "Create content for the missing subtopics in the cluster.",
-                    ))
+                    issues.append(
+                        _authority_issue(
+                            "cluster_coverage_gap",
+                            "medium",
+                            cluster.pillar_url or cluster.cluster_urls[0],
+                            f"Cluster '{cluster.topic_label}': {len(gaps)} missing subtopics",
+                            f"GSC shows impressions for keywords without ranking URL: {', '.join(gaps[:5])}",
+                            "Create content for the missing subtopics in the cluster.",
+                        )
+                    )
 
         return issues
 
@@ -185,11 +246,13 @@ class TopicalAuthorityAnalyzer:
         clusters = []
         for prefix, urls in path_groups.items():
             if len(urls) >= MIN_CLUSTER_SIZE:
-                clusters.append(TopicCluster(
-                    cluster_id=f"path_{prefix}",
-                    topic_label=prefix.replace("-", " ").title(),
-                    cluster_urls=urls,
-                ))
+                clusters.append(
+                    TopicCluster(
+                        cluster_id=f"path_{prefix}",
+                        topic_label=prefix.replace("-", " ").title(),
+                        cluster_urls=urls,
+                    )
+                )
         return clusters
 
     def _cluster_by_title_keywords(self, pages: List[Dict]) -> List[TopicCluster]:
@@ -211,7 +274,7 @@ class TopicalAuthorityAnalyzer:
         urls = list(page_keywords.keys())
 
         for i, url_a in enumerate(urls):
-            for url_b in urls[i + 1:]:
+            for url_b in urls[i + 1 :]:
                 shared = page_keywords[url_a] & page_keywords[url_b]
                 if len(shared) >= 2:
                     group_key = "_".join(sorted(shared)[:3])
@@ -224,11 +287,13 @@ class TopicalAuthorityAnalyzer:
         for key, urls in keyword_groups.items():
             if len(urls) >= MIN_CLUSTER_SIZE:
                 label = key.replace("_", " ").title()
-                clusters.append(TopicCluster(
-                    cluster_id=f"keyword_{key}",
-                    topic_label=label,
-                    cluster_urls=urls,
-                ))
+                clusters.append(
+                    TopicCluster(
+                        cluster_id=f"keyword_{key}",
+                        topic_label=label,
+                        cluster_urls=urls,
+                    )
+                )
         return clusters
 
     def _merge_clusters(
@@ -341,12 +406,13 @@ class TopicalAuthorityAnalyzer:
 
 def _extract_keywords(text: str) -> Set[str]:
     """Extracts keywords from text (words > 3 characters, without stop words)."""
-    words = re.findall(r'\w+', text.lower())
+    words = re.findall(r"\w+", text.lower())
     return {w for w in words if len(w) > 3 and w not in STOP_WORDS}
 
 
-def _authority_issue(type_: str, severity: str, url: str,
-                     title: str, description: str, fix: str) -> Dict[str, Any]:
+def _authority_issue(
+    type_: str, severity: str, url: str, title: str, description: str, fix: str
+) -> Dict[str, Any]:
     return {
         "category": "topical_authority",
         "type": type_,

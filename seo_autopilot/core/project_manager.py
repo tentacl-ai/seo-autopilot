@@ -75,14 +75,19 @@ class ProjectManager:
     """Manage all SEO projects"""
 
     def __init__(self, config_path: str = None):
-        self.config_path = Path(config_path or Path(__file__).resolve().parent.parent.parent / "projects.yaml")
+        self.config_path = Path(
+            config_path
+            or Path(__file__).resolve().parent.parent.parent / "projects.yaml"
+        )
         self.projects: Dict[str, ProjectConfig] = {}
         self._load_config()
 
     def _load_config(self):
         """Load projects from YAML"""
         if not self.config_path.exists():
-            logger.warning(f"Config file not found: {self.config_path}. Starting with empty list.")
+            logger.warning(
+                f"Config file not found: {self.config_path}. Starting with empty list."
+            )
             return
 
         try:
@@ -90,10 +95,7 @@ class ProjectManager:
                 data = yaml.safe_load(f) or {}
 
             for project_id, cfg in data.get("projects", {}).items():
-                self.projects[project_id] = ProjectConfig(
-                    id=project_id,
-                    **cfg
-                )
+                self.projects[project_id] = ProjectConfig(id=project_id, **cfg)
             logger.info(f"Loaded {len(self.projects)} projects from {self.config_path}")
         except Exception as e:
             logger.error(f"Error loading config: {e}")
@@ -122,7 +124,7 @@ class ProjectManager:
         adapter_type: str = "static",
         adapter_config: Dict = None,
         enabled_sources: List[str] = None,
-        **kwargs
+        **kwargs,
     ) -> ProjectConfig:
         """Add a new project"""
 
@@ -136,7 +138,7 @@ class ProjectManager:
             adapter_type=adapter_type,
             adapter_config=adapter_config or {},
             enabled_sources=enabled_sources or ["gsc"],
-            **kwargs
+            **kwargs,
         )
 
         self.projects[project_id] = cfg
@@ -148,7 +150,9 @@ class ProjectManager:
         """Get a project"""
         return self.projects.get(project_id)
 
-    def list_projects(self, tenant_id: str = None, enabled_only: bool = False) -> List[ProjectConfig]:
+    def list_projects(
+        self, tenant_id: str = None, enabled_only: bool = False
+    ) -> List[ProjectConfig]:
         """List all projects (optionally filtered)"""
         projects = list(self.projects.values())
 
@@ -195,7 +199,7 @@ class ProjectManager:
             return json.dumps(
                 {pid: asdict(cfg) for pid, cfg in self.projects.items()},
                 indent=2,
-                default=str
+                default=str,
             )
         else:
             data = {

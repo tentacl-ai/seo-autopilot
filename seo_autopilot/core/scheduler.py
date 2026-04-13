@@ -19,10 +19,7 @@ class AuditScheduler:
     """Scheduler for periodic SEO audits"""
 
     def __init__(self, timezone: str = "UTC", max_workers: int = 4):
-        self.scheduler = AsyncIOScheduler(
-            timezone=timezone,
-            max_workers=max_workers
-        )
+        self.scheduler = AsyncIOScheduler(timezone=timezone, max_workers=max_workers)
         self._jobs: Dict[str, str] = {}  # project_id -> job_id
 
     async def start(self):
@@ -42,7 +39,7 @@ class AuditScheduler:
         project_id: str,
         cron_expression: str,
         callback: Callable,
-        **callback_kwargs
+        **callback_kwargs,
     ) -> str:
         """
         Schedule an audit for a project
@@ -117,7 +114,9 @@ class AuditScheduler:
             jobs[job.id] = {
                 "id": job.id,
                 "name": job.name,
-                "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
+                "next_run_time": (
+                    job.next_run_time.isoformat() if job.next_run_time else None
+                ),
             }
         return jobs
 
