@@ -27,7 +27,7 @@ jobs:
 
       - name: Lint with flake8
         run: |
-          flake8 seo_autopilot/ --max-line-length=100 --ignore=E501,W503
+          flake8 seo_autopilot/ --max-line-length=100 --ignore=E501,W503,E203
 
       - name: Run tests
         run: |
