@@ -29,7 +29,7 @@ SEO Autopilot turns raw web crawl data into a **prioritized action plan**:
 
 ---
 
-## 📦 Installation
+## Installation
 
 ### From PyPI (Recommended)
 
@@ -60,7 +60,7 @@ docker run -p 8002:8002 \
 
 ---
 
-## ⚡ Quickstart
+## Quickstart
 
 ### 1. Configure a Project
 
@@ -128,7 +128,7 @@ curl http://localhost:8002/api/health
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 seo_autopilot/
@@ -208,8 +208,8 @@ seo_autopilot/
 Discovers pages via sitemap.xml or homepage links  
 Extracts 14+ HTML attributes (title, h1-h6, meta, OG, Twitter, schema)  
 Detects security headers, HTTPS, response times  
-✅ Handles 2MB+ pages gracefully  
-✅ Returns structured `PageData` objects  
+- Handles 2MB+ pages gracefully  
+- Returns structured `PageData` objects  
 
 ```python
 from seo_autopilot.sources.crawler import WebCrawler
@@ -223,10 +223,10 @@ for page in pages:
 
 ### 2. Google Search Console (sources/gsc.py)
 
-✅ 28-day analytics (clicks, impressions, CTR, position)  
-✅ Keyword discovery + ranking opportunities  
-✅ OAuth2 Service Account authentication  
-✅ Row limits: 25,000 queries per property  
+- 28-day analytics (clicks, impressions, CTR, position)  
+- Keyword discovery + ranking opportunities  
+- OAuth2 Service Account authentication  
+- Row limits: 25,000 queries per property  
 
 ```python
 from seo_autopilot.sources.gsc import GSCDataSource
@@ -241,10 +241,10 @@ print(f"28-day clicks: {analytics.total_clicks}")
 
 ### 3. PageSpeed Insights (sources/pagespeed.py)
 
-✅ Lighthouse scores (Performance, SEO, Accessibility, Best Practices)  
-✅ Core Web Vitals (LCP, CLS, TBT, FCP, TTI, Speed Index)  
-✅ Free tier (limited quota) or paid tier with API key  
-✅ Mobile + Desktop metrics  
+- Lighthouse scores (Performance, SEO, Accessibility, Best Practices)  
+- Core Web Vitals (LCP, CLS, TBT, FCP, TTI, Speed Index)  
+- Free tier (limited quota) or paid tier with API key  
+- Mobile + Desktop metrics  
 
 ```python
 from seo_autopilot.sources.pagespeed import PageSpeedSource
@@ -279,9 +279,9 @@ for issue in result.issues:
 
 ### 5. Keyword Agent (agents/keyword.py)
 
-✅ Identifies low-CTR keywords (high volume, <5% CTR)  
-✅ Finds "striking distance" (pos 11-30, fixable to top 10)  
-✅ Ranks by traffic potential  
+- Identifies low-CTR keywords (high volume, <5% CTR)  
+- Finds "striking distance" (pos 11-30, fixable to top 10)  
+- Ranks by traffic potential  
 
 ### 6. Strategy Agent (agents/strategy.py)
 
@@ -304,22 +304,22 @@ print(f"Total effort: {result.metrics['total_effort_hours']}h")
 
 Uses Claude API to generate:
 
-✅ Meta description improvements  
-✅ Title optimization suggestions  
-✅ H1 content recommendations  
-✅ Code snippets for fixes (JSON-LD, security headers, etc.)  
+- Meta description improvements  
+- Title optimization suggestions  
+- H1 content recommendations  
+- Code snippets for fixes (JSON-LD, security headers, etc.)  
 
 ### 8. HTML Reports (reports/html.py)
 
 Jinja2 template with:
 
-✅ SEO score (0-100)  
-✅ Top 15 actions (prioritized)  
-✅ Issue categories breakdown  
-✅ GSC metrics (clicks, impressions, CTR, position)  
-✅ PageSpeed scores (desktop + mobile)  
-✅ Core Web Vitals visualization  
-✅ Concrete fix suggestions  
+- SEO score (0-100)  
+- Top 15 actions (prioritized)  
+- Issue categories breakdown  
+- GSC metrics (clicks, impressions, CTR, position)  
+- PageSpeed scores (desktop + mobile)  
+- Core Web Vitals visualization  
+- Concrete fix suggestions  
 
 Auto-published to `reports/latest.html` symlink + served via API.
 
@@ -354,7 +354,7 @@ Multi-tenant isolation, event-driven callbacks.
 
 ---
 
-## 🔌 Multi-Tenant Usage
+## Multi-Tenant Usage
 
 SEO Autopilot is **built for managing SEO across multiple client websites**:
 
@@ -372,22 +372,22 @@ projects:
 
 Each project has isolated:
 
-✅ Crawl data  
-✅ GSC credentials  
-✅ Database records  
-✅ API keys  
-✅ Notifications  
-✅ Reports  
+- Crawl data  
+- GSC credentials  
+- Database records  
+- API keys  
+- Notifications  
+- Reports  
 
 ---
 
-## 📡 REST API
+## REST API
 
 ### Health Check
 
 ```bash
 curl http://localhost:8002/api/health
-# { "status": "ok", "version": "0.3.0" }
+# { "status": "ok", "version": "0.5.0" }
 ```
 
 ### List Projects
@@ -433,7 +433,7 @@ Full API docs: `http://localhost:8002/docs` (auto-generated Swagger)
 
 ---
 
-## 🤖 Claude Integration (MCP Server)
+## Claude Integration (MCP Server)
 
 Use SEO Autopilot as a Claude tool via Model Context Protocol:
 
@@ -462,7 +462,7 @@ Example Claude conversation:
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Unit tests
@@ -496,17 +496,17 @@ async def test_analyzer_detects_missing_title():
 
 ---
 
-## 🔐 Security
+## Security
 
-✅ **API Key rotation** – Use API secrets or JWT tokens (configurable)  
-✅ **Tenant isolation** – All queries filtered by `tenant_id`  
-✅ **Credentials management** – Service accounts in `/credentials/`, never in code  
-✅ **Rate limiting** – Built-in throttling on PageSpeed / GSC APIs  
-✅ **HTTPS only** – Production deployments must use TLS  
+- **API Key rotation** – Use API secrets or JWT tokens (configurable)  
+- **Tenant isolation** – All queries filtered by `tenant_id`  
+- **Credentials management** – Service accounts in `/credentials/`, never in code  
+- **Rate limiting** – Built-in throttling on PageSpeed / GSC APIs  
+- **HTTPS only** – Production deployments must use TLS  
 
 ---
 
-## 📊 Performance
+## Performance
 
 | Operation | Time |
 |-----------|------|
@@ -521,7 +521,7 @@ Bottleneck: PageSpeed API rate limiting (200/day free tier).
 
 ---
 
-## 🚀 Deployment
+## Deployment
 
 ### Local Development
 
@@ -583,7 +583,7 @@ spec:
 
 ---
 
-## 📚 Examples
+## Examples
 
 ### Example 1: Audit via CLI
 
@@ -662,7 +662,7 @@ asyncio.run(audit_website())
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### PageSpeed Returns 429 (Rate Limited)
 
@@ -694,16 +694,20 @@ asyncio.run(audit_website())
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
-### v0.3 (Current)
-✅ Real crawler (httpx + BeautifulSoup)
-✅ 4-agent pipeline (Analyzer, Keyword, Strategy, Content)
-✅ Google Search Console + PageSpeed Insights
-✅ HTML reports + Telegram notifications
-✅ Multi-tenant database (SQLAlchemy + Alembic)
-✅ FastAPI REST API + WebSocket
-✅ APScheduler cron jobs
+### v0.5 (Current)
+- Real crawler (httpx + BeautifulSoup)
+- 10 analyzer modules (50+ issue types)
+- GEO audit, topical authority, duplicate detection, link graph
+- PageSpeed CrUX field data (INP, LCP, CLS)
+- Delta/regression engine
+- Intelligence feed (algorithm monitoring)
+- Google Search Console + PageSpeed Insights
+- HTML reports + Telegram notifications
+- Multi-tenant database (SQLAlchemy + Alembic)
+- FastAPI REST API + WebSocket
+- APScheduler cron jobs
 
 ### v0.4 (In Progress)
 - [ ] Real Core Web Vitals via PageSpeed Insights API (INP, LCP, CLS — no FID)
@@ -727,7 +731,7 @@ asyncio.run(audit_website())
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! This is an open-source project.
 
@@ -755,7 +759,7 @@ pytest tests/ -v --cov=seo_autopilot
 
 ---
 
-## 📄 License
+## License
 
 MIT License – see [LICENSE](LICENSE) file.
 
@@ -763,7 +767,7 @@ Use freely in commercial and personal projects.
 
 ---
 
-## 🙋 Support
+## Support
 
 - **Issues:** GitHub Issues on this repo
 - **Discussions:** GitHub Discussions (Q&A, ideas, feedback)
@@ -771,7 +775,7 @@ Use freely in commercial and personal projects.
 
 ---
 
-## 🎯 Why Open Source?
+## Why Open Source?
 
 This tool powers production SEO audits at [Tentacl.ai](https://tentacl.ai). We open-sourced it to:
 
@@ -782,11 +786,9 @@ This tool powers production SEO audits at [Tentacl.ai](https://tentacl.ai). We o
 
 ---
 
-## 🔗 Links
+## Links
 
 - **GitHub:** https://github.com/tentacl-ai/seo-autopilot
-- **PyPI:** https://pypi.org/project/seo-autopilot
-- **npm:** https://npmjs.com/@tentacl/seo-autopilot
 - **Tentacl.ai:** https://tentacl.ai
 
 ---

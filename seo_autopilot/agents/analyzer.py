@@ -167,8 +167,8 @@ class AnalyzerAgent(Agent):
                         _resp = await _client.get(f"{domain}/robots.txt")
                         if _resp.status_code == 200:
                             robots_txt = _resp.text
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug(f"[analyzer] robots.txt fetch failed (non-fatal): {exc}")
 
                 geo_pages = [_page_snapshot(p) for p in good_pages]
                 geo_auditor = GEOAuditor(robots_txt_content=robots_txt)
