@@ -14,7 +14,7 @@
 
 SEO Autopilot turns raw web crawl data into a **prioritized action plan**:
 
-1. **Crawls your site** – httpx + BeautifulSoup, sitemap.xml discovery, 14+ HTML attributes parsed
+1. **Crawls your site** – httpx + BeautifulSoup, automatic Playwright fallback for SPAs, sitemap.xml discovery, 14+ HTML attributes parsed
 2. **Pulls real data** – Google Search Console (28-day), PageSpeed Insights (INP/LCP/CLS via CrUX), robots.txt
 3. **Analyzes 11 dimensions** – On-page, canonical, redirects, schema, GEO, llms.txt/ai.txt, topical authority, duplicates, link graph, CWV, security
 4. **Detects 55+ issue types** – From missing titles to AI-crawler blocking, llms.txt validation, IndexNow, canonical chains, thin content, keyword cannibalization
@@ -25,7 +25,7 @@ SEO Autopilot turns raw web crawl data into a **prioritized action plan**:
 9. **Ships HTML reports** – Self-contained Jinja2 templates with Telegram notifications
 10. **Schedules audits** – APScheduler cron jobs, multi-tenant isolation, WebSocket event streaming
 
-**218 tests, 0 external dependencies beyond Python stdlib + httpx/BS4/FastAPI. No Playwright, no scikit-learn, no heavyweight ML.**
+**229 tests.** Lightweight stack: httpx/BS4/FastAPI. Optional Playwright fallback for JavaScript-rendered SPAs (React, Next.js, Vue, Nuxt).
 
 ---
 
@@ -137,6 +137,7 @@ seo_autopilot/
 │   └── audit_context.py           Shared state across agents
 ├── sources/                     # Data collection
 │   ├── crawler.py                 httpx + BeautifulSoup (sitemap discovery)
+│   ├── renderer.py                Playwright SPA fallback (auto-detected)
 │   ├── pagespeed.py               PageSpeed Insights + CrUX (INP/LCP/CLS)
 │   ├── gsc.py                     Google Search Console (28-day)
 │   ├── intelligence.py            RSS feed monitor (algorithm updates)

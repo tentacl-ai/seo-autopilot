@@ -14,6 +14,10 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Analyzer pipeline now runs 11 analysis modules (was 10)
+- **Crawler with Playwright fallback** — auto-detects SPAs (React, Next.js, Vue, Nuxt) and renders via headless Chromium when httpx finds < 50 words
+- `PageData.rendered_via` tracks rendering engine ("httpx" or "playwright")
+- Dockerfile installs Chromium for JS rendering
+- 229 tests total (was 218)
 - README updated with new analysis dimensions
 - Version bump to 1.1.0
 

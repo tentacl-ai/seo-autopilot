@@ -65,6 +65,7 @@ setup(
         ],
         "postgres": ["asyncpg>=0.29.0", "psycopg2-binary>=2.9.9"],
         "notifications": ["httpx>=0.27.0"],
+        "rendering": ["playwright>=1.40.0"],
         "intelligence": ["feedparser>=6.0.0"],
     },
     entry_points={
@@ -77,5 +78,6 @@ setup(
         "seo", "automation", "crawler", "google-search-console",
         "pagespeed", "lighthouse", "multi-tenant", "audit",
         "llms-txt", "ai-txt", "indexnow", "bing",
+        "playwright", "javascript", "spa", "rendering",
     ],
 )

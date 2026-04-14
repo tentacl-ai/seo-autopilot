@@ -18,7 +18,7 @@ pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
-All 130+ tests must pass before submitting a PR. Tests run without any external services (no API keys, no database, no network).
+All 229+ tests must pass before submitting a PR. Tests run without any external services (no API keys, no database, no network).
 
 ## Project Structure
 
@@ -52,7 +52,7 @@ All 130+ tests must pass before submitting a PR. Tests run without any external 
 - **Language**: All code, comments, docstrings, and user-facing strings in **English**
 - **Type hints**: All public functions must have type annotations
 - **Formatting**: We use `black` for formatting
-- **No new dependencies** without discussion — the project intentionally avoids heavy dependencies (no scikit-learn, no Playwright, no networkx)
+- **No new dependencies** without discussion — keep the core lightweight. Playwright is an optional dependency for JS rendering (`pip install seo-autopilot[rendering]`)
 
 ## Commit Messages
 
