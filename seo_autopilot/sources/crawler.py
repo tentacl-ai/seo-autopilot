@@ -74,6 +74,7 @@ class PageData:
     security_headers: Dict[str, str] = field(default_factory=dict)
     https: bool = False
     error: Optional[str] = None
+    rendered_via: str = "httpx"  # "httpx" oder "playwright"
 
 
 # ---------------------------------------------------------------------------
@@ -249,8 +250,74 @@ class SEOCrawler:
             if resp.status_code != 200 or "html" not in page.content_type.lower():
                 return page
 
-            html = resp.text[:MAX_HTML_BYTES]
-            _parse_html_into(page, html)
+            raw_html = resp.text[:MAX_HTML_BYTES]
+            _parse_html_into(page, raw_html)
+
+            # --- Qualitaetskontrolle + Playwright-Fallback ---
+            from .renderer import is_spa_likely, render_page
+
+            if is_spa_likely(raw_html, page.word_count):
+                logger.info(
+                    f"[crawler] SPA detected ({page.word_count} words): {url} — trying JS render"
+                )
+                rendered_html = await render_page(url)
+                if rendered_html:
+                    # Head-Daten (meta, OG, schema) aus httpx behalten,
+                    # Body-Daten (h1, h2, links, text) aus Playwright ueberschreiben
+                    head_fields = {
+                        "title": page.title,
+                        "meta_description": page.meta_description,
+                        "canonical": page.canonical,
+                        "robots_meta": page.robots_meta,
+                        "lang": page.lang,
+                        "viewport": page.viewport,
+                        "og_tags": page.og_tags.copy(),
+                        "twitter_tags": page.twitter_tags.copy(),
+                        "hreflang": page.hreflang[:],
+                        "schema_types": page.schema_types[:],
+                        "schema_data": page.schema_data[:],
+                    }
+
+                    # Re-parse mit gerendertem HTML
+                    page.h1 = []
+                    page.h2 = []
+                    page.word_count = 0
+                    page.internal_links = 0
+                    page.external_links = 0
+                    page.internal_link_urls = []
+                    page.images_total = 0
+                    page.images_without_alt = 0
+                    _parse_html_into(page, rendered_html[:MAX_HTML_BYTES])
+                    page.rendered_via = "playwright"
+
+                    # Head-Daten aus httpx wiederherstellen wenn Playwright sie nicht hat
+                    if not page.title and head_fields["title"]:
+                        page.title = head_fields["title"]
+                    if not page.meta_description and head_fields["meta_description"]:
+                        page.meta_description = head_fields["meta_description"]
+                    if not page.canonical and head_fields["canonical"]:
+                        page.canonical = head_fields["canonical"]
+                    if not page.robots_meta and head_fields["robots_meta"]:
+                        page.robots_meta = head_fields["robots_meta"]
+                    if not page.lang and head_fields["lang"]:
+                        page.lang = head_fields["lang"]
+                    if not page.viewport and head_fields["viewport"]:
+                        page.viewport = head_fields["viewport"]
+                    if not page.og_tags and head_fields["og_tags"]:
+                        page.og_tags = head_fields["og_tags"]
+                    if not page.twitter_tags and head_fields["twitter_tags"]:
+                        page.twitter_tags = head_fields["twitter_tags"]
+                    if not page.hreflang and head_fields["hreflang"]:
+                        page.hreflang = head_fields["hreflang"]
+                    if not page.schema_types and head_fields["schema_types"]:
+                        page.schema_types = head_fields["schema_types"]
+                        page.schema_data = head_fields["schema_data"]
+
+                    logger.info(
+                        f"[crawler] JS render success: {page.word_count} words, "
+                        f"{len(page.h1)} h1, {page.internal_links} links"
+                    )
+
             return page
 
 

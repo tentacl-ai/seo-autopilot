@@ -17,6 +17,9 @@ google-api-python-client>=2.100.0
 google-auth-oauthlib>=1.0.0
 jinja2>=3.1.0
 
+# JS rendering fallback for SPAs
+playwright>=1.40.0
+
 # Optional: Postgres support
 # asyncpg>=0.29.0
 # psycopg2-binary>=2.9.9
