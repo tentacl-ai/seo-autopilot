@@ -8,7 +8,7 @@
 
 **Production-ready, multi-tenant SEO automation platform** with real crawler, 80+ issue detectors, GEO audit, llms.txt validation, IndexNow support, topical authority analysis, and AI-powered fix generation.
 
-> Crawl your website, detect SEO issues across 10 analysis dimensions, prioritize by ROI, and generate actionable fixes — all from a single CLI command.
+> Crawl your website, detect SEO issues across 11 analysis dimensions, prioritize by ROI, and generate actionable fixes — all from a single CLI command.
 
 ## What It Does
 

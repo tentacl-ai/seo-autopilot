@@ -46,3 +46,10 @@ jobs:
       - run: pip install black
       - name: Check formatting
         run: black --check seo_autopilot/
+
+  sync-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check version and documentation sync
+        run: bash scripts/check-sync.sh
