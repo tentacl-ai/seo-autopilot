@@ -1,7 +1,7 @@
 """
 SEO Autopilot – Multi-Tenant SEO Automation Platform
 
-Version: 1.0.2
+Version: 1.1.0
 Author: SEO Autopilot Contributors
 License: MIT
 
@@ -14,7 +14,7 @@ Features:
 - Multi-tenant ready
 """
 
-__version__ = "1.0.2"
+__version__ = "1.1.0"
 __author__ = "SEO Autopilot Contributors"
 
 from .core.config import settings

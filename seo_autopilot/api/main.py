@@ -41,6 +41,7 @@ from ..reports.html import render_html_report
 from ..notifications.telegram import send_audit_notification
 from ..agents.intelligence_agent import IntelligenceAgent
 from ..sources.intelligence import IntelligenceFeed
+from .public_scan import router as public_scan_router
 
 logger = logging.getLogger(__name__)
 
@@ -48,13 +49,13 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="SEO Autopilot API",
     description="Multi-tenant SEO automation platform",
-    version="1.0.2",
+    version="1.1.0",
 )
 
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=[*settings.CORS_ORIGINS, "https://tentacl.ai"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -177,7 +178,7 @@ async def shutdown_event():
 @app.get("/api/health")
 async def health():
     """Health Check"""
-    return {"status": "ok", "version": "1.0.2"}
+    return {"status": "ok", "version": "1.1.0"}
 
 
 @app.get("/api/projects", response_model=List[ProjectResponse])
@@ -475,6 +476,10 @@ async def manual_poll_intelligence():
             for e in events
         ],
     }
+
+
+# Public Scan Router (tentacl.ai/seo-check/)
+app.include_router(public_scan_router)
 
 
 if __name__ == "__main__":
