@@ -10,7 +10,6 @@ uebersprungen und eine Warnung geloggt.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Optional
 
@@ -26,7 +25,7 @@ SPA_INDICATORS = [
     'id="app"',
     'id="__next"',
     'id="__nuxt"',
-    "script type=\"module\"",
+    'script type="module"',
     "script type='module'",
     "__NEXT_DATA__",
     "__NUXT__",
@@ -65,6 +64,7 @@ async def render_page(url: str, timeout_ms: int = RENDER_TIMEOUT_MS) -> Optional
 
     try:
         from playwright.async_api import async_playwright
+
         _playwright_available = True
     except ImportError:
         _playwright_available = False
