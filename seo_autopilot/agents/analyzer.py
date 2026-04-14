@@ -31,6 +31,7 @@ from ..analyzers.topical_authority import TopicalAuthorityAnalyzer
 from ..analyzers.duplicate_content import DuplicateContentDetector
 from ..analyzers.link_graph import LinkGraph
 from ..analyzers.robots_sitemap import RobotsSitemapAuditor
+from ..analyzers.llms_ai_txt import LlmsAiTxtAuditor
 from ..analyzers.eeat import EEATAnalyzer
 from .intent_geo_agent import analyze_keywords as intent_geo_analyze
 from .base import Agent, AgentResult, AgentStatus
@@ -309,6 +310,52 @@ class AnalyzerAgent(Agent):
             except Exception as exc:
                 logger.warning(
                     f"[analyzer] Robots/Sitemap audit failed (non-fatal): {exc}"
+                )
+
+            # --- v0.11 Analyzer: LLMs.txt + AI.txt + IndexNow ---
+            try:
+                llms_auditor = LlmsAiTxtAuditor()
+                import httpx as _httpx2
+
+                async with _httpx2.AsyncClient(
+                    timeout=15, follow_redirects=True
+                ) as _llms_client:
+                    llms_result = await llms_auditor.fetch_llms_txt(
+                        domain, client=_llms_client
+                    )
+                    llms_full_result = await llms_auditor.fetch_llms_full_txt(
+                        domain, client=_llms_client
+                    )
+                    ai_result = await llms_auditor.fetch_ai_txt(
+                        domain, client=_llms_client
+                    )
+                    indexnow_result = await llms_auditor.check_indexnow(
+                        domain, client=_llms_client
+                    )
+
+                    llms_issues = llms_auditor.detect_issues(
+                        llms_result, llms_full_result, ai_result, indexnow_result
+                    )
+                    issues.extend(llms_issues)
+
+                    result.metrics["llms_txt_status"] = (
+                        "ok" if llms_result.exists else "missing"
+                    )
+                    result.metrics["ai_txt_status"] = (
+                        "ok" if ai_result.exists else "missing"
+                    )
+                    result.metrics["indexnow_status"] = (
+                        "ok" if indexnow_result.exists else "missing"
+                    )
+                    logger.info(
+                        f"[analyzer] LLMs/AI.txt: llms={'ok' if llms_result.exists else 'missing'}, "
+                        f"ai={'ok' if ai_result.exists else 'missing'}, "
+                        f"indexnow={'ok' if indexnow_result.exists else 'missing'}, "
+                        f"{len(llms_issues)} issues"
+                    )
+            except Exception as exc:
+                logger.warning(
+                    f"[analyzer] LLMs/AI.txt audit failed (non-fatal): {exc}"
                 )
 
             # --- v0.10 Analyzer: E-E-A-T Signals ---

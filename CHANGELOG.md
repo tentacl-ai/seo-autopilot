@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-04-14
+
+### Added
+- **LLMs.txt Audit** — Validates /llms.txt against the llmstxt.org spec (H1 title, sections, markdown links)
+- **llms-full.txt Check** — Detects missing /llms-full.txt (optional extended version)
+- **AI.txt Check** — Detects missing /ai.txt (emerging AI permission standard)
+- **IndexNow Support** — Checks for IndexNow key at /.well-known/indexnow (Bing/Yandex instant indexing)
+- New issue category `llms_ai` with 6 issue types
+- 15 new tests (218 total)
+
+### Changed
+- Analyzer pipeline now runs 11 analysis modules (was 10)
+- README updated with new analysis dimensions
+- Version bump to 1.1.0
+
 ## [1.0.2] - 2026-04-13
 
 ### Added

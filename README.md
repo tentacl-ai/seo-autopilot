@@ -6,7 +6,7 @@
 [![FastAPI](https://img.shields.io/badge/fastapi-0.110-green)](https://fastapi.tiangolo.com/)
 [![Async SQLAlchemy](https://img.shields.io/badge/sqlalchemy-2.0-orange)](https://www.sqlalchemy.org/)
 
-**Production-ready, multi-tenant SEO automation platform** with real crawler, 50+ issue detectors, GEO audit, topical authority analysis, and AI-powered fix generation.
+**Production-ready, multi-tenant SEO automation platform** with real crawler, 55+ issue detectors, GEO audit, llms.txt validation, IndexNow support, topical authority analysis, and AI-powered fix generation.
 
 > Crawl your website, detect SEO issues across 10 analysis dimensions, prioritize by ROI, and generate actionable fixes — all from a single CLI command.
 
@@ -16,8 +16,8 @@ SEO Autopilot turns raw web crawl data into a **prioritized action plan**:
 
 1. **Crawls your site** – httpx + BeautifulSoup, sitemap.xml discovery, 14+ HTML attributes parsed
 2. **Pulls real data** – Google Search Console (28-day), PageSpeed Insights (INP/LCP/CLS via CrUX), robots.txt
-3. **Analyzes 10 dimensions** – On-page, canonical, redirects, schema, GEO, topical authority, duplicates, link graph, CWV, security
-4. **Detects 50+ issue types** – From missing titles to AI-crawler blocking, canonical chains, thin content, keyword cannibalization
+3. **Analyzes 11 dimensions** – On-page, canonical, redirects, schema, GEO, llms.txt/ai.txt, topical authority, duplicates, link graph, CWV, security
+4. **Detects 55+ issue types** – From missing titles to AI-crawler blocking, llms.txt validation, IndexNow, canonical chains, thin content, keyword cannibalization
 5. **Prioritizes by ROI** – Quick-wins (< 30min), this-week tasks, backlog — sorted by impact x confidence x ease
 6. **Generates fixes** – Claude API writes optimized titles, meta descriptions, JSON-LD snippets
 7. **Tracks regressions** – Delta engine compares audits over time, alerts on score drops
@@ -25,7 +25,7 @@ SEO Autopilot turns raw web crawl data into a **prioritized action plan**:
 9. **Ships HTML reports** – Self-contained Jinja2 templates with Telegram notifications
 10. **Schedules audits** – APScheduler cron jobs, multi-tenant isolation, WebSocket event streaming
 
-**201 tests, 0 external dependencies beyond Python stdlib + httpx/BS4/FastAPI. No Playwright, no scikit-learn, no heavyweight ML.**
+**218 tests, 0 external dependencies beyond Python stdlib + httpx/BS4/FastAPI. No Playwright, no scikit-learn, no heavyweight ML.**
 
 ---
 
@@ -149,6 +149,7 @@ seo_autopilot/
 │   ├── topical_authority.py       Cluster detection, pillar pages, gaps
 │   ├── duplicate_content.py       SimHash near-duplicates, thin content
 │   ├── link_graph.py              PageRank, orphans, click depth, broken links
+│   ├── llms_ai_txt.py             llms.txt, ai.txt, IndexNow validation
 │   └── delta.py                   Audit-over-audit regression detection
 ├── agents/                      # Pipeline agents
 │   ├── analyzer.py                Orchestrates all analyzers (50+ checks)
@@ -186,8 +187,9 @@ seo_autopilot/
 | **Link Graph** | Orphan pages, click depth, broken links, PageRank distribution, equity sinks | 5 |
 | **Core Web Vitals** | INP, LCP, CLS via CrUX field data + Lighthouse lab data (no FID) | 6 |
 | **Security** | HTTPS, HSTS, X-Frame-Options, X-Content-Type-Options | 2 |
+| **LLMs.txt / AI.txt** | llms.txt spec validation, llms-full.txt, ai.txt, IndexNow key | 6 |
 
-**Total: 50+ issue types across 10 analysis dimensions.**
+**Total: 55+ issue types across 11 analysis dimensions.**
 
 ### Additional features
 
