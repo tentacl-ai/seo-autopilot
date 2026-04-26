@@ -21,7 +21,9 @@ def feed():
 
 class TestPriorityClassification:
     def test_critical_core_update(self):
-        priority, keywords = _classify_priority("Google announces March 2026 broad core update")
+        priority, keywords = _classify_priority(
+            "Google announces March 2026 broad core update"
+        )
         assert priority == "critical"
         assert any("core update" in kw for kw in keywords)
 
@@ -55,10 +57,20 @@ class TestFeedItemCreation:
 class TestEventDetection:
     def test_two_source_confirmation_required(self, feed):
         items = [
-            FeedItem(title="Google Core Update", url="u1", source="google_search_central",
-                     priority="critical", matched_keywords=["core update"]),
-            FeedItem(title="Google Core Update confirmed", url="u2", source="search_engine_journal",
-                     priority="critical", matched_keywords=["core update"]),
+            FeedItem(
+                title="Google Core Update",
+                url="u1",
+                source="google_search_central",
+                priority="critical",
+                matched_keywords=["core update"],
+            ),
+            FeedItem(
+                title="Google Core Update confirmed",
+                url="u2",
+                source="search_engine_journal",
+                priority="critical",
+                matched_keywords=["core update"],
+            ),
         ]
         events = feed.detect_events(items)
         assert len(events) >= 1
@@ -67,16 +79,33 @@ class TestEventDetection:
 
     def test_single_source_not_confirmed(self, feed):
         items = [
-            FeedItem(title="Core Update rumor", url="u1", source="random_blog",
-                     priority="critical", matched_keywords=["core update"]),
+            FeedItem(
+                title="Core Update rumor",
+                url="u1",
+                source="random_blog",
+                priority="critical",
+                matched_keywords=["core update"],
+            ),
         ]
         events = feed.detect_events(items)
         assert len(events) == 0
 
     def test_low_priority_no_event(self, feed):
         items = [
-            FeedItem(title="Cooking tips", url="u1", source="src1", priority="low", matched_keywords=[]),
-            FeedItem(title="Travel guide", url="u2", source="src2", priority="low", matched_keywords=[]),
+            FeedItem(
+                title="Cooking tips",
+                url="u1",
+                source="src1",
+                priority="low",
+                matched_keywords=[],
+            ),
+            FeedItem(
+                title="Travel guide",
+                url="u2",
+                source="src2",
+                priority="low",
+                matched_keywords=[],
+            ),
         ]
         events = feed.detect_events(items)
         assert len(events) == 0
@@ -96,12 +125,27 @@ class TestFeedPolling:
 class TestPrioritizedItems:
     def test_returns_critical_first(self, feed):
         feed._items = [
-            FeedItem(title="Low", url="u1", source="s1", priority="low",
-                     published=datetime(2026, 4, 10, tzinfo=timezone.utc)),
-            FeedItem(title="Critical", url="u2", source="s2", priority="critical",
-                     published=datetime(2026, 4, 10, tzinfo=timezone.utc)),
-            FeedItem(title="Medium", url="u3", source="s3", priority="medium",
-                     published=datetime(2026, 4, 10, tzinfo=timezone.utc)),
+            FeedItem(
+                title="Low",
+                url="u1",
+                source="s1",
+                priority="low",
+                published=datetime(2026, 4, 10, tzinfo=timezone.utc),
+            ),
+            FeedItem(
+                title="Critical",
+                url="u2",
+                source="s2",
+                priority="critical",
+                published=datetime(2026, 4, 10, tzinfo=timezone.utc),
+            ),
+            FeedItem(
+                title="Medium",
+                url="u3",
+                source="s3",
+                priority="medium",
+                published=datetime(2026, 4, 10, tzinfo=timezone.utc),
+            ),
         ]
         result = feed.get_prioritized_items(limit=3)
         assert result[0].priority == "critical"

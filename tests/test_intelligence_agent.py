@@ -30,7 +30,6 @@ from seo_autopilot.agents.intelligence_agent import (
 )
 from seo_autopilot.core.scheduler import AuditScheduler
 
-
 # ============================================================
 # Fixtures
 # ============================================================
@@ -126,7 +125,12 @@ class TestGoogleNewsFeeds:
         assert "google_news_ai_crawlers" in SEO_FEEDS
 
     def test_google_news_feeds_urls(self):
-        for key in ("google_news_algo", "google_news_cwv", "google_news_geo", "google_news_ai_crawlers"):
+        for key in (
+            "google_news_algo",
+            "google_news_cwv",
+            "google_news_geo",
+            "google_news_ai_crawlers",
+        ):
             url = SEO_FEEDS[key]
             assert "news.google.com/rss/search" in url
             assert "hl=en-US" in url
@@ -152,18 +156,34 @@ class TestIntelligenceAgentPollFeeds:
     async def test_poll_feeds_detects_events(self, agent):
         """poll_feeds delegiert an IntelligenceFeed."""
         mock_items = [
-            FeedItem(title="Core Update", url="u1", source="src1",
-                     priority="critical", matched_keywords=["core update"]),
-            FeedItem(title="Core Update confirmed", url="u2", source="src2",
-                     priority="critical", matched_keywords=["core update"]),
+            FeedItem(
+                title="Core Update",
+                url="u1",
+                source="src1",
+                priority="critical",
+                matched_keywords=["core update"],
+            ),
+            FeedItem(
+                title="Core Update confirmed",
+                url="u2",
+                source="src2",
+                priority="critical",
+                matched_keywords=["core update"],
+            ),
         ]
         agent.feed.poll_feeds = MagicMock(return_value=mock_items)
-        agent.feed.detect_events = MagicMock(return_value=[
-            AlgorithmEvent(
-                event_id="e1", title="Core Update", priority="critical",
-                sources=["src1", "src2"], confirmed=True, keywords=["core update"],
-            )
-        ])
+        agent.feed.detect_events = MagicMock(
+            return_value=[
+                AlgorithmEvent(
+                    event_id="e1",
+                    title="Core Update",
+                    priority="critical",
+                    sources=["src1", "src2"],
+                    confirmed=True,
+                    keywords=["core update"],
+                )
+            ]
+        )
 
         events = await agent.poll_feeds()
         assert len(events) == 1
@@ -172,10 +192,18 @@ class TestIntelligenceAgentPollFeeds:
     @pytest.mark.asyncio
     async def test_poll_feeds_stores_events(self, agent):
         agent.feed.poll_feeds = MagicMock(return_value=[])
-        agent.feed.detect_events = MagicMock(return_value=[
-            AlgorithmEvent(event_id="e1", title="Test", priority="high",
-                           sources=["a", "b"], confirmed=True, keywords=["test"])
-        ])
+        agent.feed.detect_events = MagicMock(
+            return_value=[
+                AlgorithmEvent(
+                    event_id="e1",
+                    title="Test",
+                    priority="high",
+                    sources=["a", "b"],
+                    confirmed=True,
+                    keywords=["test"],
+                )
+            ]
+        )
 
         await agent.poll_feeds()
         assert len(agent._events) == 1
@@ -185,8 +213,14 @@ class TestIntelligenceAgentCheckForUpdates:
     @pytest.mark.asyncio
     async def test_no_critical_events_skips(self, agent):
         agent._events = [
-            AlgorithmEvent(event_id="e1", title="Minor", priority="high",
-                           sources=["a", "b"], confirmed=True, keywords=["test"])
+            AlgorithmEvent(
+                event_id="e1",
+                title="Minor",
+                priority="high",
+                sources=["a", "b"],
+                confirmed=True,
+                keywords=["test"],
+            )
         ]
         reports = await agent.check_for_updates()
         assert reports == []
@@ -206,8 +240,12 @@ class TestImpactAnalysis:
     @pytest.mark.asyncio
     async def test_heuristic_fallback_without_api_key(self, agent, confirmed_event):
         """Ohne CLAUDE_API_KEY wird heuristic assessment verwendet."""
-        with patch.object(type(agent), '_assess_project_impact', wraps=agent._assess_project_impact):
-            with patch("seo_autopilot.agents.intelligence_agent.settings") as mock_settings:
+        with patch.object(
+            type(agent), "_assess_project_impact", wraps=agent._assess_project_impact
+        ):
+            with patch(
+                "seo_autopilot.agents.intelligence_agent.settings"
+            ) as mock_settings:
                 mock_settings.CLAUDE_API_KEY = None
                 report = await agent.analyze_impact(confirmed_event)
 
@@ -248,8 +286,10 @@ class TestTelegramAlert:
             event=confirmed_event,
             impacts=[
                 ProjectImpact(
-                    project_id="test", domain="example.com",
-                    score=72.0, risk_level="HIGH",
+                    project_id="test",
+                    domain="example.com",
+                    score=72.0,
+                    risk_level="HIGH",
                     actions=["Fix CWV", "Update schema", "Check rankings"],
                 ),
             ],
@@ -318,8 +358,12 @@ class TestManualPollEndpoint:
 
     def test_manual_poll_with_events(self):
         evt = AlgorithmEvent(
-            event_id="e1", title="Core Update", priority="critical",
-            sources=["a", "b"], confirmed=True, keywords=["core update"],
+            event_id="e1",
+            title="Core Update",
+            priority="critical",
+            sources=["a", "b"],
+            confirmed=True,
+            keywords=["core update"],
         )
         with patch("seo_autopilot.api.main.intelligence_agent") as mock_agent:
             mock_agent.poll_feeds = AsyncMock(return_value=[evt])
@@ -339,7 +383,9 @@ class TestImpactReportSerialization:
         report = ImpactReport(
             event=confirmed_event,
             impacts=[
-                ProjectImpact(project_id="p1", domain="d1.com", risk_level="HIGH", actions=["a"]),
+                ProjectImpact(
+                    project_id="p1", domain="d1.com", risk_level="HIGH", actions=["a"]
+                ),
             ],
             analyzed_at=datetime(2026, 4, 13, 12, 0, tzinfo=timezone.utc),
         )

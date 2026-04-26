@@ -92,7 +92,9 @@ class TestLlmsTxtIssues:
 
 class TestLlmsFullTxtIssues:
     def test_missing_llms_full_txt(self, auditor):
-        llms = LlmsTxtResult(exists=True, status_code=200, raw="# Site\n", has_title=True)
+        llms = LlmsTxtResult(
+            exists=True, status_code=200, raw="# Site\n", has_title=True
+        )
         llms_full = LlmsTxtResult(exists=False, status_code=404)
         ai = AiTxtResult(exists=True, status_code=200)
         indexnow = IndexNowResult(exists=True)
@@ -108,7 +110,9 @@ class TestLlmsFullTxtIssues:
 
 class TestAiTxtIssues:
     def test_missing_ai_txt(self, auditor):
-        llms = LlmsTxtResult(exists=True, status_code=200, raw="# Site\n", has_title=True)
+        llms = LlmsTxtResult(
+            exists=True, status_code=200, raw="# Site\n", has_title=True
+        )
         llms_full = LlmsTxtResult(exists=True, status_code=200)
         ai = AiTxtResult(exists=False, status_code=404)
         indexnow = IndexNowResult(exists=True)
@@ -117,7 +121,9 @@ class TestAiTxtIssues:
         assert "missing_ai_txt" in types
 
     def test_ai_txt_present_no_issue(self, auditor):
-        llms = LlmsTxtResult(exists=True, status_code=200, raw="# Site\n", has_title=True)
+        llms = LlmsTxtResult(
+            exists=True, status_code=200, raw="# Site\n", has_title=True
+        )
         llms_full = LlmsTxtResult(exists=True, status_code=200)
         ai = AiTxtResult(exists=True, status_code=200)
         indexnow = IndexNowResult(exists=True)
@@ -133,7 +139,9 @@ class TestAiTxtIssues:
 
 class TestIndexNowIssues:
     def test_missing_indexnow(self, auditor):
-        llms = LlmsTxtResult(exists=True, status_code=200, raw="# Site\n", has_title=True)
+        llms = LlmsTxtResult(
+            exists=True, status_code=200, raw="# Site\n", has_title=True
+        )
         llms_full = LlmsTxtResult(exists=True, status_code=200)
         ai = AiTxtResult(exists=True, status_code=200)
         indexnow = IndexNowResult(exists=False)
@@ -142,7 +150,9 @@ class TestIndexNowIssues:
         assert "missing_indexnow" in types
 
     def test_indexnow_present_no_issue(self, auditor):
-        llms = LlmsTxtResult(exists=True, status_code=200, raw="# Site\n", has_title=True)
+        llms = LlmsTxtResult(
+            exists=True, status_code=200, raw="# Site\n", has_title=True
+        )
         llms_full = LlmsTxtResult(exists=True, status_code=200)
         ai = AiTxtResult(exists=True, status_code=200)
         indexnow = IndexNowResult(exists=True)
@@ -159,7 +169,8 @@ class TestIndexNowIssues:
 class TestLlmsTxtParsing:
     def test_parse_title(self, auditor):
         result = LlmsTxtResult(
-            exists=True, status_code=200,
+            exists=True,
+            status_code=200,
             raw="# My Cool Website\n\nSome description.\n",
         )
         auditor._parse_llms_txt(result)
@@ -168,7 +179,8 @@ class TestLlmsTxtParsing:
 
     def test_parse_description(self, auditor):
         result = LlmsTxtResult(
-            exists=True, status_code=200,
+            exists=True,
+            status_code=200,
             raw="# Site\n\nThis is the description.\n\n## Links\n",
         )
         auditor._parse_llms_txt(result)
@@ -176,7 +188,8 @@ class TestLlmsTxtParsing:
 
     def test_parse_sections(self, auditor):
         result = LlmsTxtResult(
-            exists=True, status_code=200,
+            exists=True,
+            status_code=200,
             raw="# Site\n\n## Docs\n\n## API\n\n## Optional\n",
         )
         auditor._parse_llms_txt(result)
@@ -186,7 +199,8 @@ class TestLlmsTxtParsing:
 
     def test_parse_links(self, auditor):
         result = LlmsTxtResult(
-            exists=True, status_code=200,
+            exists=True,
+            status_code=200,
             raw=(
                 "# Site\n\n"
                 "## Docs\n\n"
@@ -202,7 +216,8 @@ class TestLlmsTxtParsing:
     def test_all_present_no_issues(self, auditor):
         """False-positive test: everything configured produces no issues."""
         llms = LlmsTxtResult(
-            exists=True, status_code=200,
+            exists=True,
+            status_code=200,
             raw="# Site\n\n## Docs\n\n- [Link](https://example.com)\n",
         )
         auditor._parse_llms_txt(llms)

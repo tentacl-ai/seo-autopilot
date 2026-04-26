@@ -21,8 +21,12 @@ class TestRedirectChainDetection:
             RedirectChain(
                 start_url="https://example.com/old",
                 hops=[
-                    RedirectHop("https://example.com/old", 301, "https://example.com/mid"),
-                    RedirectHop("https://example.com/mid", 301, "https://example.com/new"),
+                    RedirectHop(
+                        "https://example.com/old", 301, "https://example.com/mid"
+                    ),
+                    RedirectHop(
+                        "https://example.com/mid", 301, "https://example.com/new"
+                    ),
                 ],
                 final_url="https://example.com/new",
                 final_status=200,
@@ -58,7 +62,9 @@ class TestRedirectChainDetection:
             RedirectChain(
                 start_url="https://example.com/page",
                 hops=[
-                    RedirectHop("https://example.com/page", 302, "https://example.com/new"),
+                    RedirectHop(
+                        "https://example.com/page", 302, "https://example.com/new"
+                    ),
                 ],
                 final_url="https://example.com/new",
                 final_status=200,
@@ -74,7 +80,9 @@ class TestRedirectChainDetection:
             RedirectChain(
                 start_url="https://example.com/page",
                 hops=[
-                    RedirectHop("https://example.com/page", 301, "https://other.com/page"),
+                    RedirectHop(
+                        "https://example.com/page", 301, "https://other.com/page"
+                    ),
                 ],
                 final_url="https://other.com/page",
                 final_status=200,
@@ -89,7 +97,11 @@ class TestRedirectChainDetection:
         chains = [
             RedirectChain(
                 start_url="https://example.com/old",
-                hops=[RedirectHop("https://example.com/old", 301, "https://example.com/new")],
+                hops=[
+                    RedirectHop(
+                        "https://example.com/old", 301, "https://example.com/new"
+                    )
+                ],
                 final_url="https://example.com/new",
                 final_status=200,
                 chain_length=1,

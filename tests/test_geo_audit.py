@@ -20,8 +20,18 @@ def well_structured_page():
         "meta_description": "SEO steht fuer Suchmaschinenoptimierung. 93% aller Online-Erfahrungen beginnen mit einer Suchmaschine.",
         "schema_types": ["Article", "Organization"],
         "schema_data": [
-            {"@type": "Article", "headline": "Was ist SEO?", "datePublished": "2026-03-01", "dateModified": "2026-04-10", "author": {"@type": "Person", "name": "Max"}},
-            {"@type": "Organization", "name": "Tentacl", "sameAs": ["https://linkedin.com/company/tentacl"]},
+            {
+                "@type": "Article",
+                "headline": "Was ist SEO?",
+                "datePublished": "2026-03-01",
+                "dateModified": "2026-04-10",
+                "author": {"@type": "Person", "name": "Max"},
+            },
+            {
+                "@type": "Organization",
+                "name": "Tentacl",
+                "sameAs": ["https://linkedin.com/company/tentacl"],
+            },
         ],
     }
 
@@ -78,7 +88,9 @@ class TestPageAnalysis:
         result = auditor.analyze_page(poor_page)
         assert result["geo_score"] < 50
 
-    def test_no_false_positive_on_well_structured_page(self, auditor, well_structured_page):
+    def test_no_false_positive_on_well_structured_page(
+        self, auditor, well_structured_page
+    ):
         result = auditor.analyze_page(well_structured_page)
         # Should have few/no issues (except possibly paragraph_length)
         critical_issues = [i for i in result["issues"] if i["severity"] == "critical"]
@@ -125,9 +137,13 @@ class TestSiteAnalysis:
         auditor = GEOAuditor(robots_txt_content=robots)
         page = {
             "url": "https://example.com",
-            "title": "Home", "h1": ["Home"], "h2": [],
-            "word_count": 200, "meta_description": "Test",
-            "schema_types": [], "schema_data": [],
+            "title": "Home",
+            "h1": ["Home"],
+            "h2": [],
+            "word_count": 200,
+            "meta_description": "Test",
+            "schema_types": [],
+            "schema_data": [],
         }
         result = auditor.analyze_site([page])
         issue_types = [i["type"] for i in result["issues"]]

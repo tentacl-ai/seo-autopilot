@@ -10,11 +10,13 @@ from seo_autopilot.analyzers.canonical_engine import (
 
 @pytest.fixture
 def engine():
-    return CanonicalEngine(sitemap_urls={
-        "https://example.com",
-        "https://example.com/about",
-        "https://example.com/blog",
-    })
+    return CanonicalEngine(
+        sitemap_urls={
+            "https://example.com",
+            "https://example.com/about",
+            "https://example.com/blog",
+        }
+    )
 
 
 class TestCanonicalResolution:
@@ -158,9 +160,12 @@ class TestCanonicalPair:
             PageCanonicalData(url="https://example.com/b"),
         ]
         resolutions = engine.resolve_all(pages)
-        assert engine.is_canonical_pair(
-            "https://example.com/a", "https://example.com/b", resolutions
-        ) is True
+        assert (
+            engine.is_canonical_pair(
+                "https://example.com/a", "https://example.com/b", resolutions
+            )
+            is True
+        )
 
     def test_not_canonical_pair(self, engine):
         pages = [
@@ -168,9 +173,12 @@ class TestCanonicalPair:
             PageCanonicalData(url="https://example.com/b"),
         ]
         resolutions = engine.resolve_all(pages)
-        assert engine.is_canonical_pair(
-            "https://example.com/a", "https://example.com/b", resolutions
-        ) is False
+        assert (
+            engine.is_canonical_pair(
+                "https://example.com/a", "https://example.com/b", resolutions
+            )
+            is False
+        )
 
 
 class TestNormalizeUrl:

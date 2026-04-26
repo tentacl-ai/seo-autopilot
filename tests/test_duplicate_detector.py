@@ -39,8 +39,20 @@ class TestDuplicateDetection:
     def test_detects_true_duplicate_without_canonical(self, detector):
         text = "Dies ist ein ausfuehrlicher Artikel ueber Suchmaschinenoptimierung und alle wichtigen Aspekte die man beachten muss um in den Google Suchergebnissen gut zu ranken und Traffic zu generieren fuer die eigene Website"
         pages = [
-            {"url": "https://example.com/page-1", "text_content": text, "word_count": 500, "h1": ["SEO Guide"], "title": "SEO"},
-            {"url": "https://example.com/page-2", "text_content": text, "word_count": 500, "h1": ["SEO Guide Copy"], "title": "SEO"},
+            {
+                "url": "https://example.com/page-1",
+                "text_content": text,
+                "word_count": 500,
+                "h1": ["SEO Guide"],
+                "title": "SEO",
+            },
+            {
+                "url": "https://example.com/page-2",
+                "text_content": text,
+                "word_count": 500,
+                "h1": ["SEO Guide Copy"],
+                "title": "SEO",
+            },
         ]
         issues = detector.detect_issues(pages)
         types = [i["type"] for i in issues]
@@ -51,20 +63,46 @@ class TestDuplicateDetection:
         detector = DuplicateContentDetector(canonical_pairs=canonical_pairs)
         text = "Dies ist ein ausfuehrlicher Artikel ueber Suchmaschinenoptimierung und alle wichtigen Aspekte die man beachten muss um in den Google Suchergebnissen gut zu ranken und Traffic zu generieren fuer die eigene Website"
         pages = [
-            {"url": "https://example.com/page-1", "text_content": text, "word_count": 500, "h1": ["SEO"], "title": "SEO"},
-            {"url": "https://example.com/page-2", "text_content": text, "word_count": 500, "h1": ["SEO"], "title": "SEO"},
+            {
+                "url": "https://example.com/page-1",
+                "text_content": text,
+                "word_count": 500,
+                "h1": ["SEO"],
+                "title": "SEO",
+            },
+            {
+                "url": "https://example.com/page-2",
+                "text_content": text,
+                "word_count": 500,
+                "h1": ["SEO"],
+                "title": "SEO",
+            },
         ]
         issues = detector.detect_issues(pages)
         dup_issues = [i for i in issues if i["type"] == "near_duplicate_content"]
         assert len(dup_issues) == 0
 
     def test_distinguishes_from_cluster_cannibalization(self):
-        cluster_urls = {"blog": {"https://example.com/blog/a", "https://example.com/blog/b"}}
+        cluster_urls = {
+            "blog": {"https://example.com/blog/a", "https://example.com/blog/b"}
+        }
         detector = DuplicateContentDetector(cluster_urls=cluster_urls)
         text = "Dies ist ein ausfuehrlicher Artikel ueber Suchmaschinenoptimierung und alle wichtigen Aspekte die man beachten muss um in den Google Suchergebnissen gut zu ranken und Traffic zu generieren fuer die eigene Website"
         pages = [
-            {"url": "https://example.com/blog/a", "text_content": text, "word_count": 500, "h1": ["SEO"], "title": "SEO"},
-            {"url": "https://example.com/blog/b", "text_content": text, "word_count": 500, "h1": ["SEO"], "title": "SEO"},
+            {
+                "url": "https://example.com/blog/a",
+                "text_content": text,
+                "word_count": 500,
+                "h1": ["SEO"],
+                "title": "SEO",
+            },
+            {
+                "url": "https://example.com/blog/b",
+                "text_content": text,
+                "word_count": 500,
+                "h1": ["SEO"],
+                "title": "SEO",
+            },
         ]
         issues = detector.detect_issues(pages)
         dup_issues = [i for i in issues if i["type"] == "near_duplicate_content"]
@@ -72,7 +110,12 @@ class TestDuplicateDetection:
 
     def test_detects_thin_content(self, detector):
         pages = [
-            {"url": "https://example.com/thin", "word_count": 80, "h1": ["X"], "title": "X"},
+            {
+                "url": "https://example.com/thin",
+                "word_count": 80,
+                "h1": ["X"],
+                "title": "X",
+            },
         ]
         issues = detector.detect_issues(pages)
         types = [i["type"] for i in issues]
@@ -80,8 +123,18 @@ class TestDuplicateDetection:
 
     def test_no_thin_content_on_legal_pages(self, detector):
         pages = [
-            {"url": "https://example.com/impressum", "word_count": 80, "h1": ["Impressum"], "title": "Impressum"},
-            {"url": "https://example.com/datenschutz", "word_count": 80, "h1": ["Datenschutz"], "title": "Datenschutz"},
+            {
+                "url": "https://example.com/impressum",
+                "word_count": 80,
+                "h1": ["Impressum"],
+                "title": "Impressum",
+            },
+            {
+                "url": "https://example.com/datenschutz",
+                "word_count": 80,
+                "h1": ["Datenschutz"],
+                "title": "Datenschutz",
+            },
         ]
         issues = detector.detect_issues(pages)
         thin = [i for i in issues if i["type"] == "thin_content"]
@@ -90,8 +143,20 @@ class TestDuplicateDetection:
     def test_recommends_canonical_for_duplicate_pair(self, detector):
         text = "Ein langer Text ueber SEO der auf zwei Seiten vorkommt und Duplicate Content verursacht weil beide Seiten den identischen Inhalt haben und Google nicht weiss welche Seite ranken soll"
         pages = [
-            {"url": "https://example.com/original", "text_content": text, "word_count": 500, "h1": ["SEO"], "title": "SEO"},
-            {"url": "https://example.com/copy", "text_content": text, "word_count": 500, "h1": ["SEO Copy"], "title": "SEO"},
+            {
+                "url": "https://example.com/original",
+                "text_content": text,
+                "word_count": 500,
+                "h1": ["SEO"],
+                "title": "SEO",
+            },
+            {
+                "url": "https://example.com/copy",
+                "text_content": text,
+                "word_count": 500,
+                "h1": ["SEO Copy"],
+                "title": "SEO",
+            },
         ]
         issues = detector.detect_issues(pages)
         dup = [i for i in issues if i["type"] == "near_duplicate_content"]
@@ -102,8 +167,18 @@ class TestDuplicateDetection:
 class TestKeywordCannibalization:
     def test_detects_same_h1_on_multiple_pages(self, detector):
         pages = [
-            {"url": "https://example.com/page-1", "word_count": 500, "h1": ["SEO Optimierung"], "title": "SEO 1"},
-            {"url": "https://example.com/page-2", "word_count": 500, "h1": ["SEO Optimierung"], "title": "SEO 2"},
+            {
+                "url": "https://example.com/page-1",
+                "word_count": 500,
+                "h1": ["SEO Optimierung"],
+                "title": "SEO 1",
+            },
+            {
+                "url": "https://example.com/page-2",
+                "word_count": 500,
+                "h1": ["SEO Optimierung"],
+                "title": "SEO 2",
+            },
         ]
         issues = detector.detect_issues(pages)
         types = [i["type"] for i in issues]

@@ -11,17 +11,32 @@ def analyzer():
 
 @pytest.fixture
 def issue_a():
-    return {"type": "missing_title", "severity": "high", "affected_url": "https://example.com/a", "title": "Missing title"}
+    return {
+        "type": "missing_title",
+        "severity": "high",
+        "affected_url": "https://example.com/a",
+        "title": "Missing title",
+    }
 
 
 @pytest.fixture
 def issue_b():
-    return {"type": "missing_h1", "severity": "medium", "affected_url": "https://example.com/b", "title": "Missing H1"}
+    return {
+        "type": "missing_h1",
+        "severity": "medium",
+        "affected_url": "https://example.com/b",
+        "title": "Missing H1",
+    }
 
 
 @pytest.fixture
 def issue_c():
-    return {"type": "poor_lcp", "severity": "high", "affected_url": "https://example.com/c", "title": "Poor LCP"}
+    return {
+        "type": "poor_lcp",
+        "severity": "high",
+        "affected_url": "https://example.com/c",
+        "title": "Poor LCP",
+    }
 
 
 class TestNewAndResolvedIssues:
@@ -48,32 +63,52 @@ class TestNewAndResolvedIssues:
 class TestScoreRegression:
     def test_detects_score_regression(self, analyzer):
         report = analyzer.compare(
-            current_issues=[], previous_issues=[],
-            current_score=65.0, previous_score=80.0,
+            current_issues=[],
+            previous_issues=[],
+            current_score=65.0,
+            previous_score=80.0,
         )
         assert report.score_delta == -15.0
         assert report.has_regression is True
 
     def test_no_regression_on_improvement(self, analyzer):
         report = analyzer.compare(
-            current_issues=[], previous_issues=[],
-            current_score=85.0, previous_score=70.0,
+            current_issues=[],
+            previous_issues=[],
+            current_score=85.0,
+            previous_score=70.0,
         )
         assert report.score_delta == 15.0
         assert report.has_regression is False
 
     def test_small_drop_not_regression(self, analyzer):
         report = analyzer.compare(
-            current_issues=[], previous_issues=[],
-            current_score=78.0, previous_score=80.0,
+            current_issues=[],
+            previous_issues=[],
+            current_score=78.0,
+            previous_score=80.0,
         )
         assert report.has_regression is False
 
 
 class TestSeverityRegression:
     def test_detects_regressed_issue_severity(self, analyzer):
-        prev = [{"type": "poor_lcp", "severity": "medium", "affected_url": "https://example.com/x", "title": "LCP"}]
-        curr = [{"type": "poor_lcp", "severity": "high", "affected_url": "https://example.com/x", "title": "LCP worse"}]
+        prev = [
+            {
+                "type": "poor_lcp",
+                "severity": "medium",
+                "affected_url": "https://example.com/x",
+                "title": "LCP",
+            }
+        ]
+        curr = [
+            {
+                "type": "poor_lcp",
+                "severity": "high",
+                "affected_url": "https://example.com/x",
+                "title": "LCP worse",
+            }
+        ]
         report = analyzer.compare(curr, prev)
         assert len(report.regressed_issues) == 1
         assert report.regressed_issues[0]["previous_severity"] == "medium"
@@ -82,22 +117,59 @@ class TestSeverityRegression:
 class TestPageLevelDelta:
     def test_detects_improved_pages(self, analyzer):
         prev = [
-            {"type": "a", "severity": "low", "affected_url": "https://example.com/page", "title": "A"},
-            {"type": "b", "severity": "low", "affected_url": "https://example.com/page", "title": "B"},
+            {
+                "type": "a",
+                "severity": "low",
+                "affected_url": "https://example.com/page",
+                "title": "A",
+            },
+            {
+                "type": "b",
+                "severity": "low",
+                "affected_url": "https://example.com/page",
+                "title": "B",
+            },
         ]
         curr = [
-            {"type": "a", "severity": "low", "affected_url": "https://example.com/page", "title": "A"},
+            {
+                "type": "a",
+                "severity": "low",
+                "affected_url": "https://example.com/page",
+                "title": "A",
+            },
         ]
         report = analyzer.compare(curr, prev)
         assert len(report.improved_pages) == 1
         assert report.improved_pages[0]["url"] == "https://example.com/page"
 
     def test_detects_degraded_pages(self, analyzer):
-        prev = [{"type": "a", "severity": "low", "affected_url": "https://example.com/page", "title": "A"}]
+        prev = [
+            {
+                "type": "a",
+                "severity": "low",
+                "affected_url": "https://example.com/page",
+                "title": "A",
+            }
+        ]
         curr = [
-            {"type": "a", "severity": "low", "affected_url": "https://example.com/page", "title": "A"},
-            {"type": "b", "severity": "low", "affected_url": "https://example.com/page", "title": "B"},
-            {"type": "c", "severity": "low", "affected_url": "https://example.com/page", "title": "C"},
+            {
+                "type": "a",
+                "severity": "low",
+                "affected_url": "https://example.com/page",
+                "title": "A",
+            },
+            {
+                "type": "b",
+                "severity": "low",
+                "affected_url": "https://example.com/page",
+                "title": "B",
+            },
+            {
+                "type": "c",
+                "severity": "low",
+                "affected_url": "https://example.com/page",
+                "title": "C",
+            },
         ]
         report = analyzer.compare(curr, prev)
         assert len(report.degraded_pages) == 1
@@ -106,7 +178,9 @@ class TestPageLevelDelta:
 class TestDeltaEndpoint:
     def test_delta_returns_structured_diff(self, analyzer):
         report = analyzer.compare(
-            current_issues=[{"type": "x", "severity": "high", "affected_url": "u", "title": "X"}],
+            current_issues=[
+                {"type": "x", "severity": "high", "affected_url": "u", "title": "X"}
+            ],
             previous_issues=[],
             current_score=75.0,
             previous_score=80.0,
@@ -125,9 +199,24 @@ class TestRegressionAlert:
     def test_regression_triggers_alert(self, analyzer):
         report = analyzer.compare(
             current_issues=[
-                {"type": "a", "severity": "high", "affected_url": "u1", "title": "Issue A"},
-                {"type": "b", "severity": "high", "affected_url": "u2", "title": "Issue B"},
-                {"type": "c", "severity": "critical", "affected_url": "u3", "title": "Issue C"},
+                {
+                    "type": "a",
+                    "severity": "high",
+                    "affected_url": "u1",
+                    "title": "Issue A",
+                },
+                {
+                    "type": "b",
+                    "severity": "high",
+                    "affected_url": "u2",
+                    "title": "Issue B",
+                },
+                {
+                    "type": "c",
+                    "severity": "critical",
+                    "affected_url": "u3",
+                    "title": "Issue C",
+                },
             ],
             previous_issues=[],
             current_score=50.0,
@@ -142,7 +231,9 @@ class TestRegressionAlert:
     def test_no_alert_on_improvement(self, analyzer):
         report = analyzer.compare(
             current_issues=[],
-            previous_issues=[{"type": "a", "severity": "high", "affected_url": "u", "title": "A"}],
+            previous_issues=[
+                {"type": "a", "severity": "high", "affected_url": "u", "title": "A"}
+            ],
             current_score=90.0,
             previous_score=70.0,
         )
@@ -153,7 +244,8 @@ class TestRegressionAlert:
 class TestCWVDelta:
     def test_compares_cwv_metrics(self, analyzer):
         report = analyzer.compare(
-            current_issues=[], previous_issues=[],
+            current_issues=[],
+            previous_issues=[],
             current_metrics={"lighthouse_performance": 85, "geo_avg_score": 75.0},
             previous_metrics={"lighthouse_performance": 70, "geo_avg_score": 60.0},
         )

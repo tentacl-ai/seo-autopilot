@@ -27,7 +27,7 @@ class TestSPADetection:
 
     def test_not_spa_static_site(self):
         """Normale statische Seite ohne SPA-Indikatoren."""
-        html = '<html><body><h1>Hello</h1><p>World</p></body></html>'
+        html = "<html><body><h1>Hello</h1><p>World</p></body></html>"
         assert is_spa_likely(html, word_count=2) is False
 
     def test_not_spa_ssr_content(self):
@@ -54,5 +54,6 @@ class TestSPADetection:
 class TestPageDataRenderedVia:
     def test_default_httpx(self):
         from seo_autopilot.sources.crawler import PageData
+
         page = PageData(url="https://example.com")
         assert page.rendered_via == "httpx"

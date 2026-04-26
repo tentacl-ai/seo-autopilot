@@ -33,8 +33,9 @@ def test_clean_page_produces_no_issues(sample_page_data):
 
 def test_missing_title_detected():
     agent = _make_agent()
-    p = PageData(url="https://example.com/x", status_code=200,
-                 final_url="https://example.com/x")
+    p = PageData(
+        url="https://example.com/x", status_code=200, final_url="https://example.com/x"
+    )
     issues = agent._check_meta([p])
     types = [i["type"] for i in issues]
     assert "missing_title" in types
@@ -45,8 +46,13 @@ def test_missing_title_detected():
 def test_long_title_detected():
     agent = _make_agent()
     p = PageData(
-        url="https://example.com/", status_code=200, final_url="https://example.com/",
-        title="A" * 100, meta_description="x" * 140, viewport="yes", lang="de",
+        url="https://example.com/",
+        status_code=200,
+        final_url="https://example.com/",
+        title="A" * 100,
+        meta_description="x" * 140,
+        viewport="yes",
+        lang="de",
     )
     issues = [i for i in agent._check_meta([p]) if i["type"] == "long_title"]
     assert len(issues) == 1
@@ -54,15 +60,23 @@ def test_long_title_detected():
 
 def test_multiple_h1_flagged():
     agent = _make_agent()
-    p = PageData(url="https://example.com/", final_url="https://example.com/",
-                 status_code=200, h1=["A", "B", "C"])
+    p = PageData(
+        url="https://example.com/",
+        final_url="https://example.com/",
+        status_code=200,
+        h1=["A", "B", "C"],
+    )
     issues = agent._check_headings([p])
     assert any(i["type"] == "multiple_h1" for i in issues)
 
 
 def test_http_page_flagged_as_insecure():
     agent = _make_agent()
-    p = PageData(url="http://example.com/", final_url="http://example.com/",
-                 status_code=200, https=False)
+    p = PageData(
+        url="http://example.com/",
+        final_url="http://example.com/",
+        status_code=200,
+        https=False,
+    )
     issues = agent._check_security([p])
     assert any(i["type"] == "no_https" for i in issues)

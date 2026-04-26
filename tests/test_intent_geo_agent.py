@@ -35,15 +35,17 @@ def _page(url="https://example.com/page"):
     }
 
 
-MOCK_RESPONSE = json.dumps({
-    "intent_match": 75,
-    "intent_type": "informational",
-    "intent_explanation": "Good coverage of the topic",
-    "geo_readiness": 60,
-    "geo_explanation": "Structured but lacks statistics",
-    "content_gaps": ["pricing comparison", "case studies"],
-    "suggested_improvements": ["Add pricing table", "Include testimonials"],
-})
+MOCK_RESPONSE = json.dumps(
+    {
+        "intent_match": 75,
+        "intent_type": "informational",
+        "intent_explanation": "Good coverage of the topic",
+        "geo_readiness": 60,
+        "geo_explanation": "Structured but lacks statistics",
+        "content_gaps": ["pricing comparison", "case studies"],
+        "suggested_improvements": ["Add pricing table", "Include testimonials"],
+    }
+)
 
 
 # ---------------------------------------------------------------------------
@@ -54,11 +56,11 @@ MOCK_RESPONSE = json.dumps({
 class TestKeywordSelection:
     def test_filters_by_position_and_impressions(self):
         keywords = [
-            _kw("seo tool", 2, 500),      # pos too high (top 3)
-            _kw("seo audit", 8, 200),      # good
-            _kw("seo check", 15, 50),      # impressions too low
-            _kw("seo report", 35, 300),    # pos too low (>30)
-            _kw("seo score", 12, 150),     # good
+            _kw("seo tool", 2, 500),  # pos too high (top 3)
+            _kw("seo audit", 8, 200),  # good
+            _kw("seo check", 15, 50),  # impressions too low
+            _kw("seo report", 35, 300),  # pos too low (>30)
+            _kw("seo score", 12, 150),  # good
         ]
         selected = select_keywords(keywords)
         kw_names = [k["keyword"] for k in selected]
@@ -174,15 +176,17 @@ class TestAnalysis:
 
     @pytest.mark.asyncio
     async def test_issues_generated_for_low_scores(self):
-        low_response = json.dumps({
-            "intent_match": 25,
-            "intent_type": "informational",
-            "intent_explanation": "Totally wrong topic",
-            "geo_readiness": 20,
-            "geo_explanation": "No structure at all",
-            "content_gaps": ["pricing", "FAQ"],
-            "suggested_improvements": ["Rewrite entirely"],
-        })
+        low_response = json.dumps(
+            {
+                "intent_match": 25,
+                "intent_type": "informational",
+                "intent_explanation": "Totally wrong topic",
+                "geo_readiness": 20,
+                "geo_explanation": "No structure at all",
+                "content_gaps": ["pricing", "FAQ"],
+                "suggested_improvements": ["Rewrite entirely"],
+            }
+        )
         mock_call = AsyncMock(return_value=low_response)
         keywords = [_kw("seo pricing", 12, 400)]
 

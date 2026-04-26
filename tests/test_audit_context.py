@@ -25,21 +25,36 @@ def _result(agent, issues=None, fixes=None):
 
 def test_add_result_merges_issues_and_fixes():
     ctx = _ctx()
-    ctx.add_result("analyzer", _result("analyzer",
-        issues=[{"type": "missing_title", "severity": "high"}],
-        fixes=[{"type": "title", "suggestion": "ok"}]))
-    ctx.add_result("keyword", _result("keyword",
-        issues=[{"type": "low_ctr_opportunity", "severity": "medium"}]))
+    ctx.add_result(
+        "analyzer",
+        _result(
+            "analyzer",
+            issues=[{"type": "missing_title", "severity": "high"}],
+            fixes=[{"type": "title", "suggestion": "ok"}],
+        ),
+    )
+    ctx.add_result(
+        "keyword",
+        _result(
+            "keyword", issues=[{"type": "low_ctr_opportunity", "severity": "medium"}]
+        ),
+    )
     assert len(ctx.all_issues) == 2
     assert len(ctx.all_fixes) == 1
 
 
 def test_strategy_result_replaces_issues_instead_of_appending():
     ctx = _ctx()
-    ctx.add_result("analyzer", _result("analyzer",
-        issues=[{"type": "missing_title", "severity": "high"}]))
-    ctx.add_result("keyword", _result("keyword",
-        issues=[{"type": "striking_distance", "severity": "medium"}]))
+    ctx.add_result(
+        "analyzer",
+        _result("analyzer", issues=[{"type": "missing_title", "severity": "high"}]),
+    )
+    ctx.add_result(
+        "keyword",
+        _result(
+            "keyword", issues=[{"type": "striking_distance", "severity": "medium"}]
+        ),
+    )
     assert len(ctx.all_issues) == 2
 
     ranked = [
@@ -53,13 +68,19 @@ def test_strategy_result_replaces_issues_instead_of_appending():
 def test_score_calculation_conservative():
     ctx = _ctx()
     ctx.all_issues = [
-        {"severity": "high"}, {"severity": "high"},
-        {"severity": "medium"}, {"severity": "medium"}, {"severity": "medium"},
-        {"severity": "low"}, {"severity": "low"}, {"severity": "low"},
+        {"severity": "high"},
+        {"severity": "high"},
+        {"severity": "medium"},
+        {"severity": "medium"},
+        {"severity": "medium"},
+        {"severity": "low"},
+        {"severity": "low"},
+        {"severity": "low"},
     ]
     score = ctx.calculate_score()
-    # 2*3 + 3*1.5 + 3*0.5 = 6 + 4.5 + 1.5 = 12 -> 88
-    assert score == 88.0
+    # Formula since v1.2: high min(50, 3*n), medium min(30, 1*n), low min(20, 0.3*n)
+    # 2*3=6 + 3*1=3 + 3*0.3=0.9 = 9.9 -> 90.1
+    assert score == 90.1
 
 
 def test_summary_contains_expected_keys():
@@ -68,6 +89,13 @@ def test_summary_contains_expected_keys():
     ctx.completed_at = datetime.utcnow()
     ctx.calculate_score()
     s = ctx.summary()
-    for key in ("audit_id", "project_id", "domain", "score",
-                "issues_total", "issues_by_severity", "issues_by_category"):
+    for key in (
+        "audit_id",
+        "project_id",
+        "domain",
+        "score",
+        "issues_total",
+        "issues_by_severity",
+        "issues_by_category",
+    ):
         assert key in s

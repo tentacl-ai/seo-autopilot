@@ -27,11 +27,15 @@ class TestRobotsIssues:
         assert "missing_robots_txt" in types
 
     def test_ai_crawler_blocked(self, auditor):
-        robots = RobotsResult(exists=True, status_code=200, raw=(
-            "User-agent: GPTBot\nDisallow: /\n"
-            "User-agent: ClaudeBot\nDisallow: /\n"
-            "User-agent: *\nDisallow:\n"
-        ))
+        robots = RobotsResult(
+            exists=True,
+            status_code=200,
+            raw=(
+                "User-agent: GPTBot\nDisallow: /\n"
+                "User-agent: ClaudeBot\nDisallow: /\n"
+                "User-agent: *\nDisallow:\n"
+            ),
+        )
         auditor._parse_robots(robots)
         issues = auditor.detect_robots_issues(robots)
         types = [i["type"] for i in issues]
@@ -41,27 +45,29 @@ class TestRobotsIssues:
         assert "ClaudeBot" in ai_issue["title"]
 
     def test_css_js_blocked(self, auditor):
-        robots = RobotsResult(exists=True, status_code=200, raw=(
-            "User-agent: *\nDisallow: /static/\nDisallow: /assets/\n"
-        ))
+        robots = RobotsResult(
+            exists=True,
+            status_code=200,
+            raw=("User-agent: *\nDisallow: /static/\nDisallow: /assets/\n"),
+        )
         auditor._parse_robots(robots)
         issues = auditor.detect_robots_issues(robots)
         types = [i["type"] for i in issues]
         assert "css_js_blocked" in types
 
     def test_missing_sitemap_directive(self, auditor):
-        robots = RobotsResult(exists=True, status_code=200, raw=(
-            "User-agent: *\nDisallow: /admin/\n"
-        ))
+        robots = RobotsResult(
+            exists=True, status_code=200, raw=("User-agent: *\nDisallow: /admin/\n")
+        )
         auditor._parse_robots(robots)
         issues = auditor.detect_robots_issues(robots)
         types = [i["type"] for i in issues]
         assert "missing_sitemap_directive" in types
 
     def test_wildcard_disallow(self, auditor):
-        robots = RobotsResult(exists=True, status_code=200, raw=(
-            "User-agent: *\nDisallow: /\n"
-        ))
+        robots = RobotsResult(
+            exists=True, status_code=200, raw=("User-agent: *\nDisallow: /\n")
+        )
         auditor._parse_robots(robots)
         issues = auditor.detect_robots_issues(robots)
         types = [i["type"] for i in issues]
@@ -71,22 +77,30 @@ class TestRobotsIssues:
 
     def test_clean_robots_no_issues(self, auditor):
         """False-positive test: well-configured robots.txt produces no issues."""
-        robots = RobotsResult(exists=True, status_code=200, raw=(
-            "User-agent: *\n"
-            "Disallow: /admin/\n"
-            "Disallow: /api/\n\n"
-            "Sitemap: https://example.com/sitemap.xml\n"
-        ))
+        robots = RobotsResult(
+            exists=True,
+            status_code=200,
+            raw=(
+                "User-agent: *\n"
+                "Disallow: /admin/\n"
+                "Disallow: /api/\n\n"
+                "Sitemap: https://example.com/sitemap.xml\n"
+            ),
+        )
         auditor._parse_robots(robots)
         issues = auditor.detect_robots_issues(robots)
         assert issues == []
 
     def test_sitemap_directive_parsed(self, auditor):
-        robots = RobotsResult(exists=True, status_code=200, raw=(
-            "Sitemap: https://example.com/sitemap.xml\n"
-            "Sitemap: https://example.com/sitemap-blog.xml\n"
-            "User-agent: *\nDisallow: /admin/\n"
-        ))
+        robots = RobotsResult(
+            exists=True,
+            status_code=200,
+            raw=(
+                "Sitemap: https://example.com/sitemap.xml\n"
+                "Sitemap: https://example.com/sitemap-blog.xml\n"
+                "User-agent: *\nDisallow: /admin/\n"
+            ),
+        )
         auditor._parse_robots(robots)
         assert len(robots.sitemap_directives) == 2
         assert "https://example.com/sitemap.xml" in robots.sitemap_directives
@@ -99,7 +113,9 @@ class TestRobotsIssues:
 
 class TestSitemapIssues:
     def test_missing_sitemap(self, auditor):
-        sitemap = SitemapResult(url="https://example.com/sitemap.xml", exists=False, status_code=404)
+        sitemap = SitemapResult(
+            url="https://example.com/sitemap.xml", exists=False, status_code=404
+        )
         issues = auditor.detect_sitemap_issues(sitemap)
         types = [i["type"] for i in issues]
         assert "missing_sitemap" in types
@@ -107,7 +123,8 @@ class TestSitemapIssues:
     def test_parse_error(self, auditor):
         sitemap = SitemapResult(
             url="https://example.com/sitemap.xml",
-            exists=True, status_code=200,
+            exists=True,
+            status_code=200,
             parse_error="not well-formed",
         )
         issues = auditor.detect_sitemap_issues(sitemap)
@@ -117,7 +134,9 @@ class TestSitemapIssues:
     def test_empty_sitemap(self, auditor):
         sitemap = SitemapResult(
             url="https://example.com/sitemap.xml",
-            exists=True, status_code=200, urls=[],
+            exists=True,
+            status_code=200,
+            urls=[],
         )
         issues = auditor.detect_sitemap_issues(sitemap)
         types = [i["type"] for i in issues]
@@ -127,7 +146,9 @@ class TestSitemapIssues:
         urls = [SitemapUrl(loc="https://example.com/gone")]
         sitemap = SitemapResult(
             url="https://example.com/sitemap.xml",
-            exists=True, status_code=200, urls=urls,
+            exists=True,
+            status_code=200,
+            urls=urls,
         )
         url_status = {"https://example.com/gone": 404}
         issues = auditor.detect_sitemap_issues(sitemap, url_status=url_status)
@@ -141,7 +162,9 @@ class TestSitemapIssues:
         ]
         sitemap = SitemapResult(
             url="https://example.com/sitemap.xml",
-            exists=True, status_code=200, urls=urls,
+            exists=True,
+            status_code=200,
+            urls=urls,
         )
         canonical = {"https://example.com/page"}
         issues = auditor.detect_sitemap_issues(sitemap, canonical_urls=canonical)
@@ -152,9 +175,15 @@ class TestSitemapIssues:
         urls = [SitemapUrl(loc="https://example.com/", lastmod="2026-01-01")]
         sitemap = SitemapResult(
             url="https://example.com/sitemap.xml",
-            exists=True, status_code=200, urls=urls,
+            exists=True,
+            status_code=200,
+            urls=urls,
         )
-        crawled = {"https://example.com/", "https://example.com/about", "https://example.com/blog"}
+        crawled = {
+            "https://example.com/",
+            "https://example.com/about",
+            "https://example.com/blog",
+        }
         issues = auditor.detect_sitemap_issues(sitemap, crawled_urls=crawled)
         types = [i["type"] for i in issues]
         assert "sitemap_missing_pages" in types
@@ -163,7 +192,9 @@ class TestSitemapIssues:
         urls = [SitemapUrl(loc="https://example.com/old", lastmod="2020-01-01")]
         sitemap = SitemapResult(
             url="https://example.com/sitemap.xml",
-            exists=True, status_code=200, urls=urls,
+            exists=True,
+            status_code=200,
+            urls=urls,
         )
         issues = auditor.detect_sitemap_issues(sitemap)
         types = [i["type"] for i in issues]
@@ -173,7 +204,9 @@ class TestSitemapIssues:
         urls = [SitemapUrl(loc="https://example.com/page")]
         sitemap = SitemapResult(
             url="https://example.com/sitemap.xml",
-            exists=True, status_code=200, urls=urls,
+            exists=True,
+            status_code=200,
+            urls=urls,
         )
         issues = auditor.detect_sitemap_issues(sitemap)
         types = [i["type"] for i in issues]
@@ -187,7 +220,9 @@ class TestSitemapIssues:
         ]
         sitemap = SitemapResult(
             url="https://example.com/sitemap.xml",
-            exists=True, status_code=200, urls=urls,
+            exists=True,
+            status_code=200,
+            urls=urls,
         )
         canonical = {"https://example.com/", "https://example.com/about"}
         issues = auditor.detect_sitemap_issues(sitemap, canonical_urls=canonical)
@@ -204,11 +239,13 @@ class TestSitemapParsing:
         xml = (
             '<?xml version="1.0" encoding="UTF-8"?>'
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-            '<url><loc>https://example.com/</loc><lastmod>2026-04-01</lastmod></url>'
-            '<url><loc>https://example.com/about</loc></url>'
-            '</urlset>'
+            "<url><loc>https://example.com/</loc><lastmod>2026-04-01</lastmod></url>"
+            "<url><loc>https://example.com/about</loc></url>"
+            "</urlset>"
         )
-        result = SitemapResult(url="https://example.com/sitemap.xml", exists=True, status_code=200)
+        result = SitemapResult(
+            url="https://example.com/sitemap.xml", exists=True, status_code=200
+        )
         auditor._parse_sitemap(result, xml)
         assert len(result.urls) == 2
         assert result.urls[0].loc == "https://example.com/"
@@ -220,16 +257,20 @@ class TestSitemapParsing:
         xml = (
             '<?xml version="1.0" encoding="UTF-8"?>'
             '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-            '<sitemap><loc>https://example.com/sitemap-1.xml</loc></sitemap>'
-            '<sitemap><loc>https://example.com/sitemap-2.xml</loc></sitemap>'
-            '</sitemapindex>'
+            "<sitemap><loc>https://example.com/sitemap-1.xml</loc></sitemap>"
+            "<sitemap><loc>https://example.com/sitemap-2.xml</loc></sitemap>"
+            "</sitemapindex>"
         )
-        result = SitemapResult(url="https://example.com/sitemap.xml", exists=True, status_code=200)
+        result = SitemapResult(
+            url="https://example.com/sitemap.xml", exists=True, status_code=200
+        )
         auditor._parse_sitemap(result, xml)
         assert result.is_index
         assert len(result.child_sitemaps) == 2
 
     def test_parse_invalid_xml(self, auditor):
-        result = SitemapResult(url="https://example.com/sitemap.xml", exists=True, status_code=200)
+        result = SitemapResult(
+            url="https://example.com/sitemap.xml", exists=True, status_code=200
+        )
         auditor._parse_sitemap(result, "<not valid xml")
         assert result.parse_error is not None

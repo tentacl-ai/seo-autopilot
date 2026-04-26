@@ -13,12 +13,39 @@ def graph():
 def site_pages():
     """Typical site structure: Home -> About, Blog -> Post1, Post2."""
     return [
-        {"url": "https://example.com", "status_code": 200, "outlink_urls": ["https://example.com/about", "https://example.com/blog"]},
-        {"url": "https://example.com/about", "status_code": 200, "outlink_urls": ["https://example.com"]},
-        {"url": "https://example.com/blog", "status_code": 200, "outlink_urls": ["https://example.com/blog/post-1", "https://example.com/blog/post-2"]},
-        {"url": "https://example.com/blog/post-1", "status_code": 200, "outlink_urls": ["https://example.com/blog"]},
-        {"url": "https://example.com/blog/post-2", "status_code": 200, "outlink_urls": ["https://example.com/blog"]},
-        {"url": "https://example.com/orphan", "status_code": 200, "outlink_urls": []},  # Nobody links here
+        {
+            "url": "https://example.com",
+            "status_code": 200,
+            "outlink_urls": ["https://example.com/about", "https://example.com/blog"],
+        },
+        {
+            "url": "https://example.com/about",
+            "status_code": 200,
+            "outlink_urls": ["https://example.com"],
+        },
+        {
+            "url": "https://example.com/blog",
+            "status_code": 200,
+            "outlink_urls": [
+                "https://example.com/blog/post-1",
+                "https://example.com/blog/post-2",
+            ],
+        },
+        {
+            "url": "https://example.com/blog/post-1",
+            "status_code": 200,
+            "outlink_urls": ["https://example.com/blog"],
+        },
+        {
+            "url": "https://example.com/blog/post-2",
+            "status_code": 200,
+            "outlink_urls": ["https://example.com/blog"],
+        },
+        {
+            "url": "https://example.com/orphan",
+            "status_code": 200,
+            "outlink_urls": [],
+        },  # Nobody links here
     ]
 
 
@@ -38,10 +65,26 @@ class TestOrphanPages:
 class TestClickDepth:
     def test_detects_deep_pages(self, graph):
         pages = [
-            {"url": "https://example.com", "status_code": 200, "outlink_urls": ["https://example.com/l1"]},
-            {"url": "https://example.com/l1", "status_code": 200, "outlink_urls": ["https://example.com/l2"]},
-            {"url": "https://example.com/l2", "status_code": 200, "outlink_urls": ["https://example.com/l3"]},
-            {"url": "https://example.com/l3", "status_code": 200, "outlink_urls": ["https://example.com/l4"]},
+            {
+                "url": "https://example.com",
+                "status_code": 200,
+                "outlink_urls": ["https://example.com/l1"],
+            },
+            {
+                "url": "https://example.com/l1",
+                "status_code": 200,
+                "outlink_urls": ["https://example.com/l2"],
+            },
+            {
+                "url": "https://example.com/l2",
+                "status_code": 200,
+                "outlink_urls": ["https://example.com/l3"],
+            },
+            {
+                "url": "https://example.com/l3",
+                "status_code": 200,
+                "outlink_urls": ["https://example.com/l4"],
+            },
             {"url": "https://example.com/l4", "status_code": 200, "outlink_urls": []},
         ]
         issues = graph.detect_issues(pages, "https://example.com")
@@ -57,8 +100,16 @@ class TestClickDepth:
 class TestBrokenLinks:
     def test_detects_broken_internal_links(self, graph):
         pages = [
-            {"url": "https://example.com", "status_code": 200, "outlink_urls": ["https://example.com/broken"]},
-            {"url": "https://example.com/broken", "status_code": 404, "outlink_urls": []},
+            {
+                "url": "https://example.com",
+                "status_code": 200,
+                "outlink_urls": ["https://example.com/broken"],
+            },
+            {
+                "url": "https://example.com/broken",
+                "status_code": 404,
+                "outlink_urls": [],
+            },
         ]
         issues = graph.detect_issues(pages, "https://example.com")
         broken = [i for i in issues if i["type"] == "broken_internal_link"]
@@ -78,18 +129,44 @@ class TestPageRank:
         graph.build(site_pages, "https://example.com")
         pr = graph.pagerank()
         total = sum(pr.values())
-        assert 0.5 < total < 1.5  # PageRank with dangling nodes does not sum exactly to 1
+        assert (
+            0.5 < total < 1.5
+        )  # PageRank with dangling nodes does not sum exactly to 1
 
 
 class TestLinkEquitySink:
     def test_detects_equity_sink(self, graph):
         pages = [
-            {"url": "https://example.com", "status_code": 200, "outlink_urls": ["https://example.com/sink"]},
-            {"url": "https://example.com/a", "status_code": 200, "outlink_urls": ["https://example.com/sink"]},
-            {"url": "https://example.com/b", "status_code": 200, "outlink_urls": ["https://example.com/sink"]},
-            {"url": "https://example.com/c", "status_code": 200, "outlink_urls": ["https://example.com/sink"]},
-            {"url": "https://example.com/d", "status_code": 200, "outlink_urls": ["https://example.com/sink"]},
-            {"url": "https://example.com/sink", "status_code": 200, "outlink_urls": []},  # 5 incoming, 0 outgoing
+            {
+                "url": "https://example.com",
+                "status_code": 200,
+                "outlink_urls": ["https://example.com/sink"],
+            },
+            {
+                "url": "https://example.com/a",
+                "status_code": 200,
+                "outlink_urls": ["https://example.com/sink"],
+            },
+            {
+                "url": "https://example.com/b",
+                "status_code": 200,
+                "outlink_urls": ["https://example.com/sink"],
+            },
+            {
+                "url": "https://example.com/c",
+                "status_code": 200,
+                "outlink_urls": ["https://example.com/sink"],
+            },
+            {
+                "url": "https://example.com/d",
+                "status_code": 200,
+                "outlink_urls": ["https://example.com/sink"],
+            },
+            {
+                "url": "https://example.com/sink",
+                "status_code": 200,
+                "outlink_urls": [],
+            },  # 5 incoming, 0 outgoing
         ]
         issues = graph.detect_issues(pages, "https://example.com")
         sinks = [i for i in issues if i["type"] == "link_equity_sink"]

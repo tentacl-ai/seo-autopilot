@@ -79,23 +79,35 @@ class TestOrgSchema:
         assert "missing_org_schema" in types
 
     def test_org_schema_no_sameas(self, analyzer):
-        pages = [_page("https://example.com/", schema_types=["Organization"],
-                        schema_data=[{"@type": "Organization", "name": "Example"}])]
+        pages = [
+            _page(
+                "https://example.com/",
+                schema_types=["Organization"],
+                schema_data=[{"@type": "Organization", "name": "Example"}],
+            )
+        ]
         result = analyzer.analyze(pages, DOMAIN)
         types = [i["type"] for i in result["issues"]]
         assert "missing_org_schema" not in types
         assert "org_schema_no_sameas" in types
 
     def test_org_schema_with_sameas(self, analyzer):
-        pages = [_page("https://example.com/", schema_types=["Organization"],
-                        schema_data=[{
-                            "@type": "Organization",
-                            "name": "Example",
-                            "sameAs": [
-                                "https://www.linkedin.com/company/example",
-                                "https://www.wikidata.org/wiki/Q12345",
-                            ],
-                        }])]
+        pages = [
+            _page(
+                "https://example.com/",
+                schema_types=["Organization"],
+                schema_data=[
+                    {
+                        "@type": "Organization",
+                        "name": "Example",
+                        "sameAs": [
+                            "https://www.linkedin.com/company/example",
+                            "https://www.wikidata.org/wiki/Q12345",
+                        ],
+                    }
+                ],
+            )
+        ]
         result = analyzer.analyze(pages, DOMAIN)
         types = [i["type"] for i in result["issues"]]
         assert "missing_org_schema" not in types
@@ -106,23 +118,33 @@ class TestOrgSchema:
 
 class TestAuthorSchema:
     def test_articles_missing_author(self, analyzer):
-        pages = [_page("https://example.com/blog/post-1",
-                        schema_types=["Article"],
-                        schema_data=[{"@type": "Article", "headline": "Test"}])]
+        pages = [
+            _page(
+                "https://example.com/blog/post-1",
+                schema_types=["Article"],
+                schema_data=[{"@type": "Article", "headline": "Test"}],
+            )
+        ]
         result = analyzer.analyze(pages, DOMAIN)
         types = [i["type"] for i in result["issues"]]
         assert "articles_missing_author" in types
 
     def test_articles_with_author(self, analyzer):
-        pages = [_page("https://example.com/blog/post-1",
-                        schema_types=["Article"],
-                        schema_data=[{
-                            "@type": "Article",
-                            "headline": "Test",
-                            "author": {"@type": "Person", "name": "Max"},
-                            "datePublished": "2026-01-01",
-                            "dateModified": "2026-03-01",
-                        }])]
+        pages = [
+            _page(
+                "https://example.com/blog/post-1",
+                schema_types=["Article"],
+                schema_data=[
+                    {
+                        "@type": "Article",
+                        "headline": "Test",
+                        "author": {"@type": "Person", "name": "Max"},
+                        "datePublished": "2026-01-01",
+                        "dateModified": "2026-03-01",
+                    }
+                ],
+            )
+        ]
         result = analyzer.analyze(pages, DOMAIN)
         types = [i["type"] for i in result["issues"]]
         assert "articles_missing_author" not in types
@@ -140,22 +162,38 @@ class TestEEATScore:
     def test_perfect_score(self, analyzer):
         """False-positive test: well-configured site gets high score, no critical issues."""
         pages = [
-            _page("https://example.com/", schema_types=["Organization"], schema_data=[{
-                "@type": "Organization", "name": "Ex",
-                "sameAs": ["https://linkedin.com/company/ex",
-                           "https://wikidata.org/wiki/Q1",
-                           "https://github.com/ex"],
-            }]),
+            _page(
+                "https://example.com/",
+                schema_types=["Organization"],
+                schema_data=[
+                    {
+                        "@type": "Organization",
+                        "name": "Ex",
+                        "sameAs": [
+                            "https://linkedin.com/company/ex",
+                            "https://wikidata.org/wiki/Q1",
+                            "https://github.com/ex",
+                        ],
+                    }
+                ],
+            ),
             _page("https://example.com/impressum"),
             _page("https://example.com/datenschutz"),
             _page("https://example.com/kontakt"),
             _page("https://example.com/about"),
-            _page("https://example.com/blog/a", schema_types=["Article"], schema_data=[{
-                "@type": "Article", "headline": "A",
-                "author": {"@type": "Person", "name": "Max"},
-                "datePublished": "2026-01-01",
-                "dateModified": "2026-03-01",
-            }]),
+            _page(
+                "https://example.com/blog/a",
+                schema_types=["Article"],
+                schema_data=[
+                    {
+                        "@type": "Article",
+                        "headline": "A",
+                        "author": {"@type": "Person", "name": "Max"},
+                        "datePublished": "2026-01-01",
+                        "dateModified": "2026-03-01",
+                    }
+                ],
+            ),
         ]
         result = analyzer.analyze(pages, DOMAIN)
         assert result["score"] == 100
@@ -171,12 +209,23 @@ class TestEEATScore:
     def test_score_is_capped_at_100(self, analyzer):
         """Score should never exceed 100."""
         pages = [
-            _page("https://example.com/", schema_types=["Organization"], schema_data=[{
-                "@type": "Organization", "name": "Ex",
-                "sameAs": ["https://linkedin.com/c/x", "https://wikidata.org/w/Q1",
-                           "https://github.com/x", "https://youtube.com/x",
-                           "https://facebook.com/x"],
-            }]),
+            _page(
+                "https://example.com/",
+                schema_types=["Organization"],
+                schema_data=[
+                    {
+                        "@type": "Organization",
+                        "name": "Ex",
+                        "sameAs": [
+                            "https://linkedin.com/c/x",
+                            "https://wikidata.org/w/Q1",
+                            "https://github.com/x",
+                            "https://youtube.com/x",
+                            "https://facebook.com/x",
+                        ],
+                    }
+                ],
+            ),
             _page("https://example.com/impressum"),
             _page("https://example.com/datenschutz"),
             _page("https://example.com/kontakt"),

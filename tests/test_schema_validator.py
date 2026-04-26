@@ -17,7 +17,9 @@ class TestSchemaBlockValidation:
             "author": {"@type": "Person", "name": "Max"},
             "datePublished": "2026-04-01",
         }
-        result = validator.validate_schema_block(schema, "https://example.com/blog/test")
+        result = validator.validate_schema_block(
+            schema, "https://example.com/blog/test"
+        )
         assert result["is_valid"] is True
         assert result["missing_required"] == []
 
@@ -27,7 +29,9 @@ class TestSchemaBlockValidation:
             "headline": "Test",
             "datePublished": "2026-04-01",
         }
-        result = validator.validate_schema_block(schema, "https://example.com/blog/test")
+        result = validator.validate_schema_block(
+            schema, "https://example.com/blog/test"
+        )
         assert result["is_valid"] is False
         assert "author" in result["missing_required"]
 
@@ -93,7 +97,9 @@ class TestFaqValidation:
             ],
         }
         result = validator.validate_schema_block(schema, "https://example.com/faq")
-        assert any("not @type=Question" in e or "Question" in e for e in result["errors"])
+        assert any(
+            "not @type=Question" in e or "Question" in e for e in result["errors"]
+        )
 
 
 class TestBreadcrumbValidation:
@@ -116,33 +122,50 @@ class TestIssueDetection:
         assert "schema_syntax_error" in types
 
     def test_detects_missing_required_fields(self, validator):
-        pages = [{
-            "url": "https://example.com/blog/test",
-            "schema_data": [{"@type": "Article", "headline": "Test"}],
-        }]
+        pages = [
+            {
+                "url": "https://example.com/blog/test",
+                "schema_data": [{"@type": "Article", "headline": "Test"}],
+            }
+        ]
         issues = validator.detect_issues(pages)
         types = [i["type"] for i in issues]
         assert "schema_missing_required_field" in types
 
     def test_identifies_rich_result_opportunity(self, validator):
-        pages = [{
-            "url": "https://example.com/blog/post",
-            "schema_data": [{"@type": "Article", "headline": "X", "author": "Y", "datePublished": "2026-01-01"}],
-        }]
+        pages = [
+            {
+                "url": "https://example.com/blog/post",
+                "schema_data": [
+                    {
+                        "@type": "Article",
+                        "headline": "X",
+                        "author": "Y",
+                        "datePublished": "2026-01-01",
+                    }
+                ],
+            }
+        ]
         issues = validator.detect_issues(pages)
         types = [i["type"] for i in issues]
         assert "schema_rich_result_opportunity" in types
 
     def test_no_false_positive_valid_schema(self, validator):
-        pages = [{
-            "url": "https://example.com",
-            "schema_data": [{
-                "@type": "Organization",
-                "name": "Tentacl",
-                "url": "https://tentacl.ai",
-            }],
-        }]
+        pages = [
+            {
+                "url": "https://example.com",
+                "schema_data": [
+                    {
+                        "@type": "Organization",
+                        "name": "Tentacl",
+                        "url": "https://tentacl.ai",
+                    }
+                ],
+            }
+        ]
         issues = validator.detect_issues(pages)
         # Only BreadcrumbList opportunity expected (root has depth 0 -> no issue)
-        error_issues = [i for i in issues if i["type"] not in ("schema_rich_result_opportunity",)]
+        error_issues = [
+            i for i in issues if i["type"] not in ("schema_rich_result_opportunity",)
+        ]
         assert len(error_issues) == 0
