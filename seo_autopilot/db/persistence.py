@@ -104,12 +104,12 @@ async def persist_audit(ctx: AuditContext) -> str:
         applied_index: Dict[str, Dict[str, Any]] = {}
         for af in applied_fixes:
             key = (
-                f"{af.get('type','')}::{af.get('url') or af.get('affected_url') or ''}"
+                f"{af.get('type', '')}::{af.get('url') or af.get('affected_url') or ''}"
             )
             applied_index[key] = af
 
         for issue in ctx.all_issues:
-            issue_key = f"{issue.get('type','')}::{issue.get('affected_url') or ''}"
+            issue_key = f"{issue.get('type', '')}::{issue.get('affected_url') or ''}"
             af = applied_index.get(issue_key)
             applied_at = None
             applied_by = None

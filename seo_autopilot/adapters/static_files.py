@@ -288,4 +288,4 @@ class StaticFilesAdapter:
 
     def _commit_message(self, fix: Dict[str, Any], audit_id: str) -> str:
         title = (fix.get("issue_title") or fix.get("type") or "fix").strip()
-        return f"seo-autofix: {title}\n\nType: {fix.get('type')}\nAudit: {audit_id}\nSource: {fix.get('source','?')}\n"
+        return f"seo-autofix: {title}\n\nType: {fix.get('type')}\nAudit: {audit_id}\nSource: {fix.get('source', '?')}\n"
