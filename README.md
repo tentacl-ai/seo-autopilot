@@ -6,7 +6,7 @@
 [![FastAPI](https://img.shields.io/badge/fastapi-0.110-green)](https://fastapi.tiangolo.com/)
 [![Async SQLAlchemy](https://img.shields.io/badge/sqlalchemy-2.0-orange)](https://www.sqlalchemy.org/)
 
-**Production-ready, multi-tenant SEO automation platform** with real crawler, 80+ issue detectors, GEO audit, llms.txt validation, IndexNow support, topical authority analysis, and AI-powered fix generation.
+**Production-ready, multi-tenant SEO automation platform** with real crawler, 60+ documented issue detectors, GEO audit, llms.txt validation, IndexNow support, topical authority analysis, and AI-powered fix generation.
 
 > Crawl your website, detect SEO issues across 11 analysis dimensions, prioritize by ROI, and generate actionable fixes — all from a single CLI command.
 
@@ -17,7 +17,7 @@ SEO Autopilot turns raw web crawl data into a **prioritized action plan**:
 1. **Crawls your site** – httpx + BeautifulSoup, automatic Playwright fallback for SPAs, sitemap.xml discovery, 14+ HTML attributes parsed
 2. **Pulls real data** – Google Search Console (28-day), PageSpeed Insights (INP/LCP/CLS via CrUX), robots.txt
 3. **Analyzes 11 dimensions** – On-page, canonical, redirects, schema, GEO, llms.txt/ai.txt, topical authority, duplicates, link graph, CWV, security
-4. **Detects 80+ issue types** – From missing titles to AI-crawler blocking, llms.txt validation, IndexNow, canonical chains, thin content, keyword cannibalization
+4. **Detects 60+ documented issue types** – From missing titles to AI-crawler blocking, llms.txt validation, IndexNow, canonical chains, thin content, keyword cannibalization
 5. **Prioritizes by ROI** – Quick-wins (< 30min), this-week tasks, backlog — sorted by impact x confidence x ease
 6. **Generates fixes** – Claude API writes optimized titles, meta descriptions, JSON-LD snippets
 7. **Tracks regressions** – Delta engine compares audits over time, alerts on score drops
@@ -190,7 +190,7 @@ seo_autopilot/
 | **Security** | HTTPS, HSTS, X-Frame-Options, X-Content-Type-Options | 2 |
 | **LLMs.txt / AI.txt** | llms.txt spec validation, llms-full.txt, ai.txt, IndexNow key | 6 |
 
-**Total: 80+ issue types across 11 analysis dimensions.**
+**Total: 60+ documented issue types across 11 analysis dimensions.**
 
 ### Additional features
 
@@ -387,7 +387,7 @@ Each project has isolated:
 
 ```bash
 curl http://localhost:8002/api/health
-# { "status": "ok", "version": "1.0.1" }
+# { "status": "ok", "version": "1.1.0" }
 ```
 
 ### List Projects
@@ -533,7 +533,7 @@ python -m seo_autopilot.api.main
 ### Docker (Recommended)
 
 ```bash
-docker build -t seo-autopilot:1.0.1 .
+docker build -t seo-autopilot:1.1.0 .
 docker run -d \
   --name seo-autopilot \
   -p 8002:8002 \
@@ -542,7 +542,7 @@ docker run -d \
   -e DATABASE_URL="postgres://user:pass@db:5432/seo" \
   -e CLAUDE_API_KEY="sk-..." \
   -e TELEGRAM_BOT_TOKEN="..." \
-  seo-autopilot:1.0.1
+  seo-autopilot:1.1.0
 ```
 
 ### Kubernetes
@@ -564,7 +564,7 @@ spec:
     spec:
       containers:
       - name: seo-autopilot
-        image: seo-autopilot:1.0.1
+        image: seo-autopilot:1.1.0
         ports:
         - containerPort: 8002
         env:
@@ -698,7 +698,7 @@ asyncio.run(audit_website())
 
 ### v1.0 (Current)
 - Real crawler (httpx + BeautifulSoup)
-- 11 analyzer modules (80+ issue types)
+- 11 analyzer modules (60+ documented issue types)
 - GEO audit, topical authority, duplicate detection, link graph
 - PageSpeed CrUX field data (INP, LCP, CLS)
 - Delta/regression engine

@@ -22,7 +22,7 @@ echo -e "${YELLOW}Post-Push Sync: v$VERSION, $MODULES Module${NC}"
 
 # === 1. GitHub Description ===
 if command -v gh &>/dev/null && gh auth status &>/dev/null; then
-    DESC="Multi-tenant SEO automation — ${MODULES} analyzers, 80+ checks, Playwright JS rendering, llms.txt/ai.txt validation, IndexNow, GEO audit. Real crawler, GSC, PageSpeed, AI-powered fixes."
+    DESC="Multi-tenant SEO automation — ${MODULES} analyzers, 60+ documented checks, Playwright JS rendering, llms.txt/ai.txt validation, IndexNow, GEO audit, Algorithm-Update Intelligence. Real crawler, GSC, PageSpeed, AI-powered fixes."
     gh repo edit tentacl-ai/seo-autopilot \
         --description "$DESC" \
         --homepage "https://tentacl.ai/seo-autopilot/" 2>/dev/null

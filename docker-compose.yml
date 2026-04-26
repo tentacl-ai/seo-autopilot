@@ -20,6 +20,7 @@ services:
     extra_hosts:
       - "tentacl.ai:172.21.0.8"
       - "www.tentacl.ai:172.21.0.8"
+      - "skin.tentacl.de:172.21.0.8"
     networks:
       - default
       - odoo_internal
