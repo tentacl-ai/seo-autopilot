@@ -65,14 +65,19 @@ jobs:
           twine upload --non-interactive --verbose dist/*
 
       - name: Update GitHub repo description
+        # Default GITHUB_TOKEN cannot edit repo settings (HTTP 403).
+        # Provide a PAT with 'repo' scope as secret GH_PAT to enable this step.
+        # Otherwise the description-sync still happens via post-push hook locally.
+        continue-on-error: true
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
         run: |
           MODULES=$(find seo_autopilot/analyzers/ -name "*.py" ! -name "__init__*" ! -path "*__pycache__*" | wc -l)
           DESC="Multi-tenant SEO automation — ${MODULES} analyzers, 60+ documented checks, Auto-Fix-Loop, Google-Trends-Feed, Playwright JS rendering, llms.txt/ai.txt validation, IndexNow, GEO audit. Real crawler, GSC, PageSpeed, AI-powered fixes."
           gh repo edit tentacl-ai/seo-autopilot \
             --description "$DESC" \
-            --homepage "https://tentacl.ai/seo-autopilot/"
+            --homepage "https://tentacl.ai/seo-autopilot/" \
+            || echo "::warning::repo edit failed — set GH_PAT secret with 'repo' scope to enable description sync"
 
       - name: Create GitHub Release
         env:
