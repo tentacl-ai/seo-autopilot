@@ -35,6 +35,10 @@ class AuditContext:
     status: str = "running"  # running | completed | failed
     error: Optional[str] = None
 
+    # Auto-Fix-Loop (Welle 2)
+    applied_fixes: List[Dict[str, Any]] = field(default_factory=list)
+    force_apply: bool = False  # CLI --auto-fix oder API force=True
+
     def add_result(self, agent_name: str, result: Any) -> None:
         """
         Record the result of one agent.
@@ -76,12 +80,15 @@ class AuditContext:
 
     def calculate_score(self) -> float:
         """
-        Simple weighted score: 100 - (3*high + 1.5*medium + 0.5*low), floor 0.
-        Intentionally conservative so a clean site scores high.
+        Weighted score mit gedeckelten Abzügen pro Kategorie.
+        High: max 50 Pkt, Medium: max 30 Pkt, Low: max 20 Pkt.
+        So bleibt die Skala lesbar auch bei vielen Issues.
         """
         sev = self.issues_by_severity()
-        penalty = 3 * sev["high"] + 1.5 * sev["medium"] + 0.5 * sev["low"]
-        self.score = max(0.0, round(100.0 - penalty, 1))
+        high_pen = min(50.0, 3.0 * sev["high"])
+        med_pen = min(30.0, 1.0 * sev["medium"])
+        low_pen = min(20.0, 0.3 * sev["low"])
+        self.score = max(0.0, round(100.0 - high_pen - med_pen - low_pen, 1))
         return self.score
 
     def summary(self) -> Dict[str, Any]:

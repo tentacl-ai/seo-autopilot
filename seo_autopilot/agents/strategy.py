@@ -164,7 +164,12 @@ class StrategyAgent(Agent):
             copy["effort_hours"] = effort
             copy["impact_score"] = round(adj_impact, 1)
             copy["roi"] = round(roi, 1)
-            if sev == "high" or adj_impact >= 60:
+            # Severity hat Vorrang vor adj_impact – "low" bleibt maximal "medium"
+            if sev == "high":
+                copy["priority"] = "high"
+            elif sev == "low":
+                copy["priority"] = "low" if adj_impact < 35 else "medium"
+            elif adj_impact >= 60:
                 copy["priority"] = "high"
             elif effort <= 1 or adj_impact >= 35:
                 copy["priority"] = "medium"

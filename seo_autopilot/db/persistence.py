@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import logging
 import uuid
-from typing import Any
+from datetime import datetime
+from typing import Any, Dict
 
 from sqlalchemy import select
 
@@ -98,8 +99,40 @@ async def persist_audit(ctx: AuditContext) -> str:
         )
         session.add(audit_row)
 
-        # 3. insert issues
+        # 3. insert issues — incl. apply tracking from ApplyAgent
+        applied_fixes = list(getattr(ctx, "applied_fixes", []) or [])
+        applied_index: Dict[str, Dict[str, Any]] = {}
+        for af in applied_fixes:
+            key = (
+                f"{af.get('type','')}::{af.get('url') or af.get('affected_url') or ''}"
+            )
+            applied_index[key] = af
+
         for issue in ctx.all_issues:
+            issue_key = f"{issue.get('type','')}::{issue.get('affected_url') or ''}"
+            af = applied_index.get(issue_key)
+            applied_at = None
+            applied_by = None
+            commit_hash = None
+            fix_diff = None
+            fix_error = None
+            status = "open"
+            if af:
+                if af.get("success"):
+                    status = "fixed"
+                    if af.get("applied_at"):
+                        try:
+                            applied_at = datetime.fromisoformat(
+                                af["applied_at"].rstrip("Z")
+                            )
+                        except Exception:
+                            applied_at = datetime.utcnow()
+                    applied_by = af.get("applied_by", "claude_auto")
+                    commit_hash = (af.get("git_commit_hash") or "")[:64]
+                    fix_diff = (af.get("fix_diff") or "")[:8000]
+                else:
+                    fix_error = (af.get("fix_error") or "")[:2000]
+
             session.add(
                 SEOIssue(
                     id=str(uuid.uuid4()),
@@ -110,6 +143,7 @@ async def persist_audit(ctx: AuditContext) -> str:
                     type=issue.get("type", "unknown"),
                     severity=issue.get("severity", "low"),
                     priority=issue.get("priority", "low"),
+                    status=status,
                     title=issue.get("title", "")[:255],
                     description=issue.get("description", ""),
                     affected_items=_jsonify(
@@ -121,6 +155,11 @@ async def persist_audit(ctx: AuditContext) -> str:
                     count=1,
                     fix_suggestion=issue.get("fix_suggestion", ""),
                     estimated_impact=str(issue.get("estimated_impact", ""))[:255],
+                    fix_applied_at=applied_at,
+                    applied_by=applied_by,
+                    git_commit_hash=commit_hash,
+                    fix_diff=fix_diff,
+                    fix_error=fix_error,
                 )
             )
 

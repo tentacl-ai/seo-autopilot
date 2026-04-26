@@ -31,6 +31,8 @@ class EventType(str, Enum):
     STRATEGY_COMPLETED = "strategy_completed"
     CONTENT_GENERATION_STARTED = "content_generation_started"
     CONTENT_GENERATION_COMPLETED = "content_generation_completed"
+    APPLY_STARTED = "apply_started"
+    APPLY_COMPLETED = "apply_completed"
     ISSUES_FOUND = "issues_found"
     SUGGESTIONS_GENERATED = "suggestions_generated"
 

@@ -35,7 +35,9 @@ from ..agents.analyzer import AnalyzerAgent
 from ..agents.keyword import KeywordAgent
 from ..agents.strategy import StrategyAgent
 from ..agents.content import ContentAgent
+from ..agents.apply import ApplyAgent
 from ..db.database import db
+from ..db.models import SEOAudit, SEOIssue
 from ..db.persistence import persist_audit
 from ..reports.html import render_html_report
 from ..notifications.telegram import send_audit_notification
@@ -106,6 +108,7 @@ class AuditRunRequest(BaseModel):
 
     project_id: str
     run_async: bool = True
+    auto_fix: bool = False  # Welle 2: force ApplyAgent to apply fixes
 
 
 class AuditRunResponse(BaseModel):
@@ -279,26 +282,103 @@ async def trigger_audit(project_id: str, req: AuditRunRequest):
     try:
         # Starte Audit (async oder sync)
         if req.run_async:
-            asyncio.create_task(run_audit_for_project(project_id))
+            asyncio.create_task(
+                run_audit_for_project(project_id, force_apply=req.auto_fix)
+            )
             return AuditRunResponse(
                 audit_id="pending",
                 project_id=project_id,
                 status="queued",
-                message=f"Audit queued for {project_id}",
+                message=f"Audit queued for {project_id}{' (auto-fix)' if req.auto_fix else ''}",
             )
         else:
-            # Synchronous - wait for result
-            audit_id = await run_audit_for_project(project_id)
+            audit_id = await run_audit_for_project(project_id, force_apply=req.auto_fix)
             return AuditRunResponse(
                 audit_id=audit_id,
                 project_id=project_id,
                 status="completed",
-                message=f"Audit completed for {project_id}",
+                message=f"Audit completed for {project_id}{' (auto-fix applied)' if req.auto_fix else ''}",
             )
 
     except Exception as e:
         logger.error(f"Audit trigger failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# Auto-Fix-Loop (Welle 2): Apply / List / Revert
+# ============================================================
+
+
+@app.post("/api/fixes/apply/{audit_id}")
+async def apply_fixes_for_audit(audit_id: str):
+    """Re-runt einen abgeschlossenen Audit mit force_apply=True."""
+    from sqlalchemy import select
+
+    async with db.get_session() as session:
+        row = await session.scalar(select(SEOAudit).where(SEOAudit.id == audit_id))
+        if not row:
+            raise HTTPException(404, "Audit not found")
+        project_id = row.project_id
+    new_audit_id = await run_audit_for_project(project_id, force_apply=True)
+    return {
+        "old_audit_id": audit_id,
+        "new_audit_id": new_audit_id,
+        "project_id": project_id,
+        "message": "Re-audit started with auto-fix enabled",
+    }
+
+
+@app.get("/api/fixes/applied")
+async def list_applied_fixes(project_id: Optional[str] = None, limit: int = 50):
+    """Listet alle Fixes auf, die je auto-applied wurden."""
+    from sqlalchemy import select, desc
+
+    async with db.get_session() as session:
+        q = select(SEOIssue).where(SEOIssue.fix_applied_at.isnot(None))
+        if project_id:
+            q = q.where(SEOIssue.project_id == project_id)
+        q = q.order_by(desc(SEOIssue.fix_applied_at)).limit(limit)
+        result = await session.scalars(q)
+        rows = result.all()
+    return [
+        {
+            "issue_id": r.id,
+            "project_id": r.project_id,
+            "audit_id": r.audit_id,
+            "type": r.type,
+            "title": r.title,
+            "applied_by": r.applied_by,
+            "git_commit_hash": r.git_commit_hash,
+            "fix_applied_at": (
+                r.fix_applied_at.isoformat() if r.fix_applied_at else None
+            ),
+            "status": r.status,
+        }
+        for r in rows
+    ]
+
+
+@app.post("/api/fixes/revert/{commit_hash}")
+async def revert_fix(commit_hash: str):
+    """Markiert einen Fix als rolled_back. (Git-Revert ist manuell durchzufuehren.)"""
+    from sqlalchemy import select, update
+
+    async with db.get_session() as session:
+        q = select(SEOIssue).where(SEOIssue.git_commit_hash == commit_hash)
+        result = await session.scalars(q)
+        rows = result.all()
+        if not rows:
+            raise HTTPException(404, "No issue found with this commit_hash")
+        for r in rows:
+            r.applied_by = "rolled_back"
+            r.status = "open"
+        await session.commit()
+    return {
+        "commit_hash": commit_hash,
+        "issues_marked_rolled_back": len(rows),
+        "note": "DB-Status updated. Run 'git revert <hash>' in the project root to revert files.",
+    }
 
 
 # ============================================================
@@ -343,7 +423,9 @@ async def websocket_events(websocket: WebSocket, project_id: str):
 # ============================================================
 
 
-async def run_audit_for_project(project_id: str) -> Optional[str]:
+async def run_audit_for_project(
+    project_id: str, force_apply: bool = False
+) -> Optional[str]:
     """
     Run the full SEO audit pipeline for a single project.
 
@@ -361,6 +443,7 @@ async def run_audit_for_project(project_id: str) -> Optional[str]:
     logger.info(f"Starting audit: {audit_id}")
 
     ctx = AuditContext(audit_id=audit_id, project_id=project_id, project_config=project)
+    ctx.force_apply = force_apply  # gelesen vom ApplyAgent
 
     await event_bus.emit(
         Event(
@@ -371,7 +454,13 @@ async def run_audit_for_project(project_id: str) -> Optional[str]:
         )
     )
 
-    agent_classes = [AnalyzerAgent, KeywordAgent, StrategyAgent, ContentAgent]
+    agent_classes = [
+        AnalyzerAgent,
+        KeywordAgent,
+        StrategyAgent,
+        ContentAgent,
+        ApplyAgent,
+    ]
 
     try:
         for AgentCls in agent_classes:

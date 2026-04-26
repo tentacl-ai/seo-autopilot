@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Build deps + Playwright browser dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      build-essential curl ca-certificates \
+      build-essential curl ca-certificates git \
       # Playwright/Chromium system deps
       libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
       libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 \

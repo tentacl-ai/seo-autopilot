@@ -108,7 +108,13 @@ def remove(id):
 
 @cli.command()
 @click.option("--project-id", default=None, help="Audit a single project")
-def run(project_id):
+@click.option(
+    "--auto-fix",
+    is_flag=True,
+    default=False,
+    help="Force ApplyAgent to apply fixes even if project.auto_fix_enabled=False",
+)
+def run(project_id, auto_fix):
     """Run audits (synchronous, with full report)."""
     import asyncio
     from ..api.main import run_audit_for_project
@@ -123,14 +129,16 @@ def run(project_id):
         click.echo("No projects found.")
         return
 
-    click.echo(f"Starting {len(projects)} audit(s)...")
+    click.echo(
+        f"Starting {len(projects)} audit(s){' WITH --auto-fix' if auto_fix else ''}..."
+    )
 
     async def _run_all():
         await db.initialize()
         try:
             for project in projects:
                 click.echo(f"  Auditing {project.id}...")
-                audit_id = await run_audit_for_project(project.id)
+                audit_id = await run_audit_for_project(project.id, force_apply=auto_fix)
                 click.echo(f"  -> done: {audit_id}")
         finally:
             await db.close()

@@ -95,6 +95,23 @@ def _format_message(ctx: AuditContext, report_path: Optional[Path]) -> str:
         for a in top_actions[:3]:
             lines.append(f"• {a.get('title', 'Issue')}")
 
+    # Auto-Fix Apply Block (Welle 2)
+    apply_result = ctx.agent_results.get("apply")
+    if apply_result and apply_result.metrics.get("fixes_applied", 0) > 0:
+        m = apply_result.metrics
+        lines += [
+            "",
+            f"✅ *Auto-Fix angewendet:* {m['fixes_applied']} Fix(es)",
+        ]
+        applied_list = [f for f in (apply_result.fixes or []) if f.get("success")]
+        for f in applied_list[:3]:
+            commit = f.get("git_commit_hash") or "?"
+            t = f.get("type", "?")
+            url = f.get("url", "")
+            lines.append(f"  • `{t}` auf `{url}` (commit {commit})")
+        if m.get("fixes_failed"):
+            lines.append(f"  ⚠ {m['fixes_failed']} Fix(es) failed - siehe Issue-DB")
+
     if report_path:
         lines += ["", f"Report: `{report_path}`"]
 

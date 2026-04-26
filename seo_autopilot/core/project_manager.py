@@ -50,6 +50,12 @@ class ProjectConfig:
     notify_channels: List[str] = None  # e.g. ["telegram", "email"]
     notify_config: Dict[str, Any] = None  # e.g. {"email": "admin@..."}
 
+    # Auto-Fix-Loop (Welle 2)
+    auto_fix_enabled: bool = False
+    auto_fix_config: Dict[str, Any] = (
+        None  # {whitelist_extra: [...], push_to_remote, ...}
+    )
+
     # Metadata
     created_at: datetime = None
     updated_at: datetime = None
@@ -65,6 +71,8 @@ class ProjectConfig:
             self.notify_channels = ["telegram"]
         if self.notify_config is None:
             self.notify_config = {}
+        if self.auto_fix_config is None:
+            self.auto_fix_config = {}
         if self.created_at is None:
             self.created_at = datetime.utcnow()
         if self.updated_at is None:
