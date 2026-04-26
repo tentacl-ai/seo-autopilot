@@ -40,6 +40,8 @@ DEFAULT_WHITELIST = {
     "missing_organization_schema",
     "missing_robots_txt",
     "missing_sitemap_xml",
+    # Welle 2.5: erweitertes Set
+    "org_schema_no_sameas",
 }
 
 

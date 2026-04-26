@@ -116,6 +116,7 @@ class ContentAgent(Agent):
 
 
 _FIXABLE_TYPES = {
+    # Klassische Meta-Tags (aus dem Crawler-Analyzer)
     "missing_title",
     "short_title",
     "long_title",
@@ -123,10 +124,20 @@ _FIXABLE_TYPES = {
     "short_meta_description",
     "long_meta_description",
     "missing_h1",
+    "missing_canonical",
+    "canonical_missing",
+    "missing_og_image",
+    "missing_organization_schema",
     "low_ctr_opportunity",
     "striking_distance",
-    "missing_organization_schema",
-    "missing_og_image",
+    # Welle 2.5: realistische Issue-Types vom modernen Analyzer
+    "org_schema_no_sameas",  # Org-Schema vorhanden, sameAs fehlt
+    "missing_robots_txt",
+    "missing_sitemap_xml",
+    "sitemap_no_lastmod",
+    "missing_security_headers",  # Nginx-Snippet
+    "missing_contact_page",  # Generates suggestion-Text fuer page
+    "missing_about_page",
 }
 
 
@@ -250,19 +261,81 @@ def _template_fix(
         suggestion = f"Shorten to: {name} | {issue.get('affected_url', '').rstrip('/').split('/')[-1]}"
     elif t in ("missing_meta_description", "short_meta_description"):
         suggestion = (
-            f"{name} bietet KI-Business-Systeme für moderne Unternehmen. "
-            f"ERP, CRM, Automation aus einer Hand. Jetzt kostenlos informieren."
+            f"{name} — entdecke unser Angebot. Persoenlich, transparent, "
+            f"DSGVO-konform. Jetzt mehr erfahren auf {domain}."
         )[:160]
     elif t == "long_meta_description":
         suggestion = "Shorten current description to 140-160 characters."
     elif t == "missing_h1":
-        suggestion = f"{name} — KI-Business-Systeme"
+        suggestion = name
+    elif t in ("missing_canonical", "canonical_missing"):
+        # Adapter erwartet die kanonische URL als 'url' Feld
+        return {
+            "source": "template",
+            "type": "canonical_missing",
+            "url": url.split("#")[0].split("?")[0],
+            "issue_title": issue.get("title"),
+            "suggestion": url,
+            "priority": issue.get("severity", "medium"),
+        }
     elif t == "missing_organization_schema":
         return _generic_organization_schema(name, domain)
+    elif t == "org_schema_no_sameas":
+        # Erweitertes Schema mit sameAs-Link auf About-Page
+        schema = {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": name,
+            "url": domain,
+            "logo": f"{domain.rstrip('/')}/icon-512.png",
+            "sameAs": [f"{domain.rstrip('/')}/impressum"],
+        }
+        return {
+            "source": "template",
+            "type": "missing_organization_schema",  # adapter applies as schema_block
+            "url": domain,
+            "issue_title": issue.get("title"),
+            "suggestion": json.dumps(schema, indent=2, ensure_ascii=False),
+            "priority": issue.get("severity", "medium"),
+        }
     elif t == "missing_og_image":
+        suggestion = f"{domain.rstrip('/')}/og-image.webp"
+        return {
+            "source": "template",
+            "type": "missing_og_image",
+            "url": suggestion,  # adapter nutzt 'url' fuer og:image-href
+            "issue_title": issue.get("title"),
+            "suggestion": suggestion,
+            "priority": issue.get("severity", "medium"),
+        }
+    elif t == "missing_robots_txt":
         suggestion = (
-            f'Add <meta property="og:image" content="{domain}/og-default.png">. '
-            f"Create a 1200x630 image with the {name} logo and a one-line value prop."
+            "User-agent: *\n"
+            "Allow: /\n"
+            "Disallow: /api/\n"
+            "\n"
+            f"Sitemap: {domain.rstrip('/')}/sitemap.xml\n"
+        )
+    elif t == "missing_sitemap_xml":
+        # Minimal-Sitemap mit Homepage
+        suggestion = (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+            f"  <url><loc>{domain}</loc><priority>1.0</priority></url>\n"
+            "</urlset>\n"
+        )
+    elif t == "sitemap_no_lastmod":
+        suggestion = (
+            "Add <lastmod>YYYY-MM-DD</lastmod> to each <url> entry in sitemap.xml."
+        )
+    elif t == "missing_security_headers":
+        return _generic_security_headers_nginx()
+    elif t in ("missing_contact_page", "missing_about_page"):
+        page = "Kontakt" if "contact" in t else "Ueber uns"
+        suggestion = (
+            f"Erstelle eine {page}-Page unter {domain.rstrip('/')}/{('kontakt' if 'contact' in t else 'about')} "
+            f"mit Adresse, Email-Kontakt und 1-2 Absaetzen ueber {name}. "
+            f"Verlinke sie aus der Hauptnavigation."
         )
     elif t == "low_ctr_opportunity":
         kw = issue.get("keyword", "")
