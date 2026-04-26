@@ -52,6 +52,11 @@ class SEOProject(Base):
         JSON
     )  # {whitelist_extra: [...], push_to_remote: bool, ...}
 
+    # Intelligence-Feed (Welle 3): Google Trends + Algorithm-Updates
+    intel_config = Column(
+        JSON
+    )  # {intel_keywords: [...], geo: "DE", timeframe: "now 7-d"}
+
     # Tracking
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -220,3 +225,25 @@ class SEOIssue(Base):
         Index("ix_seo_issues_project_status", "project_id", "status"),
         Index("ix_seo_issues_priority", "project_id", "severity", "priority"),
     )
+
+
+class SEOIntel(Base):
+    """Intelligence-Datenpunkt (Trend, Rising-Query, Algorithm-Update). Welle 3."""
+
+    __tablename__ = "seo_intel"
+
+    id = Column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = Column(
+        String(64), ForeignKey("seo_projects.id"), nullable=False, index=True
+    )
+    audit_id = Column(String(64), ForeignKey("seo_audits.id"), index=True)
+    source = Column(String(50), nullable=False)  # 'google_trends' | 'algorithm_feed'
+    type = Column(
+        String(50), nullable=False
+    )  # 'rising_query' | 'top_query' | 'interest_change'
+    query = Column(String(255))
+    score = Column(Float)
+    metadata_json = Column(JSON)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (Index("ix_seo_intel_project_source", "project_id", "source"),)

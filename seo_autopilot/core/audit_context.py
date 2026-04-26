@@ -39,6 +39,9 @@ class AuditContext:
     applied_fixes: List[Dict[str, Any]] = field(default_factory=list)
     force_apply: bool = False  # CLI --auto-fix oder API force=True
 
+    # Intelligence-Feed (Welle 3) - TrendBundle
+    intel_bundle: Optional[Any] = None
+
     def add_result(self, agent_name: str, result: Any) -> None:
         """
         Record the result of one agent.

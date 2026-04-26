@@ -16,7 +16,7 @@ from sqlalchemy import select
 
 from ..core.audit_context import AuditContext
 from .database import db
-from .models import SEOAudit, SEOIssue, SEOKeyword, SEOProject
+from .models import SEOAudit, SEOIntel, SEOIssue, SEOKeyword, SEOProject
 
 logger = logging.getLogger(__name__)
 
@@ -179,6 +179,34 @@ async def persist_audit(ctx: AuditContext) -> str:
                     status="active",
                 )
             )
+
+        # 5. insert intel-data (Welle 3): Trends rising/top queries
+        intel = getattr(ctx, "intel_bundle", None)
+        if intel is not None and not intel.error:
+            for r in intel.rising[:10]:
+                session.add(
+                    SEOIntel(
+                        id=str(uuid.uuid4()),
+                        project_id=ctx.project_id,
+                        audit_id=audit_uuid,
+                        source="google_trends",
+                        type="rising_query",
+                        query=r.query[:255],
+                        score=float(min(r.growth_pct, 9999)),
+                        metadata_json=_jsonify({"is_breakout": r.is_breakout}),
+                    )
+                )
+            for q in intel.top[:10]:
+                session.add(
+                    SEOIntel(
+                        id=str(uuid.uuid4()),
+                        project_id=ctx.project_id,
+                        audit_id=audit_uuid,
+                        source="google_trends",
+                        type="top_query",
+                        query=str(q)[:255],
+                    )
+                )
 
     logger.info(f"Persisted audit {audit_uuid} with {len(ctx.all_issues)} issues")
     return audit_uuid

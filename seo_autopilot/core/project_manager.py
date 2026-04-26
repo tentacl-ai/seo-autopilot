@@ -56,6 +56,9 @@ class ProjectConfig:
         None  # {whitelist_extra: [...], push_to_remote, ...}
     )
 
+    # Intelligence-Feed (Welle 3): Google Trends per Project
+    intel_config: Dict[str, Any] = None  # {intel_keywords, geo, timeframe}
+
     # Metadata
     created_at: datetime = None
     updated_at: datetime = None
@@ -73,6 +76,8 @@ class ProjectConfig:
             self.notify_config = {}
         if self.auto_fix_config is None:
             self.auto_fix_config = {}
+        if self.intel_config is None:
+            self.intel_config = {}
         if self.created_at is None:
             self.created_at = datetime.utcnow()
         if self.updated_at is None:

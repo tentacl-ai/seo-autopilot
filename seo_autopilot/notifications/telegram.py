@@ -95,6 +95,15 @@ def _format_message(ctx: AuditContext, report_path: Optional[Path]) -> str:
         for a in top_actions[:3]:
             lines.append(f"• {a.get('title', 'Issue')}")
 
+    # Trends Block (Welle 3)
+    intel = getattr(ctx, "intel_bundle", None)
+    if intel and not intel.error and (intel.rising or intel.top):
+        lines += ["", "🔥 *Trends diese Woche*"]
+        for line in intel.insights()[:4]:
+            lines.append(f"  {line}")
+        if intel.top:
+            lines.append(f"  📊 DE-Trending: {', '.join(intel.top[:3])}")
+
     # Auto-Fix Apply Block (Welle 2)
     apply_result = ctx.agent_results.get("apply")
     if apply_result and apply_result.metrics.get("fixes_applied", 0) > 0:

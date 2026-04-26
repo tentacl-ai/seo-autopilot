@@ -36,6 +36,7 @@ from ..agents.keyword import KeywordAgent
 from ..agents.strategy import StrategyAgent
 from ..agents.content import ContentAgent
 from ..agents.apply import ApplyAgent
+from ..agents.trends_agent import TrendsAgent
 from ..db.database import db
 from ..db.models import SEOAudit, SEOIssue
 from ..db.persistence import persist_audit
@@ -457,6 +458,7 @@ async def run_audit_for_project(
     agent_classes = [
         AnalyzerAgent,
         KeywordAgent,
+        TrendsAgent,  # Welle 3: Google-Trends-Source
         StrategyAgent,
         ContentAgent,
         ApplyAgent,
