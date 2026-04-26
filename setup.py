@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="seo-autopilot",
-    version="1.1.0",
+    version="1.2.0",
     description="Multi-tenant SEO automation platform – real crawler, GSC, PageSpeed, AI agents",
     long_description=long_description,
     long_description_content_type="text/markdown",

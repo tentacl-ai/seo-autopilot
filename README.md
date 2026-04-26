@@ -387,7 +387,7 @@ Each project has isolated:
 
 ```bash
 curl http://localhost:8002/api/health
-# { "status": "ok", "version": "1.1.0" }
+# { "status": "ok", "version": "1.2.0" }
 ```
 
 ### List Projects

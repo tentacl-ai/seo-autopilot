@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-04-26
+
+### Added
+- **Auto-Fix-Loop** — New ApplyAgent runs after ContentAgent and applies generated fixes to the project's files (via adapter pattern). Initial adapter: `static_files` (HTML meta tags, canonical, schema blocks, robots.txt, sitemap.xml; commits each fix as separate git commit).
+- **API endpoints** — `POST /api/audits/run/{id}` accepts `auto_fix:true`; `POST /api/fixes/apply/{audit_id}` re-runs an audit with apply enabled; `GET /api/fixes/applied` lists applied fixes; `POST /api/fixes/revert/{commit_hash}` marks rolled_back.
+- **CLI flag** — `seo-autopilot run --auto-fix` forces ApplyAgent regardless of project config.
+- **TrendsAgent** — Fetches Google-Trends data (interest_over_time + related_queries.rising) per project. Disk-persistent 24h cache, 429-aware (errors not cached). Configurable via `intel_config.intel_keywords` (max 5 per project).
+- **`seo_intel` table** — persists rising/top queries from Google Trends per audit.
+- **Telegram blocks** — new "✅ Auto-Fix angewendet" and "🔥 Trends diese Woche" sections in audit notifications.
+- **GitHub Actions release workflow** — auto-publishes to PyPI, updates GitHub description, creates Release notes, and sends Telegram notification on every `vX.Y.Z` tag push.
+
+### Changed
+- ContentAgent now generates templates for ~7 additional issue types (canonical_missing, missing_robots_txt, missing_sitemap_xml, sitemap_no_lastmod, missing_security_headers, missing_contact_page, missing_about_page, org_schema_no_sameas).
+- `audit_context.py` score-cap: `min(50, 3*high) + min(30, 1*medium) + min(20, 0.3*low)` instead of unbounded penalty — keeps the score readable on issue-heavy sites.
+- `strategy.py` priority assignment: severity now takes precedence over adj_impact (low stays low even if many of them).
+
+### Database (alembic)
+- `002_apply_fields.py` — `seo_projects.auto_fix_enabled`, `seo_projects.auto_fix_config`, `seo_issues.fix_applied_at`, `seo_issues.applied_by`, `seo_issues.git_commit_hash`, `seo_issues.fix_diff`, `seo_issues.fix_error`.
+- `003_intel_table.py` — new `seo_intel` table + `seo_projects.intel_config` column.
+
+### Fixed
+- `alembic.ini` — restore missing `[alembic]` section header that was lost in a previous edit.
+
+### Dependencies
+- Added `pytrends>=4.9.0`.
+- Dockerfile: `git` is now installed (required by ApplyAgent's static_files adapter).
+
 ## [1.1.0] - 2026-04-14
 
 ### Added
