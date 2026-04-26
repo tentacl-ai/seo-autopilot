@@ -363,7 +363,7 @@ async def list_applied_fixes(project_id: Optional[str] = None, limit: int = 50):
 @app.post("/api/fixes/revert/{commit_hash}")
 async def revert_fix(commit_hash: str):
     """Markiert einen Fix als rolled_back. (Git-Revert ist manuell durchzufuehren.)"""
-    from sqlalchemy import select, update
+    from sqlalchemy import select
 
     async with db.get_session() as session:
         q = select(SEOIssue).where(SEOIssue.git_commit_hash == commit_hash)

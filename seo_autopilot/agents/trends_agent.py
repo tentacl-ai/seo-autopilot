@@ -15,15 +15,10 @@ Skipped wenn keine intel_keywords konfiguriert.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
-from typing import Optional, TYPE_CHECKING
 
 from .base import Agent, AgentResult, AgentStatus
 from ..core.event_bus import EventType
 from ..sources.trends import TrendsSource, TrendBundle
-
-if TYPE_CHECKING:
-    from ..core.audit_context import AuditContext
 
 logger = logging.getLogger(__name__)
 
