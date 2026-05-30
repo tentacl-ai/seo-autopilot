@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2026-05-30
+
+### Fixed
+- **JSON-LD `@graph` false positives** — The crawler now flattens `@graph` wrappers into their individual entity nodes before analysis (`_expand_jsonld_graph` in `sources/crawler.py`). Previously a single `<script>` containing `{"@context": ..., "@graph": [...]}` surfaced as one block without a top-level `@type`, so the Schema Validator, E-E-A-T and GEO analyzers all missed the real entities and falsely reported "JSON-LD block without @type". Affects modern SSR sites (Yoast/RankMath-style graphs). On a real lovebianca.ai crawl this removed ~10 phantom schema issues and lifted GEO 74→84 and E-E-A-T 65→75.
+
+### Tests
+- +4 crawler tests for `@graph` flattening (passthrough, outer-type retention, nested graphs, end-to-end parse). Total: 233.
+
 ## [1.2.0] - 2026-04-26
 
 ### Added

@@ -18,7 +18,7 @@ pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
-All 229+ tests must pass before submitting a PR. Tests run without any external services (no API keys, no database, no network).
+All 233+ tests must pass before submitting a PR. Tests run without any external services (no API keys, no database, no network).
 
 ## Project Structure
 

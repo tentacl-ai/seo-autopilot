@@ -347,6 +347,35 @@ def _extract_security_headers(headers) -> Dict[str, str]:
 _WORD_RE = re.compile(r"\w+", re.UNICODE)
 
 
+def _expand_jsonld_graph(entries: List[Dict]) -> List[Dict]:
+    """Resolve JSON-LD ``@graph`` wrappers into individual entity nodes.
+
+    Modern sites (Yoast, RankMath, hand-rolled SSR) emit a single
+    ``<script type="application/ld+json">`` containing
+    ``{"@context": ..., "@graph": [ {entity}, {entity}, ... ]}`` instead of one
+    block per entity. The wrapper itself carries no top-level ``@type``, so every
+    downstream ``@type`` check (schema validation, E-E-A-T, GEO) would miss the
+    real entities and falsely flag the page as "JSON-LD block without @type".
+
+    This flattens one or more nested ``@graph`` levels and keeps any outer node
+    that declares its own ``@type`` too (rare, but valid). Non-dict items pass
+    through untouched so the caller's own type guard still applies.
+    """
+    expanded: List[Dict] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            expanded.append(entry)
+            continue
+        graph = entry.get("@graph")
+        if isinstance(graph, list) and graph:
+            expanded.extend(_expand_jsonld_graph(graph))
+            if entry.get("@type"):
+                expanded.append({k: v for k, v in entry.items() if k != "@graph"})
+        else:
+            expanded.append(entry)
+    return expanded
+
+
 def _parse_html_into(page: PageData, html: str) -> None:
     """Parse HTML string and fill in page attributes."""
     soup = BeautifulSoup(html, "html.parser")
@@ -405,6 +434,7 @@ def _parse_html_into(page: PageData, html: str) -> None:
         except (json.JSONDecodeError, ValueError):
             continue
         entries = data if isinstance(data, list) else [data]
+        entries = _expand_jsonld_graph(entries)  # flatten @graph wrappers
         for entry in entries:
             if not isinstance(entry, dict):
                 continue
