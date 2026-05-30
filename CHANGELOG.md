@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.2] - 2026-05-30
+
+### Fixed
+- **Phantom "unreachable from homepage" issues** — `link_graph._normalize()` collapsed `https://site` (project domain) and `https://site/` (crawled homepage) into different nodes, so the BFS started at a node with no outlinks and reported *every* page — including the homepage itself — as unreachable. Root URLs now normalize to a single canonical key. Affected every project, worst on SPAs.
+- **False near-duplicate flags on SPAs** — the duplicate detector had no `text_content` and fell back to `title + h1 + meta`; with a shared brand suffix this collapsed unrelated pages (e.g. `/start` vs `/impressum`) into "near-duplicates". The crawler now captures the semantic `<main>`/`<article>` text (boilerplate stripped) as `PageData.text_content`, and SimHash is skipped below `MIN_SIMHASH_WORDS` (25). On a real lovebianca.ai crawl: unreachable 15→1, near-duplicate 12→0, overall score 17→58, high-severity 29→3.
+
+### Tests
+- +5 tests (link-graph homepage normalization + genuine-orphan retention, crawler main-region text extraction + fallback, short-page duplicate guard). Total: 238.
+
 ## [1.2.1] - 2026-05-30
 
 ### Fixed

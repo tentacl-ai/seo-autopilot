@@ -205,7 +205,15 @@ def _normalize(url: str) -> str:
     if not url:
         return ""
     url = url.split("#")[0].split("?")[0]
-    if url.endswith("/") and len(urlparse(url).path) > 1:
+    parsed = urlparse(url)
+    # Root URL: collapse "https://x" and "https://x/" to the same key. Otherwise
+    # the project domain (passed without a trailing slash) and the crawled
+    # homepage (which carries the slash) become different nodes — the BFS then
+    # starts at a node with no outlinks and every page is wrongly flagged as
+    # "unreachable from homepage", including the homepage itself.
+    if parsed.path in ("", "/"):
+        return f"{parsed.scheme}://{parsed.netloc}".lower()
+    if url.endswith("/"):
         url = url.rstrip("/")
     return url.lower()
 

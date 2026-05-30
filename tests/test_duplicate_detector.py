@@ -183,3 +183,28 @@ class TestKeywordCannibalization:
         issues = detector.detect_issues(pages)
         types = [i["type"] for i in issues]
         assert "keyword_cannibalization" in types
+
+
+def test_short_pages_not_flagged_as_near_duplicate():
+    """SPA pages whose main content is very short must not be reported as
+    near-duplicates (regression: '/start' vs '/impressum' via title+meta)."""
+    detector = DuplicateContentDetector()
+    pages = [
+        {
+            "url": "https://x.test/start",
+            "title": "Time Millionaire OS — BiancaAi",
+            "h1": ["Start"],
+            "meta_description": "BiancaAi ist das Operating System.",
+            "text_content": "Time Millionaire OS BiancaAi Start Operating System",
+        },
+        {
+            "url": "https://x.test/impressum",
+            "title": "Impressum — BiancaAi",
+            "h1": ["Impressum"],
+            "meta_description": "Impressum der BiancaAi Plattform.",
+            "text_content": "Impressum BiancaAi Plattform Angaben Paragraph",
+        },
+    ]
+    issues = detector.detect_issues(pages)
+    near = [i for i in issues if i["type"] == "near_duplicate_content"]
+    assert near == [], [i["title"] for i in near]

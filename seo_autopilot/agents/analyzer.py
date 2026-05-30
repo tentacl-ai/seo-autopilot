@@ -1089,6 +1089,7 @@ def _page_snapshot(p: PageData) -> Dict[str, Any]:
         "lang": p.lang,
         "https": p.https,
         "internal_link_urls": p.internal_link_urls,
+        "text_content": p.text_content,
         "security_headers": list(p.security_headers),
         "twitter_tags": p.twitter_tags,
         "viewport": p.viewport,

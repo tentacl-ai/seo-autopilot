@@ -24,6 +24,9 @@ logger = logging.getLogger(__name__)
 HAMMING_THRESHOLD = 10  # bits — smaller = more similar
 THIN_CONTENT_THRESHOLD = 300  # words
 SIMHASH_BITS = 64
+MIN_SIMHASH_WORDS = (
+    25  # below this SimHash is too noisy to compare (short title+meta fallbacks)
+)
 
 
 class DuplicateContentDetector:
@@ -93,7 +96,7 @@ class DuplicateContentDetector:
                 meta = page.get("meta_description", "") or ""
                 text = f"{title} {h1} {meta}"
 
-            if len(text.split()) < 20:
+            if len(text.split()) < MIN_SIMHASH_WORDS:
                 continue
 
             sh = simhash(text)

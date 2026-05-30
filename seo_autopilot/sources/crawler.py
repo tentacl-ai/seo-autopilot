@@ -61,6 +61,7 @@ class PageData:
     internal_links: int = 0
     external_links: int = 0
     internal_link_urls: List[str] = field(default_factory=list)
+    text_content: str = ""  # main-region visible text (for near-duplicate SimHash)
 
     images_total: int = 0
     images_without_alt: int = 0
@@ -345,6 +346,9 @@ def _extract_security_headers(headers) -> Dict[str, str]:
 
 
 _WORD_RE = re.compile(r"\w+", re.UNICODE)
+_MAX_TEXT_CONTENT = (
+    20000  # chars kept for near-duplicate SimHash (enough to discriminate)
+)
 
 
 def _expand_jsonld_graph(entries: List[Dict]) -> List[Dict]:
@@ -467,8 +471,21 @@ def _parse_html_into(page: PageData, html: str) -> None:
         1 for img in images if not (img.get("alt") or "").strip()
     )
 
+    # text_content for near-duplicate detection — prefer the semantic main region
+    # so a shared SPA shell (nav/footer/rail) does not collapse distinct pages into
+    # "near-duplicates". Captured BEFORE the word-count pass mutates the soup.
+    main_region = soup.find("main") or soup.find("article")
+    if main_region is not None:
+        page.text_content = main_region.get_text(" ", strip=True)[:_MAX_TEXT_CONTENT]
+
     # word count (visible text minus script/style) - done LAST since it mutates soup
     for s in soup(["script", "style", "noscript"]):
         s.extract()
     text = soup.get_text(" ", strip=True)
     page.word_count = len(_WORD_RE.findall(text))
+
+    # Fallback when the page has no <main>/<article>: full body minus boilerplate.
+    if not page.text_content:
+        for tag in soup.find_all(["nav", "header", "footer", "aside"]):
+            tag.extract()
+        page.text_content = soup.get_text(" ", strip=True)[:_MAX_TEXT_CONTENT]

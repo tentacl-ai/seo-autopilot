@@ -171,3 +171,52 @@ class TestLinkEquitySink:
         issues = graph.detect_issues(pages, "https://example.com")
         sinks = [i for i in issues if i["type"] == "link_equity_sink"]
         assert len(sinks) == 1
+
+
+def test_homepage_trailing_slash_not_unreachable():
+    """Regression: project domain (no slash) and crawled homepage (with slash)
+    must collapse to one node — otherwise the BFS starts at a node with no
+    outlinks and every page, including the homepage itself, is wrongly flagged
+    'unreachable from homepage'."""
+    graph = LinkGraph()
+    pages = [
+        {
+            "url": "https://example.com/",  # crawled homepage carries the slash
+            "status_code": 200,
+            "outlink_urls": [
+                "https://example.com/about",
+                "https://example.com/blog",
+            ],
+        },
+        {
+            "url": "https://example.com/about",
+            "status_code": 200,
+            "outlink_urls": ["https://example.com/"],
+        },
+        {
+            "url": "https://example.com/blog",
+            "status_code": 200,
+            "outlink_urls": ["https://example.com/"],
+        },
+    ]
+    # domain passed WITHOUT a trailing slash, exactly as in projects.yaml
+    issues = graph.detect_issues(pages, "https://example.com")
+    unreachable = [i for i in issues if i["type"] == "unreachable_page"]
+    assert unreachable == [], [i["title"] for i in unreachable]
+
+
+def test_truly_unreachable_page_still_flagged():
+    """A genuinely unlinked page is still reported after the normalize fix."""
+    graph = LinkGraph()
+    pages = [
+        {
+            "url": "https://example.com/",
+            "status_code": 200,
+            "outlink_urls": ["https://example.com/a"],
+        },
+        {"url": "https://example.com/a", "status_code": 200, "outlink_urls": []},
+        {"url": "https://example.com/island", "status_code": 200, "outlink_urls": []},
+    ]
+    issues = graph.detect_issues(pages, "https://example.com")
+    unreachable = [i["title"] for i in issues if i["type"] == "unreachable_page"]
+    assert any("island" in t for t in unreachable)
