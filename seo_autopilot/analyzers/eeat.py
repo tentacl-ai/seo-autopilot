@@ -81,6 +81,59 @@ def _url_matches(url: str, patterns: List[str]) -> bool:
     return any(p in path for p in patterns)
 
 
+# schema.org subtypes of Organization that sites legitimately use instead of
+# the bare "Organization" type. Previously only Organization/Corporation
+# counted, so e.g. a FinancialService was reported as "no Organization schema"
+# although the entity was correct (joseph-hehenwarter.de, 2026-08-17).
+ORGANIZATION_TYPES = {
+    "organization",
+    "corporation",
+    "localbusiness",
+    "financialservice",
+    "professionalservice",
+    "legalservice",
+    "insuranceagency",
+    "accountingservice",
+    "realestateagent",
+    "medicalorganization",
+    "dentist",
+    "physician",
+    "ngo",
+    "educationalorganization",
+    "governmentorganization",
+    "sportsorganization",
+    "store",
+    "restaurant",
+    "hotel",
+    "travelagency",
+    "automotivebusiness",
+    "homeandconstructionbusiness",
+    "healthandbeautybusiness",
+    "foodestablishment",
+    "entertainmentbusiness",
+    "emergencyservice",
+    "childcare",
+    "selfstorage",
+    "shoppingcenter",
+    "shop",
+}
+
+
+def _is_organization(schema: Dict[str, Any]) -> bool:
+    """True if the schema entity is an Organization or one of its subtypes.
+
+    Accepts both a plain string and a list of types — `"@type": ["Organization",
+    "FinancialService"]` is valid schema.org and was previously missed.
+    """
+    raw = schema.get("@type")
+    if raw is None:
+        return False
+    types = raw if isinstance(raw, list) else [raw]
+    return any(
+        isinstance(t, str) and t.strip().lower() in ORGANIZATION_TYPES for t in types
+    )
+
+
 class EEATAnalyzer:
     """Analyzes domain-level E-E-A-T signals."""
 
@@ -169,9 +222,7 @@ class EEATAnalyzer:
             )
 
         # --- Organization schema ---
-        org_schemas = [
-            s for s in schema_all if s.get("@type") in ("Organization", "Corporation")
-        ]
+        org_schemas = [s for s in schema_all if _is_organization(s)]
         has_org_schema = len(org_schemas) > 0
         signals["org_schema"] = has_org_schema
 

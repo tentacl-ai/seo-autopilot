@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.3] - 2026-08-17
+
+### Fixed
+- **Trust pages cut off by the crawl limit** — `discover_pages()` truncated the sitemap at `max_pages` (default 15) in raw sitemap order. Impressum/Datenschutz/Kontakt usually sit at the END, so on a 17-URL site they were never fetched. The E-E-A-T analyzer then correctly reported "No Impressum found" for a site that has one, and the same gap made the sitemap audit count those URLs as "non-canonical". Root URL + trust pages are now pulled to the front before truncation (`SEOCrawler._prioritize`). Verified on joseph-hehenwarter.de: E-E-A-T 45→85, high-severity findings 5→0.
+- **Organization schema subtypes ignored** — only `Organization`/`Corporation` counted, so a valid `FinancialService`, `LocalBusiness` etc. was reported as "No Organization schema found". A `@type` **array** (`["Organization","FinancialService"]`, valid schema.org) was missed too. New `_is_organization()` accepts 30+ documented subtypes and both notations.
+- **Phantom non-canonical sitemap URLs** — every sitemap entry outside the crawl counted as non-canonical, and a trailing slash alone (`https://site.de` vs `https://site.de/`) was enough to trigger it. Uncrawled URLs are now treated as unknown, and comparison is slash-insensitive. Genuine mismatches (e.g. `?ref=` params) are still reported.
+- **Decorative images flagged as accessibility defects** — `alt=""` is the CORRECT markup for decorative images (WCAG 1.1.1: screen readers must skip them); only a MISSING alt attribute is a defect. `role="presentation"`, `role="none"` and `aria-hidden="true"` are now honoured as well.
+
+### Tests
+- +15 tests in `tests/test_false_positive_fixes.py`, one per corrected behaviour plus guards that genuine findings still fire. Total: 254.
+
 ## [1.2.2] - 2026-05-30
 
 ### Fixed

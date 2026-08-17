@@ -152,7 +152,43 @@ class SEOCrawler:
             if u not in seen:
                 seen.add(u)
                 deduped.append(u)
-        return deduped[:limit]
+
+        return self._prioritize(deduped)[:limit]
+
+    @staticmethod
+    def _prioritize(urls: List[str]) -> List[str]:
+        """Pull trust-critical pages to the front before the limit truncates.
+
+        Impressum/Datenschutz/Kontakt usually sit at the END of a sitemap. With
+        a small `limit` they were cut off, and the E-E-A-T analyzer then reported
+        "No Impressum found" on sites that clearly have one (joseph-hehenwarter.de,
+        17 sitemap URLs vs. limit 15 — 2026-08-17). Order otherwise untouched.
+        """
+        trust_markers = (
+            "impressum",
+            "imprint",
+            "legal-notice",
+            "legal_notice",
+            "datenschutz",
+            "privacy",
+            "data-protection",
+            "kontakt",
+            "contact",
+            "ueber-mich",
+            "ueber-uns",
+            "about",
+        )
+        root, trust, rest = [], [], []
+        for u in urls:
+            path = u.lower().rstrip("/").split("?")[0]
+            # the root URL keeps position 1 — it anchors the link graph
+            if not path.split("//")[-1].partition("/")[2]:
+                root.append(u)
+            elif any(m in path for m in trust_markers):
+                trust.append(u)
+            else:
+                rest.append(u)
+        return root + trust + rest
 
     async def _parse_sitemap(self, url: str, max_depth: int = 2) -> List[str]:
         """Recursively parse sitemap.xml / sitemap index files."""
@@ -380,6 +416,18 @@ def _expand_jsonld_graph(entries: List[Dict]) -> List[Dict]:
     return expanded
 
 
+def _is_decorative(img) -> bool:
+    """True if the image is explicitly marked as decorative.
+
+    `role="presentation"` / `role="none"` and `aria-hidden="true"` tell assistive
+    technology to ignore the image — demanding an alt text there is wrong.
+    """
+    role = (img.get("role") or "").strip().lower()
+    if role in ("presentation", "none"):
+        return True
+    return (img.get("aria-hidden") or "").strip().lower() == "true"
+
+
 def _parse_html_into(page: PageData, html: str) -> None:
     """Parse HTML string and fill in page attributes."""
     soup = BeautifulSoup(html, "html.parser")
@@ -467,8 +515,12 @@ def _parse_html_into(page: PageData, html: str) -> None:
     # images
     images = soup.find_all("img")
     page.images_total = len(images)
+    # An EMPTY alt (`alt=""`) is the correct, intentional markup for decorative
+    # images — screen readers must skip them (WCAG 1.1.1). Only a MISSING alt
+    # attribute is an accessibility defect. Counting both produced false
+    # findings on purely decorative backgrounds (2026-08-17).
     page.images_without_alt = sum(
-        1 for img in images if not (img.get("alt") or "").strip()
+        1 for img in images if img.get("alt") is None and not _is_decorative(img)
     )
 
     # text_content for near-duplicate detection — prefer the semantic main region

@@ -447,9 +447,16 @@ class RobotsSitemapAuditor:
                             )
                         )
 
-            # Non-canonical URLs
-            if canonical_urls is not None and entry.loc not in canonical_urls:
-                non_canonical_count += 1
+            # Non-canonical URLs. Two corrections (2026-08-17):
+            #  1. If we know which pages were crawled, only judge those — a URL
+            #     the crawler never fetched (e.g. cut off by the page limit) is
+            #     unknown, not non-canonical.
+            #  2. Compare slash-insensitively: `https://site.de` and
+            #     `https://site.de/` are the same page.
+            if canonical_urls is not None:
+                judgeable = crawled_urls is None or _is_crawled(entry.loc, crawled_urls)
+                if judgeable and not _canonical_matches(entry.loc, canonical_urls):
+                    non_canonical_count += 1
 
             # Stale lastmod
             if entry.lastmod:
@@ -537,6 +544,30 @@ class RobotsSitemapAuditor:
             )
 
         return issues
+
+
+def _norm_url(url: str) -> str:
+    """Normalize for comparison: lowercase host, no trailing slash, no fragment.
+
+    `https://site.de` and `https://site.de/` are the same page; comparing them
+    literally produced phantom "non-canonical" findings.
+    """
+    u = (url or "").split("#")[0].strip()
+    return u.rstrip("/") or u
+
+
+def _is_crawled(url: str, crawled_urls: Optional[Set[str]]) -> bool:
+    """True if this sitemap URL was part of the crawl (slash-insensitive)."""
+    if not crawled_urls:
+        return False
+    target = _norm_url(url)
+    return any(_norm_url(c) == target for c in crawled_urls)
+
+
+def _canonical_matches(url: str, canonical_urls: Set[str]) -> bool:
+    """True if the URL equals one of the collected canonicals (slash-insensitive)."""
+    target = _norm_url(url)
+    return any(_norm_url(c) == target for c in canonical_urls)
 
 
 def _issue(
