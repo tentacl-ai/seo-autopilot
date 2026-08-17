@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.1] - 2026-08-17
+
+### Fixed
+- **Score bestrafte gruendlicheres Pruefen.** Die Abzuege waren absolut: Wer mehr Seiten crawlen liess, sammelte zwangslaeufig mehr Befunde und bekam eine schlechtere Note, obwohl sich an der Website nichts geaendert hatte (tentacl.ai 8,9 -> 3,2 und lovebianca 45,7 -> 14,0, nachdem die Crawl-Limits an die echte Seitenzahl angepasst wurden). Jetzt zaehlt die Befunddichte: Befunde je Seite, hochgerechnet auf eine Referenzgroesse von 15 Seiten. Bei genau 15 geprueften Seiten ist das Ergebnis identisch mit der bisherigen Formel; ist die Seitenzahl unbekannt, wird NICHT normiert. Neue Bewertung: tentacl-ai 9,0 (23 Seiten) - joseph 73,4 (17) - skinmatch 18,9 (4) - lovebianca 40,8 (40) - topal 10,8 (18). Kleine Websites mit hoher Befunddichte fallen dadurch zu Recht zurueck.
+- **lovebianca-ai: Sitemap wurde nie gelesen.** `https://www.lovebianca.ai/sitemap.xml` antwortet 301 auf die Adresse ohne `www`; der Crawler fiel auf die Startseiten-Linkanalyse zurueck. Projekt-Domain auf die kanonische Adresse `https://lovebianca.ai` korrigiert (Canonical der Startseite bestaetigt das) - der Sitemap-Index mit drei Unterkarten wird jetzt aufgeloest: **40 statt 15 Seiten** erfasst.
+
+### Tests
+- +17 Tests (`tests/test_score_normalisierung.py`), inkl. Nachweis, dass gleiche Befunddichte bei doppelter Seitenzahl dieselbe Note ergibt und dass echte Verschlechterungen weiterhin durchschlagen. Total: 432.
+
 ## [1.5.0] - 2026-08-17
 
 Ausbau zum selbstueberwachenden, lernenden Werkzeug — Fahrplan-Schritte 3 bis 7.

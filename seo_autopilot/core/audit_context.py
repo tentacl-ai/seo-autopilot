@@ -81,16 +81,53 @@ class AuditContext:
             out[cat] = out.get(cat, 0) + 1
         return out
 
-    def calculate_score(self) -> float:
+    def crawled_pages(self) -> Optional[int]:
+        """Wie viele Seiten hat der Analyzer tatsächlich untersucht?
+
+        Gibt `None` zurück, wenn die Zahl nicht ermittelbar ist. Dann wird
+        NICHT normiert — eine unbekannte Seitenzahl darf die Bewertung nicht
+        verzerren (ein Fallback auf 1 hätte die Abzüge verfünfzehnfacht).
         """
-        Weighted score mit gedeckelten Abzügen pro Kategorie.
-        High: max 50 Pkt, Medium: max 30 Pkt, Low: max 20 Pkt.
-        So bleibt die Skala lesbar auch bei vielen Issues.
+        analyzer = self.agent_results.get("analyzer")
+        metrics = getattr(analyzer, "metrics", None) or {}
+        for schluessel in ("pages_crawled", "total_pages", "pages_analyzed", "pages"):
+            wert = metrics.get(schluessel)
+            if isinstance(wert, (int, float)) and wert > 0:
+                return int(wert)
+        return None
+
+    # Bezugsgröße der Normierung: eine Website dieser Größe gilt als "typisch".
+    # Bei genau so vielen Seiten verhält sich der Score exakt wie früher.
+    REFERENZ_SEITEN = 15
+
+    def calculate_score(self) -> float:
+        """Gewichteter Score mit gedeckelten Abzügen, normiert auf die Seitenzahl.
+
+        Früher waren die Abzüge absolut: Wer 40 Seiten prüfen ließ, sammelte
+        zwangsläufig mehr Befunde als bei 15 Seiten und bekam eine schlechtere
+        Note — obwohl die Prüfung gründlicher und die Website unverändert war.
+        Genau das ist am 2026-08-17 passiert, als die Crawl-Limits an die echte
+        Seitenzahl angepasst wurden (tentacl.ai 8,9 -> 3,2 ohne jede Änderung
+        an der Website, lovebianca 45,7 -> 14,0).
+
+        Jetzt zählt die Befunddichte: Befunde pro Seite, hochgerechnet auf eine
+        Referenzgröße von 15 Seiten. Damit sind Läufe über die Zeit und über
+        verschieden große Websites hinweg vergleichbar. Bei genau 15 geprüften
+        Seiten ist das Ergebnis identisch mit der bisherigen Berechnung.
+
+        Seitenunabhängige Befunde (robots.txt, Sitemap, Domain-weite
+        Vertrauenssignale) werden dadurch leicht abgeschwächt — das ist
+        gewollt: Ein einzelner Domain-Befund darf eine 40-Seiten-Website nicht
+        genauso hart treffen wie eine mit 4 Seiten.
         """
         sev = self.issues_by_severity()
-        high_pen = min(50.0, 3.0 * sev["high"])
-        med_pen = min(30.0, 1.0 * sev["medium"])
-        low_pen = min(20.0, 0.3 * sev["low"])
+        seiten = self.crawled_pages()
+        # Ohne bekannte Seitenzahl bleibt es bei der ursprünglichen Rechnung.
+        faktor = self.REFERENZ_SEITEN / seiten if seiten else 1.0
+
+        high_pen = min(50.0, 3.0 * sev["high"] * faktor)
+        med_pen = min(30.0, 1.0 * sev["medium"] * faktor)
+        low_pen = min(20.0, 0.3 * sev["low"] * faktor)
         self.score = max(0.0, round(100.0 - high_pen - med_pen - low_pen, 1))
         return self.score
 
