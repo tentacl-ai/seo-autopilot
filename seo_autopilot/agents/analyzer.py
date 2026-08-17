@@ -87,6 +87,46 @@ class AnalyzerAgent(Agent):
 
             good_pages = [p for p in pages if p.status_code == 200]
 
+            # --- v1.7 Änderungsbuch: fremde Änderungen erkennen --------------
+            # Weicht ein Titel oder eine Meta-Description vom zuletzt
+            # protokollierten Stand ab, obwohl der Autopilot dort nichts
+            # geschrieben hat, war ein Mensch am Werk. Das gehoert ins Buch:
+            # sonst rechnet die spaetere Wirkungsmessung fremde Effekte uns zu.
+            # Non-fatal — Buchhaltung darf nie einen Audit kosten.
+            try:
+                from ..changelog_book import (
+                    URHEBER_MENSCH,
+                    erkenne_fremde_aenderungen,
+                    protokolliere_fremde_aenderungen,
+                    standard_db_pfad,
+                )
+
+                buch_db = standard_db_pfad()
+                funde = erkenne_fremde_aenderungen(
+                    buch_db,
+                    self.project_id,
+                    [
+                        {
+                            "url": p.final_url or p.url,
+                            "title": p.title,
+                            "meta_description": p.meta_description,
+                        }
+                        for p in good_pages
+                    ],
+                )
+                protokolliere_fremde_aenderungen(
+                    buch_db, self.project_id, self.audit_id, funde
+                )
+                fremde = [f for f in funde if f.get("urheber") == URHEBER_MENSCH]
+                if fremde:
+                    result.metrics["fremde_aenderungen"] = len(fremde)
+                    logger.info(
+                        f"[analyzer] Änderungsbuch: {len(fremde)} fremde "
+                        "Änderung(en) erkannt (nicht vom Autopilot)"
+                    )
+            except Exception as exc:
+                logger.warning(f"[analyzer] Änderungsbuch fehlgeschlagen: {exc}")
+
             issues: List[Dict[str, Any]] = []
             issues.extend(self._check_fetch_errors(pages))
             issues.extend(self._check_meta(good_pages))

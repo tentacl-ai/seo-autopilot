@@ -309,6 +309,41 @@ def weekly(db, projects, tage, html_pfad, notify):
 
 
 @cli.command()
+@click.option("--db", default=None, help="Pfad zur Audit-Datenbank")
+@click.option("--projekt", default=None, help="Nur dieses Projekt anzeigen")
+@click.option(
+    "--tage", default=30, type=int, help="Zeitfenster in Tagen (Standard: 30)"
+)
+@click.option(
+    "--diff",
+    "mit_diff",
+    is_flag=True,
+    default=False,
+    help="Vorher/Nachher-Vergleich je Aenderung anzeigen",
+)
+@click.option(
+    "--nur-offene/--alle",
+    default=False,
+    help="Nur Aenderungen, die noch in der Website stehen",
+)
+def changes(db, projekt, tage, mit_diff, nur_offene):
+    """Aenderungsbuch: wer hat wann was an der Website geaendert.
+
+    Zeigt eigene (Autopilot) und fremde (Mensch) Aenderungen chronologisch.
+    Fremde Eintraege sind die wichtigen: Deren Wirkung darf uns spaeter nicht
+    zugerechnet werden.
+
+    Beispiel:
+      seo-autopilot changes --projekt joseph --tage 14 --diff
+    """
+    from ..changelog_book import aenderungen, als_text, standard_db_pfad
+
+    db_pfad = db or standard_db_pfad()
+    liste = aenderungen(db_pfad, project_id=projekt, tage=tage, nur_offene=nur_offene)
+    click.echo(als_text(liste, tage=tage, mit_diff=mit_diff))
+
+
+@cli.command()
 def version():
     """Show version"""
     from .. import __version__

@@ -128,6 +128,7 @@ class ApplyAgent(Agent):
                 "success": ar.success,
             }
             (applied if ar.success else failed).append(entry)
+            self._ins_aenderungsbuch(f, ar)
 
         # In den Context schreiben fuer Persistence + Telegram
         if ctx is not None:
@@ -148,3 +149,75 @@ class ApplyAgent(Agent):
         )
         logger.info(result.log_output)
         return result
+
+    # ------------------------------------------------------------------
+    # Änderungsbuch
+    # ------------------------------------------------------------------
+
+    def _ins_aenderungsbuch(self, fix: Dict[str, Any], ar: "ApplyResult") -> None:
+        """Protokolliert einen angewendeten Fix im Änderungsbuch.
+
+        Hier — und nur hier — verändert der Autopilot tatsächlich eine Website.
+        Ohne Eintrag an dieser Stelle ist später nicht mehr belegbar, dass eine
+        Wirkung von uns kam; genau diese Lücke schliesst das Buch.
+
+        Zwei bewusste Regeln:
+
+        * Ein Fix ohne geänderte Datei ist keine Änderung (der Adapter meldet
+          "already-applied", wenn der Wert bereits so dasteht). Solche Läufe
+          würden das Buch jeden Tag mit Nicht-Ereignissen fluten.
+        * Protokollieren darf den Fix nie kosten: alles in try/except, Fehler
+          nur als Warnung.
+        """
+        try:
+            from ..changelog_book import (
+                STATUS_ANGEWENDET,
+                STATUS_FEHLGESCHLAGEN,
+                URHEBER_AUTOPILOT,
+                aktion_fuer,
+                notiere_aenderung,
+                standard_db_pfad,
+                vorher_nachher_aus_diff,
+            )
+
+            if ar.success and not ar.files_changed:
+                return  # nichts geändert -> nichts zu buchen
+
+            vorher, nachher = vorher_nachher_aus_diff(ar.diff)
+            if not nachher:
+                nachher = str(fix.get("suggestion") or fix.get("url") or "")
+
+            begruendung = str(
+                fix.get("issue_title") or fix.get("type") or "Auto-Fix"
+            ).strip()
+            quelle = fix.get("source")
+            if quelle:
+                begruendung = f"{begruendung} (Quelle: {quelle})"
+            if not ar.success and ar.error:
+                begruendung = f"{begruendung} — fehlgeschlagen: {ar.error}"
+
+            commit = ar.commit_hash
+            if commit in ("no-git", "already-applied"):
+                commit = None
+
+            notiere_aenderung(
+                standard_db_pfad(),
+                self.project_id,
+                aktion_fuer(fix.get("type")),
+                audit_id=self.audit_id,
+                urheber=URHEBER_AUTOPILOT,
+                ziel_url=fix.get("url"),
+                datei_pfad=", ".join(ar.files_changed) or None,
+                vorher=vorher,
+                nachher=nachher,
+                begruendung=begruendung,
+                issue_type=fix.get("type"),
+                git_commit=commit,
+                # Rückgängig machbar ist nur, was einen Commit hinterlassen hat.
+                rueckgaengig_moeglich=bool(commit),
+                status=STATUS_ANGEWENDET if ar.success else STATUS_FEHLGESCHLAGEN,
+            )
+        except Exception as exc:  # pragma: no cover - defensiv
+            logger.warning(
+                f"[apply] Änderung nicht ins Buch geschrieben (non-fatal): {exc}"
+            )

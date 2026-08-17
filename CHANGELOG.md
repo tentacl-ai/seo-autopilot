@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.0] - 2026-08-17
+
+### Added
+- **Aenderungsbuch** (`changelog_book.py`, CLI `changes`) — das Werkzeug protokolliert ab jetzt jede Aenderung an einer Website mit Urheber, Ziel-URL, Vorher/Nachher, Begruendung und Git-Commit. Grundlage fuer die Wirkungsmessung: ohne Protokoll laesst sich spaeter nicht belegen, welche Score-Bewegung von uns kam.
+  - **Eigene Aenderungen**: Der ApplyAgent schreibt bei jedem angewendeten Fix einen Eintrag. Ein Fix ohne geaenderte Datei (`already-applied`) wird bewusst NICHT gebucht, sonst flutet jeder Lauf das Buch mit Nicht-Ereignissen. Rueckgaengig-Kennzeichen nur, wenn ein echter Commit dahintersteht.
+  - **Fremde Aenderungen**: Der AnalyzerAgent vergleicht bei jedem Lauf Titel und Meta-Description gegen den zuletzt protokollierten Stand. Weicht etwas ab, ohne dass der Autopilot dort geschrieben hat, war ein Mensch am Werk — Eintrag mit Urheber `mensch`. Das verhindert, dass fremde Effekte spaeter uns zugerechnet werden.
+  - Buchhaltung ist **non-fatal**: alles in try/except, Fehler nur als Warnung. Ein Audit darf nie an der Protokollierung scheitern.
+  - Eine Tabelle `website_aenderungen` in derselben Audit-Datenbank wie die Lernschleife, per `CREATE TABLE IF NOT EXISTS` (kein alembic — dessen `env.py` ist async-verdrahtet und hinterlaesst halb-migrierte Zustaende).
+
+### Tests
+- +49 Tests (`tests/test_changelog_book.py`). Total: **538**.
+
+## [1.7.0] - 2026-08-17
+
+### Added
+- **Aenderungsbuch (`changes`)** — Roadmap-Phase 1 und Grundlage fuer die Wirkungsmessung: Ohne lueckenloses Protokoll laesst sich spaeter nie sauber zurechnen, ob eine Aenderung gewirkt hat. Tabelle `change_log` mit Zeitpunkt, Urheber, Aktion, Ziel-URL, Vorher/Nachher, Begruendung, Git-Commit, Ruecknahmestatus.
+- **Fremderkennung.** Beim Crawl werden Titel und Meta-Description gegen den zuletzt protokollierten Stand verglichen. Weicht etwas ab, ohne dass der Autopilot es war, wird es als `urheber="mensch"` gebucht — sonst rechnet die Wirkungsmessung fremde Effekte uns zu. Seiten ohne Historie bekommen einen Vergleichspunkt, sonst waere beim naechsten Lauf nichts erkennbar.
+- Protokollierung im ApplyAgent nach jedem angewendeten Fix (Erfolg wie Fehlschlag). Fixes ohne geaenderte Datei ("bereits angewendet") werden bewusst NICHT gebucht — sonst fuellt sich das Buch taeglich mit Nicht-Ereignissen.
+- `diff_text()` fuer lesbare Vorher/Nachher-Vergleiche, `als_text()` fuer CLI und Telegram, `markiere_zurueckgenommen()` fuer den Rueckweg.
+
+### Changed
+- Eine fehlende `change_log`-Tabelle ist der Normalzustand einer frischen Installation und wird nicht mehr als Warnung geloggt.
+
+### Verified
+- ApplyAgent gegen ein echtes Git-Repo: Aenderung angewendet, Commit `bf69e64989ea`, Eintrag mit Diff im Buch. Zweiter Lauf erzeugte korrekt keinen zweiten Eintrag.
+
+### Tests
+- +49 Tests (`tests/test_changelog_book.py`). Total: **538**.
+
 ## [1.6.0] - 2026-08-17
 
 ### Fixed
