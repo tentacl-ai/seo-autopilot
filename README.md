@@ -8,7 +8,7 @@
 
 **Production-ready, multi-tenant SEO automation platform** with real crawler, 60+ documented issue detectors, GEO audit, llms.txt validation, IndexNow support, topical authority analysis, and AI-powered fix generation.
 
-> Crawl your website, detect SEO issues across 11 analysis dimensions, prioritize by ROI, and generate actionable fixes — all from a single CLI command.
+> Crawl your website, detect SEO issues across 12 analysis dimensions, prioritize by ROI, and generate actionable fixes — all from a single CLI command.
 
 ## What It Does
 
@@ -16,7 +16,7 @@ SEO Autopilot turns raw web crawl data into a **prioritized action plan**:
 
 1. **Crawls your site** – httpx + BeautifulSoup, automatic Playwright fallback for SPAs, sitemap.xml discovery, 14+ HTML attributes parsed
 2. **Pulls real data** – Google Search Console (28-day), PageSpeed Insights (INP/LCP/CLS via CrUX), robots.txt
-3. **Analyzes 11 dimensions** – On-page, canonical, redirects, schema, GEO, llms.txt/ai.txt, topical authority, duplicates, link graph, CWV, security
+3. **Analyzes 12 dimensions** – On-page, canonical, redirects, schema, GEO, llms.txt/ai.txt, topical authority, duplicates, link graph, CWV, security
 4. **Detects 60+ documented issue types** – From missing titles to AI-crawler blocking, llms.txt validation, IndexNow, canonical chains, thin content, keyword cannibalization
 5. **Prioritizes by ROI** – Quick-wins (< 30min), this-week tasks, backlog — sorted by impact x confidence x ease
 6. **Generates fixes** – Claude API writes optimized titles, meta descriptions, JSON-LD snippets
@@ -25,7 +25,7 @@ SEO Autopilot turns raw web crawl data into a **prioritized action plan**:
 9. **Ships HTML reports** – Self-contained Jinja2 templates with Telegram notifications
 10. **Schedules audits** – APScheduler cron jobs, multi-tenant isolation, WebSocket event streaming
 
-**432 tests.** Lightweight stack: httpx/BS4/FastAPI. Optional Playwright fallback for JavaScript-rendered SPAs (React, Next.js, Vue, Nuxt).
+**489 tests.** Lightweight stack: httpx/BS4/FastAPI. Optional Playwright fallback for JavaScript-rendered SPAs (React, Next.js, Vue, Nuxt).
 
 ---
 
@@ -190,7 +190,7 @@ seo_autopilot/
 | **Security** | HTTPS, HSTS, X-Frame-Options, X-Content-Type-Options | 2 |
 | **LLMs.txt / AI.txt** | llms.txt spec validation, llms-full.txt, ai.txt, IndexNow key | 6 |
 
-**Total: 60+ documented issue types across 11 analysis dimensions.**
+**Total: 60+ documented issue types across 12 analysis dimensions.**
 
 ### Additional features
 

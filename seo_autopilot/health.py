@@ -128,6 +128,36 @@ def _als_datum(wert: Any) -> Optional[datetime]:
         return None
 
 
+def _globaler_pagespeed_schluessel() -> Optional[str]:
+    """Der projektübergreifende Schlüssel — genau wie ihn der Analyzer sucht.
+
+    Wichtig: ``os.environ`` allein genügt NICHT. Der Schlüssel darf auch in
+    der ``.env`` stehen, die von den Settings gelesen wird; ``os.getenv``
+    sieht ihn dort nicht. Genau diese Lücke hat den Fehler am 2026-08-17
+    verschleiert. Der Wert wird nur auf Vorhandensein geprüft, nie ausgegeben.
+    """
+    aus_umgebung = os.environ.get("PAGESPEED_API_KEY")
+    if aus_umgebung:
+        return aus_umgebung
+    try:
+        from .core.config import settings
+
+        return settings.PAGESPEED_API_KEY
+    except Exception:  # pragma: no cover - defensiv
+        return None
+
+
+def _pagespeed_schluessel_da(quell_cfg: Dict[str, Any]) -> bool:
+    """Ist für die Geschwindigkeitsmessung überhaupt ein Schlüssel hinterlegt?
+
+    Zwei erlaubte Wege: projektweise ``source_config.pagespeed.api_key`` oder
+    global über Umgebung bzw. ``.env``.
+    """
+    if (quell_cfg or {}).get("api_key"):
+        return True
+    return bool(_globaler_pagespeed_schluessel())
+
+
 def _dataforseo_zugangsdaten_da(quell_cfg: Dict[str, Any]) -> bool:
     """Sind für DataForSEO überhaupt Zugangsdaten erreichbar?
 
@@ -374,6 +404,30 @@ def _pruefe_projekt(
                 "lesbare credentials_path — SERP-, Suchvolumen- und "
                 "Backlink-Daten fehlen bei jedem Lauf stillschweigend.",
                 "Zugangsdaten hinterlegen, siehe docs/dataforseo-setup.md.",
+            )
+        )
+
+    # --- Geschwindigkeitsmessung wirklich möglich? ---
+    # Anders als GSC/GA4/DataForSEO muss PageSpeed nicht in `enabled_sources`
+    # stehen — der Analyzer ruft es bei JEDEM Lauf auf. Ohne Schlüssel läuft
+    # die Anfrage über ein gemeinsames Google-Kontingent, das dauerhaft
+    # erschöpft ist (HTTP 429). Im Log stand dann nur "PageSpeed unavailable",
+    # und niemandem fiel auf, dass seit Monaten keine einzige
+    # Core-Web-Vitals-Zahl im Bericht steht.
+    if not _pagespeed_schluessel_da(quell_cfg.get("pagespeed") or {}):
+        report.befunde.append(
+            Befund(
+                "warnung",
+                name,
+                "Geschwindigkeitsmessung ohne API-Schlüssel",
+                "Weder source_config.pagespeed.api_key noch die Umgebungsvariable "
+                "PAGESPEED_API_KEY sind gesetzt. Google beantwortet Anfragen ohne "
+                "Schlüssel aus einem gemeinsamen Tageskontingent, das erschöpft "
+                "ist — es kommen KEINE Core Web Vitals (LCP, CLS, INP) an. "
+                "Die Bildprüfung läuft weiter, ersetzt die Messung aber nicht.",
+                "Kostenlosen Schlüssel anlegen "
+                "(developers.google.com/speed/docs/insights/v5/get-started) und "
+                "als PAGESPEED_API_KEY in die .env eintragen.",
             )
         )
 

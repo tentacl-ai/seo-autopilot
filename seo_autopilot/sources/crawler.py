@@ -77,6 +77,12 @@ class PageData:
     error: Optional[str] = None
     rendered_via: str = "httpx"  # "httpx" oder "playwright"
 
+    # Roh-HTML der Seite. Wird NICHT in `_page_snapshot()` übernommen und
+    # damit auch nicht gespeichert — es dient nur Analyzern, die mehr brauchen
+    # als die vorverdichteten Zähler (z. B. die Bildprüfung, die width/height,
+    # loading und srcset je <img> auswerten muss).
+    html: str = ""
+
 
 # ---------------------------------------------------------------------------
 # Crawler
@@ -288,6 +294,7 @@ class SEOCrawler:
                 return page
 
             raw_html = resp.text[:MAX_HTML_BYTES]
+            page.html = raw_html
             _parse_html_into(page, raw_html)
 
             # --- Qualitaetskontrolle + Playwright-Fallback ---
@@ -324,7 +331,8 @@ class SEOCrawler:
                     page.internal_link_urls = []
                     page.images_total = 0
                     page.images_without_alt = 0
-                    _parse_html_into(page, rendered_html[:MAX_HTML_BYTES])
+                    page.html = rendered_html[:MAX_HTML_BYTES]
+                    _parse_html_into(page, page.html)
                     page.rendered_via = "playwright"
 
                     # Head-Daten aus httpx wiederherstellen wenn Playwright sie nicht hat

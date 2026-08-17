@@ -52,6 +52,14 @@ class Settings(BaseSettings):
     AHREFS_API_KEY: Optional[str] = os.getenv("AHREFS_API_KEY")
     SEMRUSH_API_KEY: Optional[str] = os.getenv("SEMRUSH_API_KEY")
 
+    # Google PageSpeed Insights (Core Web Vitals).
+    # OHNE Schluessel laeuft die Abfrage ueber ein gemeinsames Google-Projekt,
+    # dessen Tageskontingent praktisch dauerhaft erschoepft ist — die API
+    # antwortet dann mit HTTP 429 und der Autopilot bekommt NIE Core Web Vitals.
+    # Genau das war am 2026-08-17 der Fall. Kostenloser Schluessel:
+    # https://developers.google.com/speed/docs/insights/v5/get-started
+    PAGESPEED_API_KEY: Optional[str] = os.getenv("PAGESPEED_API_KEY")
+
     # Logging
     LOG_LEVEL: str = "INFO"
     LOG_FILE: Optional[str] = os.getenv("LOG_FILE")

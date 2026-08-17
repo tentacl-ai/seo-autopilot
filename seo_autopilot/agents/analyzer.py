@@ -20,6 +20,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from ..core.config import settings
 from ..core.event_bus import EventType
 from ..sources.crawler import PageData, SEOCrawler
 from ..sources.pagespeed import PageSpeedResult, fetch_pagespeed_batch
@@ -33,6 +34,7 @@ from ..analyzers.link_graph import LinkGraph
 from ..analyzers.robots_sitemap import RobotsSitemapAuditor
 from ..analyzers.llms_ai_txt import LlmsAiTxtAuditor
 from ..analyzers.eeat import EEATAnalyzer
+from ..analyzers.image_audit import ImageAuditor
 from .intent_geo_agent import analyze_keywords as intent_geo_analyze
 from .base import Agent, AgentResult, AgentStatus
 
@@ -372,6 +374,42 @@ class AnalyzerAgent(Agent):
             except Exception as exc:
                 logger.warning(f"[analyzer] E-E-A-T analysis failed (non-fatal): {exc}")
 
+            # --- v1.6 Analyzer: Bilder + Ladezeit ---------------------------
+            # Bilder sind auf fast jeder Seite der groesste Datenblock. Der
+            # Crawler zaehlt bisher nur images_total/images_without_alt; hier
+            # kommen Masse (CLS), Ladeverhalten (LCP), Format, echte
+            # Dateigroessen per HEAD und die soziale Vorschau dazu.
+            # `doppelte_befunde_vermeiden=True`, weil alt-Texte und ein
+            # fehlendes og:image bereits unter den etablierten Typen
+            # `images_without_alt` / `missing_og_image` gemeldet werden.
+            bild_ergebnisse = []
+            try:
+                image_auditor = ImageAuditor(doppelte_befunde_vermeiden=True)
+                bild_ergebnisse = await image_auditor.audit_pages_detailliert(
+                    [
+                        {
+                            "url": p.url,
+                            "final_url": p.final_url,
+                            "html": p.html,
+                            "og_tags": p.og_tags,
+                        }
+                        for p in good_pages
+                    ]
+                )
+                bild_issues = [i for e in bild_ergebnisse for i in e.issues]
+                issues.extend(bild_issues)
+                gemessene_bytes = sum(e.gemessene_bytes for e in bild_ergebnisse)
+                gemessene_bilder = sum(e.gemessene_bilder for e in bild_ergebnisse)
+                logger.info(
+                    f"[analyzer] Bild-Audit: {len(bild_issues)} Befunde, "
+                    f"{gemessene_bilder} Bilder gemessen "
+                    f"({gemessene_bytes / 1024:.0f} KB gesamt)"
+                )
+            except Exception as exc:
+                logger.warning(
+                    f"[analyzer] Bild-Audit fehlgeschlagen (non-fatal): {exc}"
+                )
+
             # --- v0.12 Analyzer: Intent + GEO Content Analysis ---
             intent_geo_result = None
             try:
@@ -506,18 +544,37 @@ class AnalyzerAgent(Agent):
                     "keywords_analyzed": len(intent_geo_result.analyses),
                 }
 
+            # Bild-Kennzahlen — die einzige Ladezeit-Messung, die auch ohne
+            # PageSpeed-Schluessel funktioniert.
+            if bild_ergebnisse:
+                gemessen = sum(e.gemessene_bilder for e in bild_ergebnisse)
+                bytes_gesamt = sum(e.gemessene_bytes for e in bild_ergebnisse)
+                result.metrics["image_bytes_measured"] = bytes_gesamt
+                result.metrics["images_measured"] = gemessen
+                result.metrics["image_avg_kb"] = (
+                    round(bytes_gesamt / gemessen / 1024, 1) if gemessen else 0
+                )
+                result.metrics["image_heaviest_page_kb"] = round(
+                    max(e.gemessene_bytes for e in bild_ergebnisse) / 1024, 1
+                )
+
             # PageSpeed metrics (if available)
-            if psi_results:
-                psi_ok = [r for r in psi_results if not r.error]
-                if psi_ok:
-                    result.metrics["pagespeed"] = [r.to_dict() for r in psi_ok]
-                    result.metrics["lighthouse_performance"] = psi_ok[
-                        0
-                    ].performance_score
-                    result.metrics["lighthouse_seo"] = psi_ok[0].seo_score
-                    result.metrics["lighthouse_accessibility"] = psi_ok[
-                        0
-                    ].accessibility_score
+            # `pagespeed_status` macht einen stillen Ausfall sichtbar: ohne
+            # diese Marke sah ein Lauf ohne Core Web Vitals genauso aus wie
+            # einer mit perfekten Werten.
+            psi_ok = [r for r in psi_results if not r.error] if psi_results else []
+            if psi_ok:
+                result.metrics["pagespeed_status"] = "ok"
+                result.metrics["pagespeed"] = [r.to_dict() for r in psi_ok]
+                result.metrics["lighthouse_performance"] = psi_ok[0].performance_score
+                result.metrics["lighthouse_seo"] = psi_ok[0].seo_score
+                result.metrics["lighthouse_accessibility"] = psi_ok[
+                    0
+                ].accessibility_score
+            elif psi_results:
+                result.metrics["pagespeed_status"] = "error"
+            else:
+                result.metrics["pagespeed_status"] = "no_api_key"
 
             # Store raw page data in metrics so downstream agents can use it
             result.metrics["pages"] = [_page_snapshot(p) for p in pages]
@@ -889,10 +946,36 @@ class AnalyzerAgent(Agent):
     async def _run_pagespeed(
         self, domain: str, urls: List[str]
     ) -> List[PageSpeedResult]:
-        """Run PageSpeed Insights on top pages. Non-fatal on failure."""
+        """Run PageSpeed Insights on top pages. Non-fatal on failure.
+
+        URSACHE des Ausfalls (gefunden 2026-08-17): In der .env lag die ganze
+        Zeit ein gueltiger Schluessel — der Analyzer hat aber AUSSCHLIESSLICH
+        `source_config.pagespeed.api_key` aus projects.yaml gelesen, und das
+        Feld ist bei keinem einzigen Projekt gesetzt. Jede Anfrage ging also
+        unauthentifiziert raus und lief in das gemeinsame Google-Kontingent
+        (HTTP 429). Ergebnis: nie eine einzige Core-Web-Vitals-Zahl.
+
+        Der Schluessel darf jetzt aus zwei Quellen kommen: projektweise aus
+        `source_config.pagespeed.api_key` oder global aus Umgebung/.env
+        (PAGESPEED_API_KEY). Fehlt er ueberall, wird GAR NICHT erst angefragt —
+        die Google-API laeuft dann ueber ein gemeinsames Kontingent, das
+        zuverlaessig mit HTTP 429 antwortet. Das sah in den Logs monatelang wie
+        ein harmloses "PageSpeed unavailable" aus, bedeutete aber: keine
+        einzige Core-Web-Vitals-Messung. Der Waechter (health.py) meldet den
+        fehlenden Schluessel jetzt aktiv.
+        """
         source_cfg = (self.project_config.source_config or {}).get("pagespeed", {})
-        api_key = source_cfg.get("api_key")
+        api_key = source_cfg.get("api_key") or settings.PAGESPEED_API_KEY
         strategy = source_cfg.get("strategy", "mobile")
+
+        if not api_key:
+            logger.warning(
+                "[analyzer] PageSpeed uebersprungen: kein API-Schluessel "
+                "(source_config.pagespeed.api_key oder PAGESPEED_API_KEY). "
+                "Ohne Schluessel liefert Google nur HTTP 429 — es gibt in "
+                "diesem Lauf KEINE Core Web Vitals."
+            )
+            return []
 
         try:
             results = await fetch_pagespeed_batch(
@@ -903,8 +986,9 @@ class AnalyzerAgent(Agent):
                 logger.info(f"[analyzer] PageSpeed: {len(ok)}/{len(urls)} pages scored")
             else:
                 errors = [r.error for r in results if r.error]
-                logger.info(
-                    f"[analyzer] PageSpeed unavailable: {errors[0][:80] if errors else 'unknown'}"
+                logger.warning(
+                    "[analyzer] PageSpeed lieferte fuer KEINE Seite Daten "
+                    f"(trotz Schluessel): {errors[0][:120] if errors else 'unknown'}"
                 )
             return results
         except Exception as exc:

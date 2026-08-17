@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2026-08-17
+
+### Fixed
+- 🔴 **Core Web Vitals kamen seit Monaten NIE an.** Der Analyzer las den PageSpeed-Schluessel ausschliesslich aus `source_config.pagespeed.api_key` in `projects.yaml` — dieses Feld war bei **keinem** der 5 Projekte gesetzt, waehrend ein gueltiger Schluessel die ganze Zeit in der `.env` lag (`core/config.py` kannte `PAGESPEED_API_KEY` gar nicht). Jede Anfrage ging unauthentifiziert in Googles gemeinsames Kontingent und kam als `429 Quota exceeded` zurueck; im Log stand nur "PageSpeed unavailable". Erneut derselbe Fehlertyp: eine Messung faellt still aus. Schluessel wird jetzt aus Projekt-Config ODER Umgebung ODER `.env` gelesen, und der Waechter meldet, wenn keiner da ist.
+
+### Added
+- **Bild-Audit** (`analyzers/image_audit.py`) — bisher wurde bei Bildern nur der Alt-Text geprueft. Neu: Dateigroessen per echtem HEAD (max. 20/Seite, parallel), veraltete Formate, fehlende `width`/`height` (Layoutspruenge/CLS), Lazy-Loading-Fehler beim ersten grossen Bild (LCP!), fehlendes `srcset`, nichtssagende Dateinamen, Bildlast je Seite, og:image vorhanden/erreichbar/gross genug. Bewusst KEIN Befund fuer fehlendes `title` und fuer `alt=""` (beides korrekt, begruendet im Modul-Docstring).
+
+### Verified
+- joseph-hehenwarter.de: 2x **high** `image_lcp_lazy_loaded` (erstes grosses Bild mit `loading="lazy"` auf /finanzierung/factoring und /leasing — manuell bestaetigt), 912 KB Heldenbild auf der Startseite. Erstmals gemessene Core Web Vitals: Startseite LCP **4,6 s**, `/kontakt` Performance **42/100, LCP 18,1 s**.
+- tentacl.ai: `https://tentacl.ai/og-home.jpg` liefert **404** (per curl bestaetigt) — soziale Vorschau kaputt.
+- Zwei eigene Fehlalarme im Live-Lauf gefunden und behoben: HEAD-Abrufe gaben sich nicht als Browser aus (Next.js lieferte PNG statt WebP -> jedes Bild waere als "veraltet" gemeldet worden), und `/_next/image?url=…` liess jede Datei "image" heissen. Beide als Regressionstest festgenagelt.
+
+### Tests
+- +57 Tests. Total: **489**.
+
 ## [1.5.1] - 2026-08-17
 
 ### Fixed
