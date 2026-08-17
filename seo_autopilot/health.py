@@ -19,6 +19,7 @@ Werkzeug selbst — und liefert eine Liste von Befunden mit Schweregrad.
 from __future__ import annotations
 
 import logging
+import os
 import sqlite3
 import subprocess
 from dataclasses import dataclass, field
@@ -125,6 +126,19 @@ def _als_datum(wert: Any) -> Optional[datetime]:
         return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
     except ValueError:
         return None
+
+
+def _dataforseo_zugangsdaten_da(quell_cfg: Dict[str, Any]) -> bool:
+    """Sind für DataForSEO überhaupt Zugangsdaten erreichbar?
+
+    Zwei erlaubte Wege: Umgebungsvariablen oder eine Datei, deren Pfad in
+    ``source_config.dataforseo.credentials_path`` steht. Geprüft wird nur die
+    Existenz — der Inhalt wird hier nie gelesen und nie ausgegeben.
+    """
+    if os.environ.get("DATAFORSEO_LOGIN") and os.environ.get("DATAFORSEO_PASSWORD"):
+        return True
+    pfad = (quell_cfg or {}).get("credentials_path")
+    return bool(pfad) and Path(pfad).exists()
 
 
 # --------------------------------------------------------------------------
@@ -319,6 +333,47 @@ def _pruefe_projekt(
                 "enabled_sources enthält 'gsc', source_config aber keine Zugangsdaten — "
                 "die Keyword-Auswertung wird bei jedem Lauf still übersprungen.",
                 "property_url + credentials_path in source_config.gsc eintragen.",
+            )
+        )
+
+    # --- Datenquelle Analytics wirklich verbunden? ---
+    if "ga4" in quellen:
+        ga4_cfg = quell_cfg.get("ga4") or {}
+        fehlend = [
+            feld
+            for feld in ("property_id", "credentials_path")
+            if not ga4_cfg.get(feld)
+        ]
+        if fehlend:
+            report.befunde.append(
+                Befund(
+                    "warnung",
+                    name,
+                    "Analytics aktiviert, aber nicht vollständig konfiguriert",
+                    "enabled_sources enthält 'ga4', in source_config.ga4 fehlt aber: "
+                    f"{', '.join(fehlend)} — die Besucherdaten werden bei jedem "
+                    "Lauf still übersprungen.",
+                    "property_id (nur Ziffern, nicht G-XXXX) + credentials_path "
+                    "in source_config.ga4 eintragen, siehe docs/ga4-setup.md.",
+                )
+            )
+
+    # --- Datenquelle DataForSEO wirklich verbunden? ---
+    # Diese Quelle bricht nie ab, wenn Zugangsdaten fehlen — sie liefert dann
+    # still gar nichts. Genau das soll hier auffallen.
+    if "dataforseo" in quellen and not _dataforseo_zugangsdaten_da(
+        quell_cfg.get("dataforseo") or {}
+    ):
+        report.befunde.append(
+            Befund(
+                "warnung",
+                name,
+                "DataForSEO aktiviert, aber nicht konfiguriert",
+                "enabled_sources enthält 'dataforseo', es gibt aber weder "
+                "DATAFORSEO_LOGIN/DATAFORSEO_PASSWORD in der Umgebung noch eine "
+                "lesbare credentials_path — SERP-, Suchvolumen- und "
+                "Backlink-Daten fehlen bei jedem Lauf stillschweigend.",
+                "Zugangsdaten hinterlegen, siehe docs/dataforseo-setup.md.",
             )
         )
 

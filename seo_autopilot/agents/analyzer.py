@@ -424,6 +424,30 @@ class AnalyzerAgent(Agent):
                             f"[verify] verworfen: {w.get('type')} — "
                             f"{w.get('refuted_reason')}"
                         )
+                    # --- Lernschleife: widerlegte Befunde festhalten ---------
+                    # Nur zu loggen reicht nicht: Erst die Historie zeigt, ob
+                    # ein Fehlalarm eine Eigenheit der Website war oder eine
+                    # kaputte Pruefregel, die bei mehreren Kunden zuschlaegt.
+                    # Statistik darf einen Audit NIE abbrechen -> eigener
+                    # try/except, Fehler nur als Warnung.
+                    try:
+                        from ..learning import record_refuted, standard_db_pfad
+
+                        gespeichert = record_refuted(
+                            standard_db_pfad(),
+                            self.project_id,
+                            self.audit_id,
+                            widerlegt,
+                        )
+                        logger.info(
+                            f"[learning] {gespeichert} widerlegte Befunde "
+                            "fuer die Lernschleife gesichert"
+                        )
+                    except Exception as exc:
+                        logger.warning(
+                            f"[learning] Sichern der widerlegten Befunde "
+                            f"fehlgeschlagen (non-fatal): {exc}"
+                        )
             except Exception as exc:
                 logger.warning(
                     f"[analyzer] Gegenprobe fehlgeschlagen (non-fatal): {exc}"

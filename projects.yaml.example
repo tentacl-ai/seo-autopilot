@@ -13,12 +13,20 @@ projects:
     enabled_sources:
       - gsc                            # Google Search Console
       - pagespeed                      # PageSpeed Insights
+      - dataforseo                     # SERP + Suchvolumen + Backlinks (kostet pro Abfrage!)
     source_config:
       gsc:
         property_url: "sc-domain:example.com"  # Your GSC property
         credentials_path: /path/to/service-account.json
       pagespeed:
         api_key: "${PAGESPEED_API_KEY}"         # Optional, env var
+      dataforseo:
+        # Zugangsdaten kommen aus DATAFORSEO_LOGIN / DATAFORSEO_PASSWORD.
+        # Alternativ eine Datei angeben (siehe docs/dataforseo-setup.md):
+        # credentials_path: /opt/odoo/credentials/dataforseo.json
+        max_abfragen_pro_lauf: 25      # Kostenbremse — bricht ab statt weiterzuzahlen
+        location_code: 2276            # 2276 = Deutschland
+        language_code: de
     schedule_cron: "0 7 * * 1"        # Weekly Monday 7am
     run_interval_days: 7
     notifications_enabled: true

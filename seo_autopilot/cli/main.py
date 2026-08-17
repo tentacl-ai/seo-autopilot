@@ -193,6 +193,122 @@ def selfcheck(db, projects, notify):
 
 
 @cli.command()
+@click.option("--db", default=None, help="Pfad zur Audit-Datenbank")
+@click.option(
+    "--min-treffer",
+    default=None,
+    type=int,
+    help="Ab wie vielen Widerlegungen ein Befundtyp als Muster gilt (Standard: 3)",
+)
+@click.option(
+    "--tage", default=None, type=int, help="Beobachtungsfenster in Tagen (Standard: 30)"
+)
+def learnings(db, min_treffer, tage):
+    """Wiederkehrende Fehlalarme zeigen (Lernschleife).
+
+    Listet Befundtypen, die die Gegenprobe wiederholt widerlegt hat. Taucht ein
+    Typ bei mehreren Projekten auf, ist die Pruefregel im Analyzer kaputt.
+    """
+    from ..learning import (
+        FENSTER_TAGE,
+        MIN_TREFFER,
+        bericht_als_text,
+        muster_bericht,
+        standard_db_pfad,
+    )
+
+    db_pfad = db or standard_db_pfad()
+    schwelle = MIN_TREFFER if min_treffer is None else min_treffer
+    fenster = FENSTER_TAGE if tage is None else tage
+
+    muster = muster_bericht(db_pfad, min_treffer=schwelle, tage=fenster)
+    click.echo(bericht_als_text(muster, tage=fenster, min_treffer=schwelle))
+
+
+@cli.command()
+@click.option(
+    "--tage", default=14, help="Nur Meldungen der letzten N Tage (Standard: 14)"
+)
+def radar(tage):
+    """Richtlinien-Radar: neue Google-/KI-Suchrichtlinien und was daran haengt.
+
+    Holt die ueberwachten RSS-Feeds, erkennt Richtlinien-Themen und nennt die
+    eigenen Pruefbereiche, die dadurch angepasst werden muessen.
+    Bricht nie ab: sind die Feeds nicht erreichbar, gibt es eine Meldung und
+    Exit-Code 0.
+    """
+    from ..policy_radar import analysiere_meldungen, radar_zusammenfassung
+    from ..sources.intelligence import IntelligenceFeed
+
+    feed = IntelligenceFeed()
+    if not feed.available:
+        click.echo(
+            "Richtlinien-Radar: feedparser ist nicht installiert — "
+            "keine Feeds abrufbar (pip install feedparser)."
+        )
+        return
+
+    try:
+        eintraege = feed.poll_feeds()
+    except Exception as exc:  # pragma: no cover - Netzwerk
+        logger.warning(f"[radar] Feed-Abruf fehlgeschlagen: {exc}")
+        click.echo(f"Richtlinien-Radar: Feeds nicht erreichbar ({exc}).")
+        return
+
+    if not eintraege:
+        click.echo(
+            "Richtlinien-Radar: keine Feed-Meldungen abrufbar "
+            "(Feeds leer oder nicht erreichbar)."
+        )
+        return
+
+    treffer = analysiere_meldungen(eintraege, max_alter_tage=tage)
+    click.echo(
+        f"Ausgewertet: {len(eintraege)} Feed-Meldungen "
+        f"(Fenster: letzte {tage} Tage).\n"
+    )
+    click.echo(radar_zusammenfassung(treffer))
+
+
+@cli.command()
+@click.option("--db", default="seo_autopilot.db", help="Pfad zur Audit-Datenbank")
+@click.option("--projects", default="projects.yaml", help="Pfad zur Projektliste")
+@click.option("--tage", default=7, type=int, help="Zeitraum in Tagen (Standard 7)")
+@click.option(
+    "--html", "html_pfad", default=None, help="HTML-Bericht in diese Datei schreiben"
+)
+@click.option("--notify/--no-notify", default=False, help="Bericht per Telegram senden")
+def weekly(db, projects, tage, html_pfad, notify):
+    """Wochenbericht ueber alle Projekte (verstaendliches Deutsch).
+
+    Beispiel:
+      seo-autopilot weekly --tage 7 --html reports/woche.html --notify
+    """
+    from ..weekly_report import als_text, baue_wochenbericht, schreibe_html
+
+    bericht = baue_wochenbericht(db_pfad=db, projects_pfad=projects, tage=tage)
+    text = als_text(bericht)
+    click.echo(text)
+
+    if html_pfad:
+        ziel = schreibe_html(bericht, html_pfad)
+        click.echo(f"\nHTML-Bericht geschrieben: {ziel}")
+
+    if notify:
+        try:
+            from ..notifications.telegram import MAX_MESSAGE_LENGTH, send_plain_message
+
+            # Telegram schneidet lange Nachrichten stillschweigend ab — dann
+            # lieber die Empfehlungen weglassen als das letzte Projekt.
+            meldung = text
+            if len(meldung) > MAX_MESSAGE_LENGTH:
+                meldung = als_text(bericht, kompakt=True)
+            send_plain_message(meldung)
+        except Exception as exc:  # pragma: no cover - Netzwerk
+            logger.warning(f"Telegram-Meldung fehlgeschlagen: {exc}")
+
+
+@cli.command()
 def version():
     """Show version"""
     from .. import __version__

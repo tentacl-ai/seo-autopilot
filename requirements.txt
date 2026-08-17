@@ -15,6 +15,9 @@ pyyaml>=6.0
 aiosqlite>=0.19.0
 google-api-python-client>=2.100.0
 google-auth-oauthlib>=1.0.0
+# Besucherdaten aus Google Analytics 4 (optional — fehlt sie, wird die
+# GA4-Quelle still uebersprungen, siehe docs/ga4-setup.md)
+google-analytics-data>=0.18.0
 jinja2>=3.1.0
 
 # JS rendering fallback for SPAs
@@ -36,3 +39,4 @@ pytrends>=4.9.0
 # pytest-cov>=4.0
 # black>=23.0
 # flake8>=6.0
+feedparser>=6.0  # Richtlinien-Radar (policy_radar) — ohne dies bleiben die Feeds leer

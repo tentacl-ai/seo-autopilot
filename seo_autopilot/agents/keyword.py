@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 
 from ..core.event_bus import EventType
 from ..sources.base import DataSourceError, SearchAnalytics
+from ..sources.ga4 import GA4Analytics, erstelle_quelle as erstelle_ga4_quelle
 from ..sources.gsc import GSCDataSource
 from .base import Agent, AgentResult, AgentStatus
 
@@ -26,6 +27,12 @@ LOW_CTR_THRESHOLD = 0.03  # 3%
 STRIKING_DISTANCE_MIN = 11  # Positions 11-20 = "Page 2"
 STRIKING_DISTANCE_MAX = 20
 MIN_IMPRESSIONS = 30  # ignore noise
+
+# GA4: ab wann eine Seite als "Besucher springen sofort ab" gilt.
+# Erst ab einer Mindestzahl Sitzungen, sonst meldet eine Seite mit drei
+# Besuchern einen Alarm.
+HIGH_BOUNCE_THRESHOLD = 70.0  # Prozent
+MIN_SESSIONS = 30
 
 
 class KeywordAgent(Agent):
@@ -52,6 +59,9 @@ class KeywordAgent(Agent):
             await self.emit_started()
 
             analytics = await self._pull_gsc_analytics()
+            # GA4 laeuft unabhaengig von GSC — es liefert nie eine Ausnahme,
+            # sondern im Zweifel None.
+            visitors = await self._pull_ga4_analytics()
 
             if analytics is None:
                 result.status = AgentStatus.SKIPPED
@@ -63,13 +73,16 @@ class KeywordAgent(Agent):
                         "opportunities_found": 0,
                     }
                 )
+                result.metrics.update(self._ga4_metrics(visitors))
+                result.issues = self._find_high_bounce_pages(visitors)
                 return result
 
             keywords = analytics.top_queries
             opportunities = self._find_opportunities(keywords)
             striking_distance = self._find_striking_distance(keywords)
+            high_bounce = self._find_high_bounce_pages(visitors)
 
-            result.issues = opportunities + striking_distance
+            result.issues = opportunities + striking_distance + high_bounce
 
             # Persist raw GSC data in metrics so downstream agents/report use it
             result.metrics.update(
@@ -87,6 +100,7 @@ class KeywordAgent(Agent):
                     "striking_distance_count": len(striking_distance),
                 }
             )
+            result.metrics.update(self._ga4_metrics(visitors))
 
             result.status = AgentStatus.COMPLETED
             result.log_output = (
@@ -134,6 +148,82 @@ class KeywordAgent(Agent):
         gsc = GSCDataSource(creds_path)
         await gsc.authenticate()
         return await gsc.pull_analytics(property_url, days=28)
+
+    async def _pull_ga4_analytics(self) -> Optional[GA4Analytics]:
+        """Besucherdaten aus GA4 holen — still, wenn nicht konfiguriert.
+
+        Die Quelle darf den Lauf nie abbrechen: Fehlt die Bibliothek, die
+        property_id oder die Schlüsseldatei, gibt es hier einfach None.
+        """
+        if "ga4" not in (self.project_config.enabled_sources or []):
+            return None
+
+        quelle = erstelle_ga4_quelle(self.project_config.source_config or {})
+        if quelle is None:
+            logger.info("[GA4] 'ga4' aktiviert, aber source_config.ga4 fehlt.")
+            return None
+
+        if not quelle.available:
+            logger.warning(f"[GA4] {quelle.status_text()}")
+            return None
+
+        try:
+            return await quelle.pull_analytics(self.project_config.domain, days=28)
+        except Exception as exc:  # doppelter Boden — GA4 kippt nie den Audit
+            logger.warning(f"[GA4] Besucherdaten nicht abrufbar: {exc}")
+            return None
+
+    def _ga4_metrics(self, visitors: Optional[GA4Analytics]) -> Dict[str, Any]:
+        """GA4-Zahlen für Bericht und Persistenz aufbereiten."""
+        if visitors is None:
+            return {"ga4_available": False}
+        return {
+            "ga4_available": True,
+            "ga4_users": visitors.total_users,
+            "ga4_sessions": visitors.total_sessions,
+            "ga4_pageviews": visitors.total_pageviews,
+            "ga4_bounce_rate": visitors.bounce_rate,
+            "ga4_engagement_rate": visitors.engagement_rate,
+            "ga4_organic_sessions": visitors.organic_sessions,
+            "ga4_organic_share": visitors.organic_share,
+            "ga4_by_channel": visitors.by_channel,
+            "ga4_top_pages": visitors.top_pages[:20],
+        }
+
+    def _find_high_bounce_pages(
+        self, visitors: Optional[GA4Analytics]
+    ) -> List[Dict[str, Any]]:
+        """Seiten, die zwar Besucher bekommen, sie aber sofort verlieren."""
+        if visitors is None:
+            return []
+
+        issues: List[Dict[str, Any]] = []
+        for seite in visitors.top_pages:
+            sitzungen = seite.get("sessions", 0)
+            absprung = seite.get("bounce_rate", 0.0)
+            if sitzungen < MIN_SESSIONS or absprung < HIGH_BOUNCE_THRESHOLD:
+                continue
+            issues.append(
+                {
+                    "category": "keyword",
+                    "type": "high_bounce_page",
+                    "severity": "medium",
+                    "title": f"Hohe Absprungrate auf {seite['page']} ({absprung:.0f}%)",
+                    "affected_url": seite["page"],
+                    "sessions": sitzungen,
+                    "bounce_rate": absprung,
+                    "engagement_rate": seite.get("engagement_rate", 0.0),
+                    "description": (
+                        f"{seite['page']} hatte {sitzungen} Sitzungen, "
+                        f"aber {absprung:.0f}% der Besucher springen sofort wieder ab."
+                    ),
+                    "fix_suggestion": (
+                        "Prüfen, ob die Seite hält, was das Suchergebnis verspricht: "
+                        "Einstieg, Ladezeit und ein klarer nächster Schritt oben."
+                    ),
+                }
+            )
+        return issues
 
     def _find_opportunities(
         self, keywords: List[Dict[str, Any]]

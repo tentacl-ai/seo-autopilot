@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2026-08-17
+
+Ausbau zum selbstueberwachenden, lernenden Werkzeug — Fahrplan-Schritte 3 bis 7.
+
+### Added
+- **Lernschleife (`learnings`)** — widerlegte Befunde landen in `refuted_findings` statt zu verpuffen. `muster_bericht()` zeigt, welcher Befundtyp wie oft und bei wie vielen verschiedenen Projekten widerlegt wurde; ab 2 Projekten gilt er als Analyzer-Bug, nicht als Zufall.
+- **Richtlinien-Radar (`radar`)** — 8 Themen-Landkarten uebersetzen Meldungen aus den vorhandenen SEO-Feeds in betroffene Pruefbereiche (Core Web Vitals, KI-Suche, KI-Crawler, strukturierte Daten, Inhaltsqualitaet, doppelte Inhalte, Indexierung, Ranking-Updates). Google-eigene Quellen und Mehrfachtreffer bekommen hohe Relevanz. Live: 119 Meldungen ausgewertet, 17 relevante.
+- **Wochenbericht (`weekly`)** — verstaendliches Deutsch statt Rohbefunde: Note je Projekt, Veraenderung zur Vorwoche, Suchklicks, und die drei wirkungsvollsten Massnahmen. Aus 134 Rohbefunden werden drei Zeilen. Als Text, als eigenstaendiges HTML (keine externen Verweise) und per Telegram; oberhalb des Telegram-Limits automatisch die kompakte Fassung.
+- **Google Analytics 4 als Datenquelle** (`sources/ga4.py`) — Nutzer, Sitzungen, Aufrufe, Absprung-/Interaktionsrate, Kanaele und Top-Seiten. Neuer Befund `high_bounce_page` (ab 30 Sitzungen und 70 % Absprung) beantwortet endlich "wird oft angezeigt, aber die Besucher springen sofort ab". Laeuft unabhaengig von GSC.
+- **DataForSEO als Datenquelle** (`sources/dataforseo.py`) — Suchergebnisse, Suchvolumen, Backlinks. Mit **Kostenbremse** (Standard 25 Abfragen pro Lauf, danach wird keine Anfrage mehr abgeschickt) und strikter Geheimhaltung: jede Ausgabe laeuft durch einen Filter, der Login, Passwort und Base64-Token ersetzt.
+- Waechter prueft zusaetzlich, ob aktivierte GA4-/DataForSEO-Quellen auch konfiguriert sind.
+
+### Changed
+- `adapter_config.max_pages` je Projekt an die echte Seitenzahl angepasst (Standard 15 schnitt systematisch Seiten ab): tentacl-ai 40, joseph 30, lovebianca-ai 40, skinmatch/topal 20.
+- `feedparser` als Abhaengigkeit ergaenzt — ohne sie lief das Radar leer.
+
+### Tests
+- +127 Tests (Lernschleife 25, Radar 29, Wochenbericht 26, GA4 24, DataForSEO 33). Total: **414**.
+
 ## [1.4.0] - 2026-08-17
 
 ### Added
