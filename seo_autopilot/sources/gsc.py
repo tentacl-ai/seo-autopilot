@@ -9,7 +9,7 @@ Pulls weekly data from GSC:
 """
 
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Optional, Dict, Any, List
 import logging
 
@@ -224,6 +224,83 @@ class GSCDataSource(DataSource):
             )
 
         return SearchAnalytics(**stats)
+
+    async def pull_url_window(
+        self,
+        property_url: str,
+        page_url: str,
+        start_date: "date",
+        end_date: "date",
+    ) -> Optional[Dict[str, Any]]:
+        """Kennzahlen EINER Adresse in einem festen Zeitfenster.
+
+        Grundlage der Wirkungsmessung: `pull_analytics` liefert immer nur die
+        letzten N Tage ab heute und aggregiert ueber die ganze Property. Fuer
+        die Frage "hat diese Aenderung an dieser Seite gewirkt" braucht es
+        beides genauer — eine Adresse, zwei frei waehlbare Fenster.
+
+        `start_date`/`end_date` sind inklusiv, so wie die GSC-API sie versteht.
+
+        Rueckgabe: dict mit `clicks`, `impressions`, `ctr`, `position`,
+        `hat_daten`. Kein Treffer heisst nicht "Fehler", sondern schlicht: Die
+        Seite hatte in diesem Zeitraum keine Sichtbarkeit — dann stehen Nullen
+        und `hat_daten=False` drin. `None` kommt nur bei einem echten Fehler
+        zurueck, damit die Wirkungsmessung "keine Daten" nicht mit "Abfrage
+        kaputt" verwechselt und daraus ein Urteil bastelt.
+        """
+        try:
+            if not self.authenticated:
+                await self.authenticate()
+
+            request = {
+                "startDate": start_date.isoformat(),
+                "endDate": end_date.isoformat(),
+                "dimensions": ["page"],
+                "dimensionFilterGroups": [
+                    {
+                        "filters": [
+                            {
+                                "dimension": "page",
+                                "operator": "equals",
+                                "expression": page_url,
+                            }
+                        ]
+                    }
+                ],
+                "rowLimit": 1,
+            }
+
+            response = (
+                self.service.searchanalytics()
+                .query(siteUrl=property_url, body=request)
+                .execute()
+            )
+
+            rows = response.get("rows", [])
+            if not rows:
+                return {
+                    "clicks": 0,
+                    "impressions": 0,
+                    "ctr": 0.0,
+                    "position": 0.0,
+                    "hat_daten": False,
+                }
+
+            row = rows[0]
+            return {
+                "clicks": int(row.get("clicks", 0)),
+                "impressions": int(row.get("impressions", 0)),
+                "ctr": round(float(row.get("ctr", 0.0)) * 100, 2),
+                "position": round(float(row.get("position", 0.0)), 2),
+                "hat_daten": True,
+            }
+
+        except Exception as e:
+            logger.error(
+                f"GSC pull_url_window failed for {page_url} "
+                f"({start_date}..{end_date}): {e}"
+            )
+            return None
 
     async def pull_backlinks(self, domain: str) -> Optional[List[Dict[str, Any]]]:
         """GSC has no backlink API – not implemented"""

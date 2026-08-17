@@ -344,6 +344,96 @@ def changes(db, projekt, tage, mit_diff, nur_offene):
 
 
 @cli.command()
+@click.option("--db", default=None, help="Pfad zur Audit-Datenbank")
+@click.option("--projects", default="projects.yaml", help="Pfad zur Projektliste")
+@click.option("--projekt", default=None, help="Nur dieses Projekt")
+@click.option(
+    "--messen/--nur-anzeigen",
+    default=False,
+    help="Faellige Messungen jetzt durchfuehren (fragt die Search Console ab)",
+)
+@click.option(
+    "--fenster",
+    default=None,
+    type=int,
+    help="Nur dieses Messfenster anzeigen (7, 14, 28 oder 56 Tage)",
+)
+@click.option(
+    "--bilanz",
+    "zeige_bilanz",
+    is_flag=True,
+    default=False,
+    help="Trefferquote je Art der Aenderung statt Einzelmessungen",
+)
+@click.option(
+    "--nur-belastbar/--alle",
+    default=False,
+    help="Messungen ohne verwertbares Ergebnis ausblenden",
+)
+def wirkung(db, projects, projekt, messen, fenster, zeige_bilanz, nur_belastbar):
+    """Wirkungsmessung: hat eine Aenderung tatsaechlich etwas gebracht.
+
+    Vergleicht je Aenderung das Zeitfenster davor mit dem danach (7/14/28/56
+    Tage, Search-Console-Daten fuer genau diese Adresse). Ohne ausreichende
+    Datenlage wird bewusst KEIN Urteil gefaellt.
+
+    Beispiele:
+      seo-autopilot wirkung --messen          # faellige Messungen nachholen
+      seo-autopilot wirkung --bilanz          # was wirkt ueberhaupt
+      seo-autopilot wirkung --projekt joseph --fenster 28
+    """
+    import asyncio
+    from pathlib import Path
+
+    from ..wirkung import (
+        als_text,
+        bilanz,
+        bilanz_als_text,
+        faellige_messungen,
+        messungen,
+        miss_faellige,
+        standard_db_pfad,
+    )
+
+    db_pfad = db or standard_db_pfad()
+
+    if messen:
+        from ..health import _lade_projekte
+
+        projekt_liste = _lade_projekte(Path(projects))
+        if not projekt_liste:
+            # Exit-Code, kein stilles return: Im Cron laeuft dieser Befehl aus
+            # einem beliebigen Verzeichnis, und `projects.yaml` wird relativ
+            # aufgeloest. Ohne `cd` faende er nie eine Projektliste — und
+            # wuerde jahrelang "erfolgreich" nichts messen. Genau dieser
+            # Fehlertyp (stiller Ausfall) hat dieses Projekt schon zweimal
+            # Monate gekostet.
+            raise click.ClickException(
+                f"Keine Projekte gefunden ({projects}). "
+                "Im Cron 'cd /opt/odoo/docs/seo-autopilot &&' voranstellen."
+            )
+        neue = asyncio.run(miss_faellige(db_pfad, projekt_liste, project_id=projekt))
+        click.echo(f"{len(neue)} Messung(en) durchgefuehrt.\n")
+
+    if zeige_bilanz:
+        click.echo(bilanz_als_text(bilanz(db_pfad, project_id=projekt)))
+        return
+
+    liste = messungen(
+        db_pfad,
+        project_id=projekt,
+        fenster_tage=fenster,
+        nur_belastbar=nur_belastbar,
+    )
+    click.echo(als_text(liste))
+
+    if not messen:
+        offen = faellige_messungen(db_pfad, project_id=projekt)
+        if offen:
+            click.echo(f"\n{len(offen)} Messung(en) faellig — mit '--messen' abrufen.")
+
+
+@cli.command()
 def version():
     """Show version"""
     from .. import __version__

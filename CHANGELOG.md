@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0] - 2026-08-17
+
+Roadmap-Phase 2. Das Aenderungsbuch (1.7.0) haelt fest, WAS geaendert wurde — jetzt beantwortet das Werkzeug, ob es etwas gebracht hat.
+
+### Added
+- **Wirkungsmessung** (`wirkung.py`, CLI `wirkung`) — je Aenderung wird nach **7, 14, 28 und 56 Tagen** das gleich lange Zeitfenster davor gegen das danach gestellt (Search-Console-Daten fuer genau diese Adresse). Der Tag der Aenderung selbst gehoert in kein Fenster: An ihm stand die Seite teils alt, teils neu online.
+- **`bilanz()` — was wirkt ueberhaupt.** Trefferquote je Art der Aenderung ("Titel umschreiben hat in 7 von 10 Faellen geholfen, og:image nachruesten in 0 von 4"). Genau diese Quote braucht der spaetere Chancen-Motor (Phase 4), um Aufwand sinnvoll zu verteilen.
+- **`GSCDataSource.pull_url_window()`** — Kennzahlen einer einzelnen Adresse in einem frei waehlbaren Zeitfenster. `pull_analytics` konnte nur "die letzten N Tage, ganze Property".
+
+### Sperren gegen Scheinergebnisse
+Eine Wirkungsmessung, die zu gern "verbessert" meldet, ist schlimmer als gar keine — sie fuehrt dazu, dass wirkungslose Massnahmen wiederholt werden. Fuenf Sperren faellen lieber kein Urteil als ein schlechtes:
+- **Datenmenge skaliert mit der Fensterlaenge** (`5 Einblendungen/Tag`, mindestens 30). 30 Einblendungen sind in 7 Tagen duenn und in 56 Tagen nichts; ohne Skalierung waeren die langen Fenster die unzuverlaessigsten, obwohl sie die wichtigsten sind.
+- **Widerspruechliche Signale zaehlen nicht als Erfolg.** Position nach vorn, aber gleichzeitig weniger Einblendungen UND Klicks = meist verschobener Suchbegriff-Mix, kein Gewinn.
+- **Mehrere Aenderungen an derselben Seite im Messzeitraum** → `nicht_zurechenbar`, unabhaengig davon, wie eindeutig die Zahlen aussehen.
+- **Fremde Aenderungen** (`urheber="mensch"`) werden gemessen, aber in der Bilanz getrennt ausgewiesen — fremde Arbeit darf die eigene Trefferquote nicht schoenen.
+- **Ein Abfragefehler ist kein Messergebnis.** Liefert die Search Console `None`, wird nichts gespeichert und die Messung bleibt faellig.
+
+### Verified
+- **Live gegen echte Search-Console-Daten** (joseph-Startseite, rueckdatierte Testaenderung in eigener Datenbank — die Live-Daten blieben unberuehrt): Der erste Lauf meldete 2x "besser" bei Position 6,7 → 2,8. Die Gegenprobe zeigte: Einblendungen (43 → 40) und Klicks (8 → 6) waren gleichzeitig **gefallen**. Daraufhin wurde die Widerspruchs-Sperre gebaut; derselbe Lauf meldet jetzt korrekt "unveraendert" mit Begruendung. Ohne diesen Live-Lauf waere ein Scheinerfolg in Produktion gegangen.
+- Die drei zentralen Sperren wurden gezielt sabotiert, um zu belegen, dass die Tests sie wirklich abdecken (Datenmengen-Sperre, Zurechenbarkeit, Fehlerbehandlung — jeweils genau die zugehoerigen Tests wurden rot).
+
+### Tests
+- +39 Tests (`tests/test_wirkung.py`). Total: **577**.
+
 ## [1.7.0] - 2026-08-17
 
 ### Added
