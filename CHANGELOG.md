@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-08-17
+
+### Added
+- **Auto-Verify: schwere Befunde pruefen sich selbst.** Vor der Meldung wird jeder High-Finding eines bekannten Typs per HTTP gegen die Realitaet geprueft — existiert das Impressum doch? liegt das Organisations-Schema vor? ist die Seite in Wahrheit verlinkt? haben die Bilder ein alt-Attribut? Widerlegte Befunde verschwinden aus dem Bericht und werden mit Begruendung protokolliert (Rohmaterial fuer die Lernschleife).
+- **Grundregel: im Zweifel bleibt der Befund.** Netzwerkfehler, unbekannter Typ oder unklares Ergebnis fuehren nie zum Verwerfen — sonst tauscht man falsche Alarme gegen uebersehene Probleme. Bestaetigte Befunde tragen `verified: True` plus Begruendung.
+- Geprueft werden: `missing_impressum`, `missing_datenschutz`, `missing_privacy`, `missing_org_schema`, `orphan_page`, `unreachable_page`, `noindex`, `page_noindex`, `images_without_alt`.
+
+### Verified
+- Live an tentacl.ai: 2 weitere Fehlalarme (Impressum + Datenschutz, beide unter dem Standardpfad erreichbar, vom Crawl nicht erfasst) automatisch entfernt, high 25 -> 23. Ohne manuellen Eingriff.
+
+### Tests
+- +13 Tests (`tests/test_verification.py`): jeder Fehlalarm-Typ verschwindet, jeder echte Befund bleibt, Netzwerkfehler und unbekannte Typen lassen Befunde unangetastet. Total: 278.
+
 ## [1.3.0] - 2026-08-17
 
 ### Added

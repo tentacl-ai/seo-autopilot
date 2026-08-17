@@ -409,6 +409,26 @@ class AnalyzerAgent(Agent):
                     f"[analyzer] Intent/GEO analysis failed (non-fatal): {exc}"
                 )
 
+            # --- Gegenprobe: schwere Befunde gegen die Realität pruefen -------
+            # Ein Befund, der sich per HTTP-Abruf widerlegen laesst, gehoert
+            # nicht in den Bericht. Am 2026-08-17 waren bei joseph-hehenwarter.de
+            # 5 von 5 High-Findings falsch; diese Stufe faengt so etwas selbst ab.
+            try:
+                from ..verification import verify_issues
+
+                issues, widerlegt = await verify_issues(issues, domain)
+                if widerlegt:
+                    result.metrics["refuted_findings"] = len(widerlegt)
+                    for w in widerlegt:
+                        logger.info(
+                            f"[verify] verworfen: {w.get('type')} — "
+                            f"{w.get('refuted_reason')}"
+                        )
+            except Exception as exc:
+                logger.warning(
+                    f"[analyzer] Gegenprobe fehlgeschlagen (non-fatal): {exc}"
+                )
+
             # Snapshot metrics
             total_images = sum(p.images_total for p in good_pages)
             missing_alt = sum(p.images_without_alt for p in good_pages)
