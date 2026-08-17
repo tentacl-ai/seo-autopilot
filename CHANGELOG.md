@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-08-17
+
+### Added
+- **`selfcheck` — Selbstueberwachung des Autopilot.** Das Tool bemerkte seine eigenen Ausfaelle nicht: `joseph` war nie gelaufen (Domain zeigte auf eine tote Adresse), `topal` hatte gar keinen Cron, und im Mai scheiterte die Persistenz wochenlang still. Der neue Waechter prueft den Betriebszustand statt der Websites: laeuft jedes aktive Projekt (max. 36 h alt)? hat jedes einen Cron? hat der letzte Lauf ueberhaupt Seiten erfasst? steht die DB unter Migrationskontrolle? ist eine aktivierte Datenquelle auch konfiguriert? gab es einen Score-Einbruch (>=15 Punkte)? Exit-Code 0/1/2 fuer Monitoring, `--notify` meldet per Telegram. Cron taeglich 11:30, nach allen Audits.
+- `send_plain_message()` fuer kontextfreie Telegram-Meldungen.
+
+### Tests
+- +11 Tests (`tests/test_health_selfcheck.py`). Jeder Ausfall-Fall wird zuerst ROT nachgewiesen; die Crontab ist injizierbar, damit Tests nicht von der Server-Umgebung abhaengen. Total: 265.
+
 ## [1.2.3] - 2026-08-17
 
 ### Fixed

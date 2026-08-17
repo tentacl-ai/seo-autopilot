@@ -125,3 +125,35 @@ def _format_message(ctx: AuditContext, report_path: Optional[Path]) -> str:
         lines += ["", f"Report: `{report_path}`"]
 
     return "\n".join(lines)
+
+
+def send_plain_message(text: str) -> bool:
+    """Sendet eine einfache Textnachricht (synchron).
+
+    Für den Selfcheck-Wächter: der laeuft aus dem Cron heraus und braucht
+    keinen Audit-Kontext. Ohne konfigurierten Bot passiert nichts.
+    """
+    token = settings.TELEGRAM_BOT_TOKEN
+    chat_id = settings.TELEGRAM_CHAT_ID
+    if not token or not chat_id:
+        logger.info("Telegram not configured - skipping selfcheck notification")
+        return False
+
+    url = TELEGRAM_API.format(token=token, method="sendMessage")
+    try:
+        resp = httpx.post(
+            url,
+            data={
+                "chat_id": chat_id,
+                "text": text[:MAX_MESSAGE_LENGTH],
+                "disable_web_page_preview": "true",
+            },
+            timeout=15.0,
+        )
+        if resp.status_code != 200:
+            logger.warning(f"Telegram API error {resp.status_code}: {resp.text}")
+            return False
+        return True
+    except Exception as exc:
+        logger.warning(f"Telegram send failed: {exc}")
+        return False

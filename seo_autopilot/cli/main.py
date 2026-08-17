@@ -167,6 +167,32 @@ def api(host, port):
 
 
 @cli.command()
+@click.option("--db", default="seo_autopilot.db", help="Pfad zur Audit-Datenbank")
+@click.option("--projects", default="projects.yaml", help="Pfad zur Projektliste")
+@click.option("--notify/--no-notify", default=False, help="Befunde per Telegram melden")
+def selfcheck(db, projects, notify):
+    """Selbstpruefung: laeuft der Autopilot ueberall noch?
+
+    Exit-Code 0 = gesund, 1 = Warnungen, 2 = kritisch (fuer Cron/Monitoring).
+    """
+    from ..health import run_selfcheck
+
+    report = run_selfcheck(db_pfad=db, projects_pfad=projects)
+    text = report.as_text()
+    click.echo(text)
+
+    if notify and report.befunde:
+        try:
+            from ..notifications.telegram import send_plain_message
+
+            send_plain_message(f"SEO-Autopilot Selbstpruefung\n\n{text}")
+        except Exception as exc:  # pragma: no cover - Netzwerk
+            logger.warning(f"Telegram-Meldung fehlgeschlagen: {exc}")
+
+    raise SystemExit(report.exit_code)
+
+
+@cli.command()
 def version():
     """Show version"""
     from .. import __version__
