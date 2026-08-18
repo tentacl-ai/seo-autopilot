@@ -14,7 +14,7 @@ import yaml
 import json
 from pathlib import Path
 from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 import logging
 
@@ -51,6 +51,9 @@ class ProjectConfig:
     notify_config: Dict[str, Any] = None  # e.g. {"email": "admin@..."}
 
     # Auto-Fix-Loop (Welle 2)
+    # Betriebsart: beobachter | copilot | autopilot (siehe ausfuehrung.py).
+    # Kein Pflichtfeld — fehlt sie, gilt der sicherste Modus.
+    betriebsart: Optional[str] = None
     auto_fix_enabled: bool = False
     auto_fix_config: Dict[str, Any] = (
         None  # {whitelist_extra: [...], push_to_remote, ...}
@@ -106,12 +109,34 @@ class ProjectManager:
         try:
             with open(self.config_path) as f:
                 data = yaml.safe_load(f) or {}
-
-            for project_id, cfg in data.get("projects", {}).items():
-                self.projects[project_id] = ProjectConfig(id=project_id, **cfg)
-            logger.info(f"Loaded {len(self.projects)} projects from {self.config_path}")
         except Exception as e:
             logger.error(f"Error loading config: {e}")
+            return
+
+        bekannt = {f.name for f in fields(ProjectConfig)}
+
+        for project_id, cfg in (data.get("projects") or {}).items():
+            # Fehler je Projekt isolieren. Vorher riss ein einziges kaputtes
+            # oder unbekanntes Feld ALLE Projekte mit — der Autopilot lief
+            # dann scheinbar normal weiter und tat nichts, sichtbar nur an
+            # einer Zeile im Log. Genau dieser stille Totalausfall soll nicht
+            # mehr möglich sein.
+            try:
+                sauber = {k: v for k, v in (cfg or {}).items() if k in bekannt}
+                unbekannt = sorted(set((cfg or {}).keys()) - bekannt)
+                if unbekannt:
+                    logger.warning(
+                        f"Projekt {project_id}: unbekannte Felder in der "
+                        f"Konfiguration werden ignoriert: {', '.join(unbekannt)}"
+                    )
+                self.projects[project_id] = ProjectConfig(id=project_id, **sauber)
+            except Exception as e:
+                logger.error(
+                    f"Projekt {project_id} nicht ladbar ({e}) — "
+                    "die übrigen Projekte laufen weiter."
+                )
+
+        logger.info(f"Loaded {len(self.projects)} projects from {self.config_path}")
 
     def _save_config(self):
         """Save projects to YAML"""

@@ -19,6 +19,14 @@ from ..core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# httpx protokolliert jede Anfrage samt vollstaendiger URL auf INFO-Ebene —
+# und in der Telegram-URL steckt der Bot-Token. In den Cron-Logs standen so
+# hunderte Zeilen mit dem Token im Klartext. Fuer diesen Client wird die
+# Protokollierung deshalb auf WARNING gehoben; echte Fehler bleiben sichtbar,
+# der Token verschwindet.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+
 TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
 MAX_MESSAGE_LENGTH = 4096
 

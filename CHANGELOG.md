@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.0] - 2026-08-18
+
+Roadmap-Phase 5, Kern: Der Autopilot darf jetzt ausfuehren — aber nur mit Grenzen, die im Code stehen statt in der Dokumentation.
+
+### Added
+- **Drei Betriebsarten** (`ausfuehrung.py`, CLI `betrieb`): **Beobachter** (aendert nichts, Standard fuer neue Projekte), **Copilot** (legt jede Aenderung zur Freigabe), **Autopilot** (fuehrt Unbedenkliches aus, legt alles andere trotzdem vor). Ein Tippfehler in der Konfiguration faellt immer auf die sichere Seite.
+- **Harte Sperrliste** — 14 Eingriffe laufen **NIE** automatisch, auch nicht im Autopilot-Modus und auch nicht, wenn jemand sie in `whitelist_extra` eintraegt: Kanonisierung, `noindex`, `robots.txt`, Seiten loeschen, Zusammenlegen, Adressumzuege, Weiterleitungsketten. Jede Sperre traegt ihre Begruendung im Klartext.
+- **Freigabe-Schlange** (CLI `freigabe`): Vorgelegte Aenderungen mit Begruendung, Entscheidung per `--ja`/`--nein`. Derselbe Befund kommt nicht taeglich wieder, und ein abgelehnter Vorschlag wird nicht erneut gefragt. Taegliche Telegram-Meldung um 12:00.
+
+### Fixed
+- 🔴 **Bot-Token stand im Klartext in den Logs.** `httpx` protokolliert jede Anfrage samt vollstaendiger URL auf INFO-Ebene — und der Telegram-Token steht in der URL. In `cron.log` waren es **314 Zeilen**. Protokollierung fuer `httpx`/`httpcore` auf WARNING gehoben, vorhandene Logs bereinigt. **Token-Rotation empfohlen.**
+- 🔴 **Ein unbekanntes Feld in `projects.yaml` liess ALLE Projekte verschwinden.** `ProjectConfig(**cfg)` warf, der `except` fing alles ab, und der Autopilot lief danach scheinbar normal weiter — mit null Projekten, sichtbar nur an einer Zeile im Log. Jetzt werden unbekannte Felder mit Warnung uebersprungen und Fehler **je Projekt** isoliert. Genau dieser Fehler trat beim Einbau der Betriebsart auf und haette den gesamten Betrieb lahmgelegt.
+- Die Sicherheitsgrenzen standen bisher **nur in der Dokumentation**: `missing_canonical` und `missing_robots_txt` waren in der Standard-Whitelist und wurden automatisch angewendet.
+
+### Verified
+- **Umgehungsversuch am echten ApplyAgent**: Autopilot eingeschaltet UND `missing_canonical`, `missing_robots_txt`, `delete_page` ausdruecklich in `whitelist_extra` — alle drei landeten trotzdem in der Freigabe, mit Begruendung.
+- Echter Lauf gegen joseph im Copilot-Modus: zwei Vorschlaege vorgelegt, Ablehnung per CLI protokolliert, abgelehnter Vorschlag kam nicht wieder.
+- Alle fuenf Projekte auf **Copilot** gestellt: Der Autopilot arbeitet den Kreislauf autonom durch, aendert aber nichts ohne Zustimmung.
+
+### Tests
+- +41 Tests (`test_ausfuehrung.py` 26, `test_apply_betriebsarten.py` 6, `test_projektladen_robust.py` 6, `test_telegram_kein_token_im_log.py` 3). Total: **682**.
+
 ## [1.9.1] - 2026-08-18
 
 ### Fixed

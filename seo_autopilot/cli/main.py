@@ -708,6 +708,125 @@ def _letzte_befunde(con, project_id):
 
 
 @cli.command()
+@click.option("--db", default=None, help="Pfad zur Audit-Datenbank")
+@click.option("--projekt", default=None, help="Nur dieses Projekt")
+@click.option("--ja", "freigeben", default=None, help="Diese Kennung freigeben")
+@click.option("--nein", "ablehnen", default=None, help="Diese Kennung ablehnen")
+@click.option("--notiz", default="", help="Begruendung zur Entscheidung")
+@click.option(
+    "--alle-gesperrten/--nur-offene",
+    default=False,
+    help="Auch bereits entschiedene gesperrte Vorschlaege zeigen",
+)
+@click.option("--notify/--no-notify", default=False, help="Offene per Telegram melden")
+def freigabe(db, projekt, freigeben, ablehnen, notiz, alle_gesperrten, notify):
+    """Freigaben: was der Autopilot vorgelegt hat und noch nicht tun darf.
+
+    Ohne Argumente zeigt der Befehl die offenen Vorschlaege. Mit --ja/--nein
+    wird entschieden; es genuegen die ersten Zeichen der Kennung.
+
+    Beispiel:
+      seo-autopilot freigabe
+      seo-autopilot freigabe --ja 3f2a91c4 --notiz "geprueft, passt"
+    """
+    from ..ausfuehrung import (
+        STATUS_ABGELEHNT,
+        STATUS_FREIGEGEBEN,
+        als_text,
+        entscheiden,
+        freigaben,
+        standard_db_pfad,
+        veraltete,
+    )
+
+    db_pfad = db or standard_db_pfad()
+
+    if freigeben or ablehnen:
+        kennung = freigeben or ablehnen
+        ziel = STATUS_FREIGEGEBEN if freigeben else STATUS_ABGELEHNT
+        offen = freigaben(db_pfad, project_id=projekt)
+        treffer = [f for f in offen if f.id.startswith(kennung)]
+        if not treffer:
+            raise click.ClickException(
+                f"Keine offene Freigabe mit Kennung {kennung!r}."
+            )
+        if len(treffer) > 1:
+            raise click.ClickException(
+                f"{len(treffer)} Freigaben passen auf {kennung!r} — mehr Zeichen angeben."
+            )
+        eintrag = treffer[0]
+        entscheiden(db_pfad, eintrag.id, ziel, von="robert", notiz=notiz)
+        wort = "freigegeben" if freigeben else "abgelehnt"
+        click.echo(f"{wort}: {eintrag.titel}")
+        if freigeben:
+            click.echo("Hinweis: Die Aenderung wird beim naechsten Lauf ausgefuehrt.")
+        return
+
+    offen = freigaben(db_pfad, project_id=projekt, nur_gesperrte=alle_gesperrten)
+    text = als_text(offen, mit_vorschlag=True)
+    click.echo(text)
+
+    alt = veraltete(db_pfad)
+    if alt:
+        click.echo(
+            f"\n{len(alt)} Vorschlag/Vorschlaege sind aelter als 30 Tage — "
+            "die Seite kann sich seitdem geaendert haben."
+        )
+
+    if notify and offen:
+        try:
+            from ..notifications.telegram import MAX_MESSAGE_LENGTH, send_plain_message
+
+            meldung = f"SEO-Autopilot: {len(offen)} Freigabe(n) offen\n\n{text}"
+            send_plain_message(meldung[:MAX_MESSAGE_LENGTH])
+        except Exception as exc:  # pragma: no cover - Netzwerk
+            logger.warning(f"Telegram-Meldung fehlgeschlagen: {exc}")
+
+
+@cli.command()
+@click.option("--projects", default=None, help="Pfad zur Projektliste")
+def betrieb(projects):
+    """Betriebsarten: was der Autopilot bei welchem Projekt tun darf.
+
+    Zeigt je Projekt, ob er nur beobachtet, alles zur Freigabe legt oder
+    Unbedenkliches selbst ausfuehrt.
+    """
+    from pathlib import Path
+
+    from ..ausfuehrung import (
+        BETRIEBSARTEN,
+        GESPERRT,
+        betriebsart_klartext,
+        betriebsart_von,
+    )
+    from ..health import _lade_projekte
+
+    alle = _lade_projekte(Path(_projektliste_pfad(projects)))
+    if not alle:
+        raise click.ClickException(
+            f"Keine Projekte gefunden ({_projektliste_pfad(projects)})."
+        )
+
+    click.echo("Betriebsart je Projekt\n")
+    for pid, cfg in alle.items():
+        if not (cfg or {}).get("enabled", True):
+            continue
+        art = betriebsart_von(cfg or {})
+        click.echo(f"  {pid:<16} {betriebsart_klartext(art)}")
+
+    click.echo(
+        "\nUmstellen in projects.yaml je Projekt:  betriebsart: "
+        f"{' | '.join(BETRIEBSARTEN)}"
+    )
+    click.echo(
+        f"\n{len(GESPERRT)} Eingriffe laufen NIE automatisch — auch nicht im "
+        "Autopilot-Modus.\nSie werden immer zur Freigabe vorgelegt:"
+    )
+    for typ, grund in sorted(GESPERRT.items()):
+        click.echo(f"  {typ:<28} {grund}")
+
+
+@cli.command()
 def version():
     """Show version"""
     from .. import __version__

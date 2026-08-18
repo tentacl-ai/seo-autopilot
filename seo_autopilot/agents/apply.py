@@ -62,12 +62,36 @@ class ApplyAgent(Agent):
             audit_id=self.audit_id,
         )
 
+        from ..ausfuehrung import (
+            BETRIEBSART_AUTOPILOT,
+            BETRIEBSART_BEOBACHTER,
+            WEG_AUSFUEHREN,
+            WEG_FREIGABE,
+            betriebsart_klartext,
+            betriebsart_von,
+            entscheide,
+            standard_db_pfad,
+            zur_freigabe,
+        )
+
         ctx: Optional["AuditContext"] = self.context
         force = bool(getattr(ctx, "force_apply", False)) if ctx else False
-        proj_enabled = bool(getattr(self.project_config, "auto_fix_enabled", False))
-        if not (force or proj_enabled):
+
+        # Betriebsart aus der Projektkonfiguration. `--auto-fix` hebt sie
+        # bewusst auf Autopilot an — aber niemals ueber die harte Sperrliste
+        # hinweg, die weiter unten je Fix geprueft wird.
+        roh_cfg = {
+            "betriebsart": getattr(self.project_config, "betriebsart", None),
+            "auto_fix_enabled": getattr(self.project_config, "auto_fix_enabled", False),
+        }
+        betriebsart = BETRIEBSART_AUTOPILOT if force else betriebsart_von(roh_cfg)
+        buch_db = standard_db_pfad()
+
+        if betriebsart == BETRIEBSART_BEOBACHTER:
             result.status = AgentStatus.SKIPPED
-            result.log_output = "auto_fix_enabled=False and no force flag — skipping"
+            result.log_output = (
+                f"Betriebsart {betriebsart_klartext(betriebsart)} — nichts geaendert"
+            )
             return result
 
         # Sammle alle Fixes aus dem ContentAgent-Result
@@ -81,18 +105,39 @@ class ApplyAgent(Agent):
         whitelist = DEFAULT_WHITELIST | set(cfg_extra)
 
         eligible = []
+        vorgelegt = 0
         for f in fixes:
             ftype = f.get("type", "")
             severity = (f.get("priority") or f.get("severity") or "low").lower()
-            if ftype not in whitelist:
-                continue
             if severity == "low":
                 continue
-            eligible.append(f)
+
+            weg, begruendung = entscheide(
+                ftype, betriebsart, in_whitelist=ftype in whitelist
+            )
+            if weg == WEG_AUSFUEHREN:
+                eligible.append(f)
+            elif weg == WEG_FREIGABE:
+                # Gesperrte und nicht freigegebene Eingriffe verschwinden
+                # nicht — sie werden vorgelegt, mit Begruendung.
+                if zur_freigabe(
+                    buch_db, self.project_id, f, begruendung, audit_id=self.audit_id
+                ):
+                    vorgelegt += 1
+
+        if vorgelegt:
+            result.metrics["zur_freigabe"] = vorgelegt
+            logger.info(
+                f"[apply] {vorgelegt} Vorschlag/Vorschlaege zur Freigabe gelegt "
+                f"(Betriebsart {betriebsart})"
+            )
 
         if not eligible:
             result.status = AgentStatus.COMPLETED
-            result.log_output = f"0 of {len(fixes)} fixes match whitelist+severity filter — nothing to apply"
+            result.log_output = (
+                f"0 von {len(fixes)} Fixes automatisch ausfuehrbar "
+                f"(Betriebsart {betriebsart}); {vorgelegt} zur Freigabe gelegt"
+            )
             return result
 
         # Adapter holen
