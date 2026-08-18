@@ -534,3 +534,41 @@ async def test_seite_ohne_html_wird_uebersprungen():
 def test_schwellenwert_ist_dokumentiert():
     """500 KB ist die Grenze zum echten Befund — als Regressionsanker."""
     assert GROESSE_BEFUND == 500 * 1024
+
+
+# --- Nachtrag 2026-08-18: LCP-Kandidat nur im sichtbaren Bereich -----------
+
+
+class TestLcpNurObenErkannt:
+    """Ein grosses Bild weit unten ist KEIN LCP-Element.
+
+    Anlass: joseph-hehenwarter.de/finanzierung/factoring wurde als
+    "LCP verzögert geladen" gemeldet, während Google dieselbe Seite mit
+    98/100 und 2,4 s LCP bewertete. Das Bild stand an vierter Bildposition,
+    unterhalb mehrerer Textabschnitte — dort ist "lazy" korrekt.
+    """
+
+    def _bilder_html(self, position_des_grossen: int) -> str:
+        # Kleine Logos davor, dann das grosse Bild mit lazy
+        vorher = "".join(
+            f'<img src="/logo{i}.svg" alt="Logo {i}" width="80" height="16">'
+            for i in range(position_des_grossen)
+        )
+        return (
+            f"<html><body>{vorher}"
+            '<img src="/gross.png" alt="Ablauf" width="1600" height="900" loading="lazy">'
+            "</body></html>"
+        )
+
+    def _befunde(self, html: str):
+        import asyncio
+
+        return asyncio.run(_befunde(html))
+
+    def test_grosses_bild_ganz_oben_wird_gemeldet(self):
+        befunde = self._befunde(self._bilder_html(0))
+        assert any(b["type"] == "image_lcp_lazy_loaded" for b in befunde)
+
+    def test_grosses_bild_weit_unten_wird_nicht_gemeldet(self):
+        befunde = self._befunde(self._bilder_html(5))
+        assert not any(b["type"] == "image_lcp_lazy_loaded" for b in befunde)

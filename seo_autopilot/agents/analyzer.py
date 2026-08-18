@@ -47,6 +47,13 @@ META_MIN = 80
 META_MAX = 165
 SLOW_RESPONSE_MS = 2500
 
+# Googles Zielwert fuer die Ladezeit des groessten Elements.
+LCP_ZIELWERT_MS = 2500
+# Bildbefunde, die eine echte LCP-Messung widerlegen kann.
+LCP_BILDBEFUNDE = {"image_lcp_lazy_loaded", "image_lcp_no_priority"}
+# Wie viele Seiten bei LCP-Verdacht zusaetzlich gemessen werden (Kontingent).
+LCP_NACHMESSUNG_MAX = 3
+
 REQUIRED_SECURITY_HEADERS = [
     "strict-transport-security",
     "x-content-type-options",
@@ -437,6 +444,43 @@ class AnalyzerAgent(Agent):
                     ]
                 )
                 bild_issues = [i for e in bild_ergebnisse for i in e.issues]
+                # Gegenprobe mit der echten Messung: Ein theoretisches
+                # LCP-Problem auf einer Seite, deren LCP nachweislich gut ist,
+                # ist keins. Die Reihenfolge im Quelltext sagt naemlich nichts
+                # darueber, wo ein Bild optisch landet — auf
+                # /finanzierung/factoring stand das grosse Bild an HTML-Position
+                # 0 und trotzdem weit unterhalb des ersten Bildschirms
+                # (Google: 98/100, LCP 2,4 s). Gemeldet wurde es dennoch
+                # (2026-08-18).
+                # Bei Verdacht gezielt nachmessen: Gemessen wird sonst nur
+                # die Startseite plus zwei weitere. Ein LCP-Bildbefund auf einer
+                # ungemessenen Seite bliebe damit ungeprueft stehen — obwohl
+                # genau diese Seite schnell sein kann.
+                verdaechtig = [
+                    (i.get("affected_url") or "")
+                    for i in bild_issues
+                    if i.get("type") in LCP_BILDBEFUNDE and i.get("affected_url")
+                ]
+                bereits = {
+                    (getattr(r, "url", "") or "").rstrip("/")
+                    for r in (psi_results or [])
+                }
+                nachzumessen = [
+                    u
+                    for u in dict.fromkeys(verdaechtig)
+                    if u.rstrip("/") not in bereits
+                ][:LCP_NACHMESSUNG_MAX]
+                if nachzumessen:
+                    logger.info(
+                        f"[analyzer] LCP-Verdacht auf {len(nachzumessen)} Seite(n) "
+                        "— messe gezielt nach"
+                    )
+                    nach = await self._run_pagespeed(domain, nachzumessen)
+                    psi_results = list(psi_results or []) + list(nach or [])
+
+                bild_issues = self._ohne_widerlegte_lcp_befunde(
+                    bild_issues, psi_results
+                )
                 issues.extend(bild_issues)
                 gemessene_bytes = sum(e.gemessene_bytes for e in bild_ergebnisse)
                 gemessene_bilder = sum(e.gemessene_bilder for e in bild_ergebnisse)
@@ -642,6 +686,44 @@ class AnalyzerAgent(Agent):
     # ------------------------------------------------------------------
     # Issue detectors
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _ohne_widerlegte_lcp_befunde(
+        bild_issues: List[Dict[str, Any]], psi_results: Optional[List[Any]]
+    ) -> List[Dict[str, Any]]:
+        """Entfernt LCP-Bildbefunde fuer Seiten mit nachweislich gutem LCP.
+
+        Der Bildpruefer arbeitet auf dem Quelltext und kann nicht wissen, wo
+        ein Bild tatsaechlich im Layout landet. Liegt fuer dieselbe Adresse
+        eine echte Messung unter dem Zielwert vor, gewinnt die Messung.
+        Ohne Messwerte bleibt der Befund stehen — im Zweifel lieber melden.
+        """
+        if not psi_results:
+            return bild_issues
+
+        gut_gemessen = set()
+        for r in psi_results:
+            if getattr(r, "error", None):
+                continue
+            lcp = getattr(r, "lcp_ms", None)
+            if lcp is not None and lcp <= LCP_ZIELWERT_MS:
+                gut_gemessen.add((getattr(r, "url", "") or "").rstrip("/"))
+
+        if not gut_gemessen:
+            return bild_issues
+
+        behalten = []
+        for i in bild_issues:
+            if i.get("type") in LCP_BILDBEFUNDE:
+                url = (i.get("affected_url") or "").rstrip("/")
+                if url in gut_gemessen:
+                    logger.info(
+                        f"[analyzer] LCP-Bildbefund verworfen — gemessener LCP "
+                        f"liegt im gruenen Bereich: {url}"
+                    )
+                    continue
+            behalten.append(i)
+        return behalten
 
     def _check_fetch_errors(self, pages: List[PageData]) -> List[Dict[str, Any]]:
         issues = []

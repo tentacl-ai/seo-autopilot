@@ -601,6 +601,15 @@ class ImageAuditor:
 
         Übersprungen werden dekorative Bilder und alles, was sich per
         deklarierter Kantenlänge als Logo/Icon zu erkennen gibt.
+
+        Wichtige Einschränkung (2026-08-18): Ein grosses Bild ist nur dann ein
+        LCP-Kandidat, wenn es auch weit genug oben steht. Auf
+        joseph-hehenwarter.de/finanzierung/factoring lag das erste grosse Bild
+        an Bildposition 4, weit unterhalb mehrerer Textabschnitte — gemeldet
+        wurde trotzdem "LCP verzögert geladen", während Google dieselbe Seite
+        mit 98/100 und 2,4 s LCP bewertete. Ein Bild, das der Besucher erst
+        nach dem Scrollen sieht, SOLL verzögert laden; dort ist "lazy" richtig
+        und kein Mangel.
         """
         for b in bilder:
             if not b.src or b.dekorativ:
@@ -610,6 +619,10 @@ class ImageAuditor:
             )
             if klein:
                 continue
+            # Steht das Bild so weit unten, dass es den ersten Bildschirm gar
+            # nicht mehr erreicht, ist es kein LCP-Element.
+            if b.position >= ERSTER_BILDSCHIRM:
+                return None
             return b
         return None
 

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.1] - 2026-08-18
+
+### Fixed
+- **LCP-Bildbefunde widersprachen der echten Messung.** Der Bildpruefer nimmt das erste grosse Bild im Quelltext als LCP-Kandidaten — die Reihenfolge im HTML sagt aber nichts darueber, wo ein Bild optisch landet. Auf joseph-hehenwarter.de/finanzierung/factoring stand es an HTML-Position 0 und trotzdem weit unterhalb des ersten Bildschirms; gemeldet wurde "LCP verzoegert geladen", waehrend Google dieselbe Seite mit **98/100 und 2,4 s LCP** bewertete. Jetzt gilt: Liegt fuer die Adresse eine Messung im gruenen Bereich vor, gewinnt die Messung. Und bei Verdacht auf einer bisher **ungemessenen** Seite wird gezielt nachgemessen (max. 3 zusaetzliche Abrufe, Kontingent), statt den Befund ungeprueft stehen zu lassen. Ohne Messwerte bleibt der Befund — im Zweifel lieber melden.
+-  nutzte . Das brach, sobald vorher ein anderer Test  aufrief und damit den Loop schloss — der Fehler trat nur im Gesamtlauf auf, nie einzeln. Auf  umgestellt.
+
+### Verified
+- joseph-hehenwarter.de: schwere Befunde **2 → 0**.
+
 ## [1.9.0] - 2026-08-18
 
 Roadmap-Phase 3 und 4 — plus die Wächter-Lücke aus 1.8.0 geschlossen. Der Kreislauf steht damit bis zur Priorisierung: beobachten → protokollieren → Wirkung messen → daraus priorisieren.
