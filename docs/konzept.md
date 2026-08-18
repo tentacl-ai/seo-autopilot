@@ -10,6 +10,10 @@ Die Umsetzungsreihenfolge steht in der Roadmap, nicht hier — dieses Dokument
 beschreibt das **Ziel**, damit es nicht in einem Chatverlauf verloren geht.
 
 Stand-Markierungen: ✅ gebaut · 🟡 teilweise · ⬜ offen
+*Zuletzt abgeglichen: 2026-08-18, Version 1.9.1.*
+
+Verfügbare Befehle: `selfcheck` · `changes` · `wirkung` · `wert` · `chancen` ·
+`betrieb` · `freigabe` · `weekly` · `radar` · `learnings`
 
 ---
 
@@ -37,7 +41,7 @@ dass am Ende ein Nachweis steht.
 | Serverlogs (echte Crawler-Zugriffe) | ⬜ |
 | Google Business Profile (Local SEO) | ⬜ |
 | Merchant Center (Shops) | ⬜ |
-| CRM / Buchungssystem / Shop-Umsatz | ⬜ |
+| CRM / Buchungssystem / Shop-Umsatz | 🟡 Werte erfassbar über `wert`, Anbindung offen |
 | Search-Console-Rohdaten nach BigQuery | ⬜ (nur für große Projekte nötig) |
 
 **Der entscheidende Unterschied zu normalen SEO-Tools:** Es bewertet nicht
@@ -100,7 +104,7 @@ INP < 200 ms · CLS < 0,1.
 
 ---
 
-## 4. Opportunity Engine ⬜ — das Herzstück
+## 4. Opportunity Engine ✅ — das Herzstück
 
 Zu erkennen:
 
@@ -129,7 +133,7 @@ Geschäftswert × realistisches Potenzial × Konfidenz ÷ Aufwand
 
 ---
 
-## 5. Konkrete Änderungen durchführen 🟡
+## 5. Konkrete Änderungen durchführen 🟡 (Freigabe-Weg steht)
 
 Nicht bei Empfehlungen stehen bleiben, sondern Änderungspakete erzeugen:
 Title und Meta Description · H1 und Seitenstruktur · Inhalte aktualisieren ·
@@ -214,7 +218,7 @@ schnell eine Spammaschine.
 
 ---
 
-## 10. Kontrollierte Autonomie 🟡
+## 10. Kontrollierte Autonomie ✅ (Betriebsarten stehen)
 
 | Modus | Verhalten |
 |---|---|
@@ -251,10 +255,10 @@ Zuerst nur diese sechs Dinge perfekt bauen:
 
 1. ✅ GSC, GA4, CMS und PageSpeed anbinden — *CMS fehlt noch*
 2. ✅ Website crawlen und Seiteninventar erstellen
-3. ⬜ die zehn wertvollsten Chancen pro Woche priorisieren
+3. ✅ die zehn wertvollsten Chancen pro Woche priorisieren
 4. 🟡 fertige Änderungen mit Vorschau und Diff erzeugen
 5. ⬜ nach Freigabe direkt veröffentlichen
-6. ✅ Wirkung messen — *Umsatzbeitrag fehlt noch*
+6. ✅ Wirkung messen — *Geschäftswert jetzt erfassbar (`wert`)*
 
 ---
 
