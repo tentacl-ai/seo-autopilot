@@ -17,6 +17,18 @@ logging.basicConfig(level=settings.LOG_LEVEL)
 logger = logging.getLogger(__name__)
 
 
+def _projektliste_pfad(angabe=None):
+    """Pfad der Projektliste — absolut, nicht vom Arbeitsverzeichnis abhängig.
+
+    `projects.yaml` relativ zu laden hat schon zweimal dazu geführt, dass ein
+    Cron-Eintrag ohne vorangestelltes `cd` gar nichts tat. Die Settings kennen
+    den absoluten Pfad ohnehin; eine ausdrückliche Angabe schlägt ihn.
+    """
+    if angabe:
+        return angabe
+    return settings.PROJECT_CONFIG_PATH
+
+
 @click.group()
 def cli():
     """SEO Autopilot – Multi-Tenant SEO Automation"""
@@ -345,7 +357,7 @@ def changes(db, projekt, tage, mit_diff, nur_offene):
 
 @cli.command()
 @click.option("--db", default=None, help="Pfad zur Audit-Datenbank")
-@click.option("--projects", default="projects.yaml", help="Pfad zur Projektliste")
+@click.option("--projects", default=None, help="Pfad zur Projektliste")
 @click.option("--projekt", default=None, help="Nur dieses Projekt")
 @click.option(
     "--messen/--nur-anzeigen",
@@ -400,7 +412,7 @@ def wirkung(db, projects, projekt, messen, fenster, zeige_bilanz, nur_belastbar)
     if messen:
         from ..health import _lade_projekte
 
-        projekt_liste = _lade_projekte(Path(projects))
+        projekt_liste = _lade_projekte(Path(_projektliste_pfad(projects)))
         if not projekt_liste:
             # Exit-Code, kein stilles return: Im Cron laeuft dieser Befehl aus
             # einem beliebigen Verzeichnis, und `projects.yaml` wird relativ
@@ -431,6 +443,268 @@ def wirkung(db, projects, projekt, messen, fenster, zeige_bilanz, nur_belastbar)
         offen = faellige_messungen(db_pfad, project_id=projekt)
         if offen:
             click.echo(f"\n{len(offen)} Messung(en) faellig — mit '--messen' abrufen.")
+
+
+@cli.command()
+@click.option("--projects", default=None, help="Pfad zur Projektliste")
+@click.option("--projekt", default=None, help="Nur dieses Projekt")
+@click.option(
+    "--tage", default=28, type=int, help="Auswertungszeitraum in Tagen (Standard: 28)"
+)
+def wert(projects, projekt, tage):
+    """Geschaeftswert: was die Seiten dem Kunden tatsaechlich einbringen.
+
+    Rechnet Besucher gegen Anfragen und den hinterlegten Wert je Anfrage.
+    Fehlt die Angabe, wird NICHT geschaetzt — dann zeigt der Befehl, welche
+    Zahlen beim Kunden noch fehlen.
+
+    Beispiel:
+      seo-autopilot wert --projekt joseph
+    """
+    import asyncio
+    from pathlib import Path
+
+    from ..geschaeftswert import (
+        als_text,
+        bewerte_seiten,
+        fehlende_angaben,
+        lies_ziele,
+    )
+    from ..health import _lade_projekte
+
+    alle = _lade_projekte(Path(_projektliste_pfad(projects)))
+    if not alle:
+        raise click.ClickException(
+            f"Keine Projekte gefunden ({_projektliste_pfad(projects)})."
+        )
+
+    ausgewaehlt = {projekt: alle[projekt]} if projekt and projekt in alle else alle
+    offen = fehlende_angaben(ausgewaehlt)
+
+    alle_bewertet = []
+    for pid, cfg in ausgewaehlt.items():
+        ziele, waehrung = lies_ziele(cfg or {})
+        if not [z for z in ziele if z.vollstaendig]:
+            continue
+        seiten = asyncio.run(_seiten_kennzahlen(pid, cfg or {}, tage))
+        if not seiten:
+            click.echo(f"[{pid}] keine Besucherdaten abrufbar — uebersprungen.")
+            continue
+        alle_bewertet.extend(bewerte_seiten(seiten, ziele, waehrung))
+
+    click.echo(als_text(alle_bewertet, offen))
+
+
+async def _seiten_kennzahlen(pid, cfg, tage):
+    """Besucher je Seite aus GA4 holen.
+
+    Anfragen bleiben vorerst 0: Welches Ereignis eine Anfrage ist, unterscheidet
+    sich je Kunde und muss mit dem Geschaeftswert zusammen erfasst werden. Bis
+    dahin zeigt der Bericht ehrlich Besucher ohne Anfragen statt erfundener
+    Abschluesse.
+    """
+    quellen = cfg.get("enabled_sources") or []
+    if "ga4" not in quellen:
+        return []
+    konfig = (cfg.get("source_config") or {}).get("ga4") or {}
+    property_id = konfig.get("property_id")
+    credentials = konfig.get("credentials_path")
+    if not property_id or not credentials:
+        return []
+    try:
+        from ..sources.ga4 import GA4DataSource
+
+        quelle = GA4DataSource(str(credentials), str(property_id))
+        daten = await quelle.pull_analytics(cfg.get("domain", ""), days=tage)
+    except Exception as exc:
+        logger.warning(f"[wert] {pid}: GA4 nicht abrufbar: {exc}")
+        return []
+    if not daten:
+        return []
+    return [
+        {
+            "url": eintrag.get("page") or eintrag.get("url") or "",
+            "besucher": int(eintrag.get("users") or eintrag.get("sessions") or 0),
+            "anfragen": 0,
+        }
+        for eintrag in (daten.top_pages or [])
+    ]
+
+
+@cli.command()
+@click.option("--db", default=None, help="Pfad zur Audit-Datenbank")
+@click.option("--projects", default="projects.yaml", help="Pfad zur Projektliste")
+@click.option("--projekt", default=None, help="Nur dieses Projekt")
+@click.option(
+    "--anzahl", default=10, type=int, help="Wie viele Massnahmen (Standard 10)"
+)
+def chancen(db, projects, projekt, anzahl):
+    """Chancen-Motor: womit fange ich an.
+
+    Bewertet die Befunde des letzten Audits nach Geschaeftswert mal Potenzial
+    mal Sicherheit geteilt durch Aufwand. Fehlt der Geschaeftswert, wird nach
+    Besuchern gewichtet — und das im Bericht ausdruecklich gesagt.
+
+    Beispiel:
+      seo-autopilot chancen --projekt joseph --anzahl 5
+    """
+    import sqlite3
+    from pathlib import Path
+
+    from ..chancen import als_text, bewerte_chancen
+    from ..health import _lade_projekte
+    from ..wirkung import standard_db_pfad
+
+    db_pfad = db or standard_db_pfad()
+    alle = _lade_projekte(Path(_projektliste_pfad(projects)))
+    if not alle:
+        raise click.ClickException(
+            f"Keine Projekte gefunden ({_projektliste_pfad(projects)})."
+        )
+
+    ausgewaehlt = (
+        [projekt]
+        if projekt
+        else [p for p, c in alle.items() if (c or {}).get("enabled", True)]
+    )
+
+    gesamt = []
+    con = sqlite3.connect(db_pfad)
+    con.row_factory = sqlite3.Row
+    try:
+        for pid in ausgewaehlt:
+            befunde = _letzte_befunde(con, pid)
+            if not befunde:
+                click.echo(f"[{pid}] kein Audit mit Befunden gefunden.")
+                continue
+            # Sichtbarkeit je Seite dazuholen: Ohne Position und Besucher
+            # unterscheidet der Motor die Befunde praktisch nur nach Aufwand.
+            seitenwerte = _sichtbarkeit_je_seite(alle.get(pid) or {}, pid)
+            for b in befunde:
+                treffer = seitenwerte.get(b["url"]) or seitenwerte.get(
+                    b["url"].rstrip("/")
+                )
+                if treffer:
+                    b["position"] = treffer.get("position")
+                    b["besucher"] = treffer.get("besucher", 0)
+            gesamt.extend(
+                bewerte_chancen(
+                    befunde, projekt=pid, db_pfad=db_pfad, seitenwerte=seitenwerte
+                )
+            )
+    finally:
+        con.close()
+
+    gesamt.sort(key=lambda c: c.punkte, reverse=True)
+    click.echo(als_text(gesamt, anzahl=anzahl))
+
+
+def _sichtbarkeit_je_seite(cfg, pid, tage=28):
+    """Klicks und Durchschnittsposition je Adresse aus der Search Console.
+
+    Liefert `{url: {"besucher": int, "position": float}}`. Ohne Search Console
+    kommt ein leeres Verzeichnis zurueck — der Chancen-Motor faellt dann
+    sichtbar auf reine Aufwandssortierung zurueck, statt eine Sichtbarkeit zu
+    erfinden, die niemand gemessen hat.
+    """
+    import asyncio
+    from datetime import date, timedelta
+
+    quellen = cfg.get("enabled_sources") or []
+    if "gsc" not in quellen:
+        return {}
+    konfig = (cfg.get("source_config") or {}).get("gsc") or {}
+    property_url = konfig.get("property_url")
+    credentials = konfig.get("credentials_path")
+    if not property_url or not credentials:
+        return {}
+
+    async def _hole():
+        from ..sources.gsc import GSCDataSource
+
+        quelle = GSCDataSource(str(credentials))
+        if not await quelle.authenticate():
+            return {}
+        # Die Search Console hinkt ein paar Tage hinterher.
+        ende = date.today() - timedelta(days=3)
+        start = ende - timedelta(days=tage)
+        antwort = (
+            quelle.service.searchanalytics()
+            .query(
+                siteUrl=str(property_url),
+                body={
+                    "startDate": start.isoformat(),
+                    "endDate": ende.isoformat(),
+                    "dimensions": ["page"],
+                    "rowLimit": 500,
+                },
+            )
+            .execute()
+        )
+        return {
+            # Einblendungen statt Klicks als Sichtbarkeitsmassstab: Klicks
+            # sind bei kleinen Websites zweistellig und damit zu grob, um
+            # Seiten zu unterscheiden. Einblendungen messen ausserdem die
+            # Nachfrage, nicht nur den bisherigen Erfolg.
+            r["keys"][0]: {
+                "besucher": int(r.get("impressions", 0)),
+                "position": round(float(r.get("position", 0.0)), 2),
+                "klicks": int(r.get("clicks", 0)),
+            }
+            for r in antwort.get("rows", [])
+        }
+
+    try:
+        return asyncio.run(_hole())
+    except Exception as exc:
+        logger.warning(f"[chancen] {pid}: Sichtbarkeit nicht abrufbar: {exc}")
+        return {}
+
+
+def _letzte_befunde(con, project_id):
+    """Befunde des juengsten abgeschlossenen Audits eines Projekts."""
+    audit = con.execute(
+        "select id from seo_audits where project_id=? "
+        "order by started_at desc limit 1",
+        (project_id,),
+    ).fetchone()
+    if not audit:
+        return []
+    # Die betroffene Adresse steht nicht in einer eigenen Spalte, sondern als
+    # JSON in `affected_items` — ein leerer Wert ist normal (Befunde, die die
+    # ganze Website betreffen, etwa robots.txt).
+    import json
+
+    rows = con.execute(
+        "select type as typ, title as titel, affected_items, severity "
+        "from seo_issues where audit_id=?",
+        (audit["id"],),
+    ).fetchall()
+
+    befunde = []
+    for r in rows:
+        url = ""
+        roh = r["affected_items"]
+        if roh:
+            try:
+                daten = json.loads(roh)
+                if isinstance(daten, dict):
+                    url = str(daten.get("url") or "")
+                elif isinstance(daten, list) and daten:
+                    erstes = daten[0]
+                    url = str(erstes.get("url") if isinstance(erstes, dict) else erstes)
+            except (ValueError, TypeError):
+                url = ""
+        befunde.append(
+            {
+                "type": r["typ"],
+                "title": r["titel"],
+                "url": url,
+                "position": None,
+                "severity": r["severity"],
+            }
+        )
+    return befunde
 
 
 @cli.command()

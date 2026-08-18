@@ -225,9 +225,133 @@ def run_selfcheck(
         report.geprueft = len(aktive)
         for name, cfg in aktive.items():
             _pruefe_projekt(con, name, cfg, crontab, jetzt, report)
+        _pruefe_wirkungsmessung(con, crontab, jetzt, report, db_pfad)
     finally:
         con.close()
     return report
+
+
+def _pruefe_wirkungsmessung(
+    con: sqlite3.Connection,
+    crontab: str,
+    jetzt: datetime,
+    report: HealthReport,
+    db_pfad: str,
+) -> None:
+    """Läuft die Wirkungsmessung überhaupt noch?
+
+    Die Wirkungsmessung ist besonders anfällig für einen stillen Ausfall: Sie
+    meldet auch im Normalbetrieb wochenlang "nichts fällig" — genau wie eine
+    kaputte. Ohne diese Prüfung fiele ein Ausfall erst auf, wenn jemand nach
+    Ergebnissen fragt, die es dann nicht gibt.
+
+    Drei Fragen, in der Reihenfolge ihrer Schwere:
+
+    1. Steht der tägliche Lauf überhaupt im Cron?
+    2. Steht er mit `cd` davor? Ohne das findet er `projects.yaml` nicht und
+       misst nie etwas — dieser Fehler ist beim Einrichten tatsächlich passiert.
+    3. Sind Messungen fällig, aber seit Tagen keine dazugekommen?
+    """
+    from .wirkung import GSC_VERZUG_TAGE
+
+    # Ohne eine einzige protokollierte Änderung gibt es nichts zu messen. Eine
+    # frische Installation braucht den Lauf noch nicht, und ein Wächter, der
+    # dort schon meckert, erzieht zum Wegsehen.
+    try:
+        from .changelog_book import aenderungen
+
+        if not aenderungen(db_pfad, tage=0):
+            return
+    except Exception as exc:  # pragma: no cover - defensiv
+        logger.debug(f"[health] Änderungsbuch nicht lesbar: {exc}")
+        return
+
+    zeilen = [
+        z
+        for z in crontab.splitlines()
+        if "seo_autopilot.cli.main wirkung" in z and not z.strip().startswith("#")
+    ]
+
+    if not zeilen:
+        report.befunde.append(
+            Befund(
+                "warnung",
+                "-",
+                "Wirkungsmessung läuft nicht automatisch",
+                "Kein Cron-Eintrag für 'wirkung --messen' gefunden. Änderungen "
+                "werden protokolliert, aber nie ausgewertet.",
+                "Täglichen Lauf eintragen (nach dem Wächter, z. B. 11:45).",
+            )
+        )
+        return
+
+    # Ohne `cd` wird projects.yaml relativ zum Home-Verzeichnis gesucht und nie
+    # gefunden. Der Lauf endet dann zwar mit Fehler, aber im Cron sieht das
+    # niemand — deshalb meldet der Wächter es.
+    ohne_cd = [z for z in zeilen if "cd " not in z]
+    if ohne_cd:
+        report.befunde.append(
+            Befund(
+                "warnung",
+                "-",
+                "Wirkungsmessung im Cron ohne Verzeichniswechsel",
+                "Der Eintrag enthält kein 'cd'. Seit 1.9.0 wird die "
+                "Projektliste absolut aufgelöst, der Lauf funktioniert also "
+                "trotzdem — bei relativen Angaben (--projects, --db) läuft er "
+                "aber ins Leere.",
+                "'cd /opt/odoo/docs/seo-autopilot &&' vor den Befehl setzen.",
+            )
+        )
+
+    # Gibt es fällige Messungen, die liegen bleiben?
+    try:
+        from .wirkung import faellige_messungen
+
+        offen = faellige_messungen(db_pfad, heute=jetzt.date())
+    except Exception as exc:  # pragma: no cover - defensiv
+        logger.debug(f"[health] Fälligkeit nicht prüfbar: {exc}")
+        return
+
+    if not offen:
+        return
+
+    try:
+        row = con.execute(
+            "select max(gemessen_am) as letzte from wirkung_messungen"
+        ).fetchone()
+    except sqlite3.Error:
+        row = None
+
+    letzte = _als_datum(row["letzte"]) if row and row["letzte"] else None
+    # Kulanz: Der Lauf ist täglich, die Search Console hinkt ohnehin hinterher.
+    # Erst wenn beides zusammen überschritten ist, stimmt etwas nicht.
+    grenze_tage = 1 + GSC_VERZUG_TAGE
+
+    if letzte is None:
+        report.befunde.append(
+            Befund(
+                "warnung",
+                "-",
+                f"{len(offen)} Wirkungsmessung(en) fällig, aber noch nie gemessen",
+                "Es liegen auswertbare Änderungen vor, die Tabelle "
+                "wirkung_messungen ist aber leer.",
+                "Einmal 'wirkung --messen' von Hand laufen lassen und Log prüfen.",
+            )
+        )
+        return
+
+    alter = (jetzt.date() - letzte.date()).days
+    if alter > grenze_tage:
+        report.befunde.append(
+            Befund(
+                "warnung",
+                "-",
+                f"Wirkungsmessung seit {alter} Tagen ohne Ergebnis",
+                f"{len(offen)} Messung(en) sind fällig, die letzte gespeicherte "
+                f"stammt vom {letzte.date().isoformat()}.",
+                "logs/wirkung.log prüfen — Search-Console-Zugang oder Cron defekt.",
+            )
+        )
 
 
 def _pruefe_schema(con: sqlite3.Connection, report: HealthReport) -> None:

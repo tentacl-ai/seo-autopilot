@@ -25,7 +25,7 @@ SEO Autopilot turns raw web crawl data into a **prioritized action plan**:
 9. **Ships HTML reports** – Self-contained Jinja2 templates with Telegram notifications
 10. **Schedules audits** – APScheduler cron jobs, multi-tenant isolation, WebSocket event streaming
 
-**577 tests.** Lightweight stack: httpx/BS4/FastAPI. Optional Playwright fallback for JavaScript-rendered SPAs (React, Next.js, Vue, Nuxt).
+**639 tests.** Lightweight stack: httpx/BS4/FastAPI. Optional Playwright fallback for JavaScript-rendered SPAs (React, Next.js, Vue, Nuxt).
 
 ---
 

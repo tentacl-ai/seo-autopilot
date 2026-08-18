@@ -14,7 +14,7 @@ Features:
 - Multi-tenant ready
 """
 
-__version__ = "1.8.0"
+__version__ = "1.9.0"
 __author__ = "SEO Autopilot Contributors"
 
 from .core.config import settings

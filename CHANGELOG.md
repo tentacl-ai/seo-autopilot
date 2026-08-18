@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.0] - 2026-08-18
+
+Roadmap-Phase 3 und 4 — plus die Wächter-Lücke aus 1.8.0 geschlossen. Der Kreislauf steht damit bis zur Priorisierung: beobachten → protokollieren → Wirkung messen → daraus priorisieren.
+
+### Added
+- **Geschäftswert** (`geschaeftswert.py`, CLI `wert`) — Phase 3. Rechnet Besucher gegen Anfragen und den hinterlegten Wert je Anfrage (`wert_pro_abschluss` x `abschlussquote`). Findet **verschenktes Geld** (viele Besucher, keine Anfrage) und **unterschätzte Seiten** (wenige Besucher, hoher Wert je Besucher) — genau die Seiten, die eine Priorisierung nach Besucherzahl übersieht.
+  - 🔑 **Es gibt keinen Standardwert und keine Schätzung.** Fehlt die Angabe, sagt das Modul „nicht bezifferbar" und nennt, welche Zahlen beim Kunden fehlen. Eine Seite ohne zugeordnetes Ziel bekommt `wert = None`, nicht `0` — „wissen wir nicht" und „bringt nichts" dürfen nie gleich aussehen.
+- **Chancen-Motor** (`chancen.py`, CLI `chancen`) — Phase 4. `Geschäftswert x Potenzial x Sicherheit / Aufwand`. Die **Sicherheit kommt aus der eigenen Wirkungsmessung** (Phase 2): erst ab 3 belastbaren Messungen je Änderungsart, darunter neutral statt geschätzt. Ohne Geschäftswert wird nach Sichtbarkeit gewichtet — und das im Bericht ausdrücklich gesagt.
+- **Wächter überwacht die Wirkungsmessung** (`health.py`): fehlender Cron-Eintrag, Eintrag **ohne `cd`** (der Fehler, der beim Einrichten tatsächlich passiert ist), und fällige Messungen, die liegen bleiben.
+
+### Fixed
+- **Geldbeträge wurden falsch formatiert** — `1.500.00 EUR` statt `1.500,00 EUR`, weil das Ersetzen des Tausendertrenners auch das Dezimalkomma traf.
+
+### Verified
+Fünf Fehler, die erst der Live-Lauf gezeigt hat:
+- **Das Impressum belegte fünf von sechs Plätzen** der Vorschlagsliste. Pflichtseiten ranken gut (der Firmenname steht drauf), bringen aber keine Anfragen. Dämpfer eingebaut — er greift nur, solange kein echter Geschäftswert hinterlegt ist, denn der regelt die Gewichtung dann selbst.
+- **Klicks waren als Maßstab zu grob** (0–21 bei diesen Websites). Jetzt Einblendungen: feiner aufgelöst und misst Nachfrage statt bisherigen Erfolg. Danach steht `/finanzierung/factoring` oben — 364 Einblendungen, Position 33,4, kleiner Aufwand.
+- **Eine Seite flutete die Liste**, weil sie zwölf Befunde hatte. Höchstens zwei je Seite, der Rest wird gezählt und ausgewiesen.
+- **Der Wächter meldete auf frischen Installationen Fehlalarm** (kein Cron, obwohl nichts zu messen war). Er greift jetzt erst, wenn das Änderungsbuch nicht leer ist — ein Wächter, der grundlos meckert, erzieht zum Wegsehen.
+- Der Geschäftswert-Bericht warnt jetzt, wenn auf **allen** Seiten 0 Anfragen stehen: Das heißt fast immer „Anfragen werden nicht gezählt", nicht „niemand fragt an".
+
+### Tests
+- +62 Tests (`test_geschaeftswert.py` 29, `test_chancen.py` 23, `test_health_wirkung.py` 10). Total: **639**.
+
 ## [1.8.0] - 2026-08-17
 
 Roadmap-Phase 2. Das Aenderungsbuch (1.7.0) haelt fest, WAS geaendert wurde — jetzt beantwortet das Werkzeug, ob es etwas gebracht hat.
