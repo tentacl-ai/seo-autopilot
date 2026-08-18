@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.11.0] - 2026-08-18
+
+### Added
+- **Wettbewerbsvergleich mit dem eigenen Crawler** (`wettbewerb.py`, CLI `wettbewerb`) — statt Wettbewerbsdaten zu kaufen. Verglichen wird, was oeffentlich im Quelltext steht: Inhaltstiefe, strukturierte Daten (auch welche Auszeichnungen dem Wettbewerb gehoeren und uns nicht), Meta-Angaben. Gemessen wird gegen den **staerksten** Wettbewerber, nicht gegen den Durchschnitt.
+- 🔑 **Fremde `robots.txt` wird gelesen und befolgt.** Auf eigenen Projekten crawlt der Autopilot Seiten des Kunden — hier sind es fremde Server. Verbotene Adressen werden nicht abgerufen, es werden wenige Seiten geholt, und der Bot nennt sich beim Namen. (Der normale Audit-Crawler wertete bisher nur das robots-**Meta-Tag** aus, nicht die robots.txt.)
+
+### Warum kein Datenanbieter
+Der Kreislauf braucht DataForSEO **nicht**: Eigene Platzierungen, Einblendungen und Klicks liefert die Search Console genauer als jede Schaetzung, Keyword-Chancen (Platz 11–20) sind laengst gebaut. Was ein Anbieter zusaetzlich koennte — **fremde** Platzierungen und ein Backlink-Index — ist mit eigenen Mitteln nicht seriös herstellbar: Googles Ergebnisseiten abzugreifen verstoesst gegen deren Nutzungsbedingungen, und ein Verlinkungs-Index hiesse, das halbe Web zu crawlen. Das Modul `sources/dataforseo.py` bleibt einsatzbereit, ist aber bewusst in keinem Projekt aktiviert.
+
+### Verified
+- Live gegen zwei echte Wettbewerber von joseph-hehenwarter.de: **485 Woerter je Seite gegen 1.152** beim staerksten; fehlende Auszeichnungen `Question`, `VideoObject`, `ImageObject`, `CollectionPage` benannt.
+- robots.txt-Befolgung am echten Server nachgewiesen: `/wp-admin/` von compeon.de wurde ausgeschlossen, eine 308-Weiterleitung der robots.txt korrekt verfolgt.
+
+### Tests
+- +15 Tests (`tests/test_wettbewerb.py`). Total: **701**.
+
+
 ## [1.10.1] - 2026-08-18
 
 ### Fixed

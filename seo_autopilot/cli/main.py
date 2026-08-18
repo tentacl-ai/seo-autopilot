@@ -827,6 +827,63 @@ def betrieb(projects):
 
 
 @cli.command()
+@click.option("--projects", default=None, help="Pfad zur Projektliste")
+@click.option("--projekt", default=None, help="Nur dieses Projekt")
+@click.option(
+    "--gegen",
+    default=None,
+    help="Wettbewerber-Domains, per Komma getrennt (statt aus projects.yaml)",
+)
+@click.option(
+    "--seiten", default=10, type=int, help="Wie viele Seiten je Domain (Standard 10)"
+)
+def wettbewerb(projects, projekt, gegen, seiten):
+    """Wettbewerbsvergleich mit dem eigenen Crawler — ohne Datenanbieter.
+
+    Vergleicht Inhaltstiefe, strukturierte Daten und Meta-Angaben gegen die
+    hinterlegten Wettbewerber. Fremde robots.txt wird befolgt.
+
+    NICHT messbar: fremde Platzierungen und Verlinkungen — dafuer braucht es
+    einen Datenanbieter wie DataForSEO.
+
+    Beispiel:
+      seo-autopilot wettbewerb --projekt joseph
+      seo-autopilot wettbewerb --projekt joseph --gegen https://a.de,https://b.de
+    """
+    import asyncio
+    from pathlib import Path
+
+    from ..health import _lade_projekte
+    from ..wettbewerb import als_text, vergleiche, wettbewerber_von
+
+    alle = _lade_projekte(Path(_projektliste_pfad(projects)))
+    if not alle:
+        raise click.ClickException(
+            f"Keine Projekte gefunden ({_projektliste_pfad(projects)})."
+        )
+
+    ausgewaehlt = (
+        {projekt: alle[projekt]}
+        if projekt and projekt in alle
+        else {p: c for p, c in alle.items() if (c or {}).get("enabled", True)}
+    )
+
+    for pid, cfg in ausgewaehlt.items():
+        cfg = cfg or {}
+        liste = (
+            [w.strip() for w in gegen.split(",") if w.strip()]
+            if gegen
+            else wettbewerber_von(cfg)
+        )
+        domain = cfg.get("domain", "")
+        if not domain:
+            continue
+        click.echo(f"\n=== {pid} ===")
+        ergebnis = asyncio.run(vergleiche(domain, liste, max_seiten=seiten))
+        click.echo(als_text(ergebnis))
+
+
+@cli.command()
 def version():
     """Show version"""
     from .. import __version__
