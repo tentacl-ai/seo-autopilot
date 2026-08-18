@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.1] - 2026-08-18
+
+### Fixed
+- 🔴 **Freigegebene Vorschlaege wurden nie ausgefuehrt.** Die Freigabe-Schlange aus 1.10.0 nahm Zustimmungen entgegen, der ApplyAgent las sie aber nicht — die CLI versprach "wird beim naechsten Lauf ausgefuehrt", und nichts passierte. Der Kreislauf endete in einer Sackgasse. Jetzt sammelt der Agent freigegebene Eintraege ein, fuehrt sie aus und markiert sie als erledigt. Eine Zustimmung wirkt nur, wenn der Befund im aktuellen Lauf noch besteht — sonst wuerde eine drei Wochen alte Freigabe etwas anfassen, das laengst erledigt ist.
+
+### Verified
+- Kompletter Kreislauf an einem echten Git-Repo: Copilot legt vor (Datei unveraendert) → Freigabe → naechster Lauf schreibt den neuen Titel, erzeugt Commit `563a6d9` und setzt die Freigabe auf "ausgefuehrt".
+
+### Tests
+- +4 Tests. Total: **686**.
+
 ## [1.10.0] - 2026-08-18
 
 Roadmap-Phase 5, Kern: Der Autopilot darf jetzt ausfuehren — aber nur mit Grenzen, die im Code stehen statt in der Dokumentation.

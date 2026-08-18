@@ -70,6 +70,69 @@ class TestSperreImEchtenAgenten:
         assert freigaben(db)[0].ist_gesperrt
 
 
+class TestFreigegebenesWirdAusgefuehrt:
+    """Die CLI verspricht 'wird beim naechsten Lauf ausgefuehrt'.
+
+    Ohne diese Verknuepfung waere die Freigabe eine Sackgasse: Der Mensch
+    stimmt zu, und nichts passiert.
+    """
+
+    def test_freigegebener_vorschlag_kommt_in_die_ausfuehrung(self, db):
+        from seo_autopilot.agents.apply import _freigegebene_fixes
+        from seo_autopilot.ausfuehrung import (
+            STATUS_FREIGEGEBEN,
+            entscheiden,
+            zur_freigabe,
+        )
+
+        fix = _fix("missing_canonical")
+        kennung = zur_freigabe(db, "test", fix, "gesperrt")
+        entscheiden(db, kennung, STATUS_FREIGEGEBEN, von="robert")
+
+        treffer = _freigegebene_fixes(db, "test", [fix])
+
+        assert len(treffer) == 1
+        assert treffer[0]["_freigabe_id"] == kennung
+
+    def test_offener_vorschlag_wird_nicht_ausgefuehrt(self, db):
+        from seo_autopilot.agents.apply import _freigegebene_fixes
+        from seo_autopilot.ausfuehrung import zur_freigabe
+
+        fix = _fix("missing_canonical")
+        zur_freigabe(db, "test", fix, "gesperrt")
+
+        assert _freigegebene_fixes(db, "test", [fix]) == []
+
+    def test_abgelehnter_vorschlag_wird_nicht_ausgefuehrt(self, db):
+        from seo_autopilot.agents.apply import _freigegebene_fixes
+        from seo_autopilot.ausfuehrung import (
+            STATUS_ABGELEHNT,
+            entscheiden,
+            zur_freigabe,
+        )
+
+        fix = _fix("missing_canonical")
+        kennung = zur_freigabe(db, "test", fix, "gesperrt")
+        entscheiden(db, kennung, STATUS_ABGELEHNT)
+
+        assert _freigegebene_fixes(db, "test", [fix]) == []
+
+    def test_alte_freigabe_ohne_aktuellen_befund_tut_nichts(self, db):
+        """Eine Zustimmung von vor drei Wochen darf nichts Erledigtes anfassen."""
+        from seo_autopilot.agents.apply import _freigegebene_fixes
+        from seo_autopilot.ausfuehrung import (
+            STATUS_FREIGEGEBEN,
+            entscheiden,
+            zur_freigabe,
+        )
+
+        kennung = zur_freigabe(db, "test", _fix("missing_canonical"), "gesperrt")
+        entscheiden(db, kennung, STATUS_FREIGEGEBEN)
+
+        # Der Befund besteht im aktuellen Lauf nicht mehr.
+        assert _freigegebene_fixes(db, "test", []) == []
+
+
 class TestBetriebsartenImAgenten:
     def test_beobachter_legt_nichts_an_und_aendert_nichts(self, db):
         ergebnis = _lauf(_projekt(betriebsart="beobachter"), [_fix("short_title")], db)

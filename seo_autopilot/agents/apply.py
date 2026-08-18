@@ -125,6 +125,19 @@ class ApplyAgent(Agent):
                 ):
                     vorgelegt += 1
 
+        # Freigegebene Vorschlaege einsammeln: Was ein Mensch zugestimmt hat,
+        # muss auch tatsaechlich passieren — sonst ist die Freigabe eine
+        # Sackgasse und die Zusage im CLI ("wird beim naechsten Lauf
+        # ausgefuehrt") eine Luege.
+        freigegeben = _freigegebene_fixes(buch_db, self.project_id, fixes)
+        if freigegeben:
+            eligible.extend(freigegeben)
+            result.metrics["aus_freigabe"] = len(freigegeben)
+            logger.info(
+                f"[apply] {len(freigegeben)} freigegebene(r) Vorschlag/Vorschlaege "
+                "werden jetzt ausgefuehrt"
+            )
+
         if vorgelegt:
             result.metrics["zur_freigabe"] = vorgelegt
             logger.info(
@@ -174,6 +187,18 @@ class ApplyAgent(Agent):
             }
             (applied if ar.success else failed).append(entry)
             self._ins_aenderungsbuch(f, ar)
+            if ar.success and f.get("_freigabe_id"):
+                # Erledigt — sonst stuende der Vorschlag morgen wieder als
+                # "freigegeben, wartet" in der Liste.
+                from ..ausfuehrung import STATUS_AUSGEFUEHRT, entscheiden
+
+                entscheiden(
+                    buch_db,
+                    f["_freigabe_id"],
+                    STATUS_AUSGEFUEHRT,
+                    von="autopilot",
+                    notiz=f"Audit {self.audit_id}",
+                )
 
         # In den Context schreiben fuer Persistence + Telegram
         if ctx is not None:
@@ -266,3 +291,33 @@ class ApplyAgent(Agent):
             logger.warning(
                 f"[apply] Änderung nicht ins Buch geschrieben (non-fatal): {exc}"
             )
+
+
+def _freigegebene_fixes(db_pfad, project_id, fixes):
+    """Fixes, denen ein Mensch bereits zugestimmt hat.
+
+    Verknuepft die Freigabe-Schlange mit den aktuellen Vorschlaegen des
+    ContentAgent. Ein freigegebener Eintrag wird nur ausgefuehrt, wenn der
+    Befund im aktuellen Lauf noch besteht — sonst wuerde eine Zustimmung von
+    vor drei Wochen etwas aendern, das inzwischen niemand mehr braucht.
+    """
+    from ..ausfuehrung import STATUS_FREIGEGEBEN, freigaben
+
+    try:
+        offen = freigaben(db_pfad, project_id=project_id, status=STATUS_FREIGEGEBEN)
+    except Exception as exc:  # pragma: no cover - defensiv
+        logger.warning(f"[apply] Freigaben nicht lesbar: {exc}")
+        return []
+    if not offen:
+        return []
+
+    je_schluessel = {(f.issue_type, f.ziel_url or ""): f for f in offen}
+    treffer = []
+    for fix in fixes:
+        schluessel = (fix.get("type", ""), fix.get("url") or "")
+        eintrag = je_schluessel.get(schluessel)
+        if eintrag:
+            angereichert = dict(fix)
+            angereichert["_freigabe_id"] = eintrag.id
+            treffer.append(angereichert)
+    return treffer

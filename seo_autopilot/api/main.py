@@ -17,11 +17,13 @@ Endpoints:
 - WS /api/ws/events/{project_id}
 """
 
-from fastapi import FastAPI, HTTPException, WebSocket
+from fastapi import FastAPI, HTTPException, WebSocket, Depends, Security
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import logging
+import secrets
 import asyncio
 from datetime import datetime
 from functools import partial
@@ -52,7 +54,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="SEO Autopilot API",
     description="Multi-tenant SEO automation platform",
-    version="1.2.2",
+    version="1.10.1",
 )
 
 # CORS
@@ -70,6 +72,32 @@ intelligence_agent = IntelligenceAgent(
     feed=IntelligenceFeed(),
     project_manager=project_manager,
 )
+
+
+# ============================================================
+# Auth: schuetzt zustandsaendernde Endpoints (Audits/Fixes/Projekte)
+# ============================================================
+
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+def require_api_key(api_key: Optional[str] = Security(_api_key_header)) -> None:
+    """Verlangt einen gueltigen API-Key im Header 'X-API-Key'.
+
+    Der erwartete Wert kommt aus ENV API_SECRET_KEY. Solange dort nur der
+    Platzhalter steht, ist Schreibzugriff komplett gesperrt (secure by default)
+    statt offen – sonst koennte jeder Audits/Fixes ausloesen.
+    """
+    expected = settings.API_SECRET_KEY
+    if not expected or expected == "change-me-in-production":
+        raise HTTPException(
+            status_code=503,
+            detail="Schreibzugriff deaktiviert: API_SECRET_KEY ist nicht gesetzt.",
+        )
+    if not api_key or not secrets.compare_digest(api_key, expected):
+        raise HTTPException(
+            status_code=401, detail="Ungueltiger oder fehlender API-Key."
+        )
 
 
 # ============================================================
@@ -182,7 +210,7 @@ async def shutdown_event():
 @app.get("/api/health")
 async def health():
     """Health Check"""
-    return {"status": "ok", "version": "1.2.2"}
+    return {"status": "ok", "version": "1.10.1"}
 
 
 @app.get("/api/projects", response_model=List[ProjectResponse])
@@ -209,7 +237,11 @@ async def list_projects():
     return result
 
 
-@app.post("/api/projects", response_model=ProjectResponse)
+@app.post(
+    "/api/projects",
+    response_model=ProjectResponse,
+    dependencies=[Depends(require_api_key)],
+)
 async def create_project(req: CreateProjectRequest):
     """Erstelle ein neues Projekt"""
     try:
@@ -273,7 +305,11 @@ async def get_project(project_id: str):
 # ============================================================
 
 
-@app.post("/api/audits/run/{project_id}", response_model=AuditRunResponse)
+@app.post(
+    "/api/audits/run/{project_id}",
+    response_model=AuditRunResponse,
+    dependencies=[Depends(require_api_key)],
+)
 async def trigger_audit(project_id: str, req: AuditRunRequest):
     """Triggere einen Audit manuell"""
     project = project_manager.get_project(project_id)
@@ -311,7 +347,7 @@ async def trigger_audit(project_id: str, req: AuditRunRequest):
 # ============================================================
 
 
-@app.post("/api/fixes/apply/{audit_id}")
+@app.post("/api/fixes/apply/{audit_id}", dependencies=[Depends(require_api_key)])
 async def apply_fixes_for_audit(audit_id: str):
     """Re-runt einen abgeschlossenen Audit mit force_apply=True."""
     from sqlalchemy import select
@@ -360,7 +396,7 @@ async def list_applied_fixes(project_id: Optional[str] = None, limit: int = 50):
     ]
 
 
-@app.post("/api/fixes/revert/{commit_hash}")
+@app.post("/api/fixes/revert/{commit_hash}", dependencies=[Depends(require_api_key)])
 async def revert_fix(commit_hash: str):
     """Markiert einen Fix als rolled_back. (Git-Revert ist manuell durchzufuehren.)"""
     from sqlalchemy import select
@@ -550,7 +586,7 @@ async def get_intelligence_impact(project_id: str):
     return report
 
 
-@app.post("/api/intelligence/poll")
+@app.post("/api/intelligence/poll", dependencies=[Depends(require_api_key)])
 async def manual_poll_intelligence():
     """Manuell Intelligence Feed polling triggern."""
     events = await intelligence_agent.poll_feeds()
