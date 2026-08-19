@@ -302,6 +302,59 @@ class GSCDataSource(DataSource):
             )
             return None
 
+    async def pull_range(
+        self,
+        property_url: str,
+        start_date: "date",
+        end_date: "date",
+        dimensions: Optional[List[str]] = None,
+        row_limit: int = 5000,
+    ) -> Optional[List[Dict[str, Any]]]:
+        """Rohzeilen fuer einen frei waehlbaren Zeitraum.
+
+        Grundlage des Historien-Imports. `pull_analytics` kann nur "die letzten
+        N Tage ab heute" und aggregiert dabei ueber vier Dimensionen
+        gleichzeitig; `pull_url_window` kann nur genau eine Adresse. Fuer eine
+        Zeitreihe braucht es beides nicht: einen festen Monat, frei gewaehlte
+        Dimensionen (oder gar keine, dann liefert Google die Gesamtsumme).
+
+        `start_date`/`end_date` sind inklusiv (so versteht die GSC-API sie).
+        `dimensions=None` bzw. `[]` heisst: eine einzige Zeile mit den
+        Gesamtwerten des Zeitraums.
+
+        Rueckgabe: Liste der Rohzeilen (`keys`, `clicks`, `impressions`,
+        `ctr`, `position`). Leere Liste heisst "in diesem Zeitraum keine
+        Sichtbarkeit" — eine Tatsache. `None` heisst "Abfrage fehlgeschlagen"
+        — ein Fehler. Diese Unterscheidung ist der ganze Sinn des
+        Rueckgabewerts: Wer einen API-Fehler als "null Klicks" in eine
+        Zeitreihe schreibt, erzeugt einen Einbruch, den es nie gab.
+        """
+        try:
+            if not self.authenticated:
+                await self.authenticate()
+
+            request: Dict[str, Any] = {
+                "startDate": start_date.isoformat(),
+                "endDate": end_date.isoformat(),
+                "rowLimit": row_limit,
+            }
+            if dimensions:
+                request["dimensions"] = list(dimensions)
+
+            response = (
+                self.service.searchanalytics()
+                .query(siteUrl=property_url, body=request)
+                .execute()
+            )
+            return response.get("rows", [])
+
+        except Exception as e:
+            logger.error(
+                f"GSC pull_range failed for {property_url} "
+                f"({start_date}..{end_date}, dims={dimensions}): {e}"
+            )
+            return None
+
     async def pull_backlinks(self, domain: str) -> Optional[List[Dict[str, Any]]]:
         """GSC has no backlink API – not implemented"""
         logger.warning(

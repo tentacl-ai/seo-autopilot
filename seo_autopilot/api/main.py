@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="SEO Autopilot API",
     description="Multi-tenant SEO automation platform",
-    version="1.11.0",
+    version="1.12.0",
 )
 
 # CORS
@@ -210,7 +210,7 @@ async def shutdown_event():
 @app.get("/api/health")
 async def health():
     """Health Check"""
-    return {"status": "ok", "version": "1.11.0"}
+    return {"status": "ok", "version": "1.12.0"}
 
 
 @app.get("/api/projects", response_model=List[ProjectResponse])

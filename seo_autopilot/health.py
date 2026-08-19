@@ -226,6 +226,7 @@ def run_selfcheck(
         for name, cfg in aktive.items():
             _pruefe_projekt(con, name, cfg, crontab, jetzt, report)
         _pruefe_wirkungsmessung(con, crontab, jetzt, report, db_pfad)
+        _pruefe_historie(con, aktive, crontab, jetzt, report)
     finally:
         con.close()
     return report
@@ -350,6 +351,90 @@ def _pruefe_wirkungsmessung(
                 f"{len(offen)} Messung(en) sind fällig, die letzte gespeicherte "
                 f"stammt vom {letzte.date().isoformat()}.",
                 "logs/wirkung.log prüfen — Search-Console-Zugang oder Cron defekt.",
+            )
+        )
+
+
+def _pruefe_historie(
+    con: sqlite3.Connection,
+    projekte: Dict[str, Dict[str, Any]],
+    crontab: str,
+    jetzt: datetime,
+    report: HealthReport,
+) -> None:
+    """Wacht über die Search-Console-Langzeithistorie.
+
+    Der stillste Dienst im Autopiloten: Im Normalbetrieb überspringt der Import
+    alle archivierten Monate und meldet nichts — exakt wie ein Import, dessen
+    Zugang abgelaufen ist. Der Unterschied fällt erst auf, wenn jemand nach der
+    Historie fragt. Dann ist der fehlende Monat bei Google aber unwiederbringlich
+    weg: Die Search Console gibt nur 16 Monate heraus.
+
+    Zwei Prüfungen, bewusst zurückhaltend:
+    1. Läuft der Import automatisch?
+    2. Steht der zuletzt abgeschlossene Monat im Archiv?
+
+    Ein Projekt ohne Search Console wird nicht bemängelt (das ist eine bekannte
+    Tatsache, kein Ausfall), und ein noch leeres Archiv auch nicht — sonst
+    meldet jede frische Installation sofort rot.
+    """
+    from .historie import NACHZIEHFRIST_TAGE, TABELLE, gsc_konfiguration
+
+    mit_gsc = {n: c for n, c in projekte.items() if gsc_konfiguration(c)}
+    if not mit_gsc:
+        return
+
+    try:
+        vorhanden = {
+            (z["project_id"], z["monat"])
+            for z in con.execute(
+                f"select project_id, monat from {TABELLE} where dimension = 'gesamt'"
+            ).fetchall()
+        }
+    except sqlite3.Error:
+        # Tabelle gibt es noch nicht — nie importiert. Kein Ausfall, sondern neu.
+        return
+
+    if not vorhanden:
+        return
+
+    if "cli.main historie" not in crontab:
+        report.befunde.append(
+            Befund(
+                "warnung",
+                "-",
+                "Historie läuft nicht automatisch",
+                "Kein Cron-Eintrag für den Historien-Import gefunden.",
+                "Eintragen: 15 11 * * * "
+                "./venv/bin/python3 -m seo_autopilot.cli.main historie --importieren "
+                "— sonst gehen Monate verloren, die Google nach 16 Monaten "
+                "nicht mehr herausgibt.",
+            )
+        )
+
+    # Zuletzt abgeschlossener Monat — innerhalb der Nachziehfrist noch nicht
+    # einfordern, da liefert Google selbst noch nach.
+    erster_des_monats = jetzt.date().replace(day=1)
+    letzter_abgeschlossener = erster_des_monats - timedelta(days=1)
+    if (jetzt.date() - letzter_abgeschlossener).days <= NACHZIEHFRIST_TAGE:
+        return
+    monat = f"{letzter_abgeschlossener.year:04d}-{letzter_abgeschlossener.month:02d}"
+
+    for name in mit_gsc:
+        # Projekte, die noch nie importiert wurden, hier nicht anmahnen —
+        # sonst meldet ein frisch aufgenommener Kunde sofort einen Ausfall.
+        if not any(p == name for p, _ in vorhanden):
+            continue
+        if (name, monat) in vorhanden:
+            continue
+        report.befunde.append(
+            Befund(
+                "warnung",
+                name,
+                "Lücke in der Historie",
+                f"Der abgeschlossene Monat {monat} fehlt im Archiv.",
+                f"Nachholen: seo-autopilot historie --importieren --projekt {name} "
+                f"— nach 16 Monaten gibt Google ihn nicht mehr heraus.",
             )
         )
 

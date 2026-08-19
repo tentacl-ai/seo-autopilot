@@ -891,5 +891,105 @@ def version():
     click.echo(f"SEO Autopilot v{__version__}")
 
 
+@cli.command()
+@click.option("--db", default=None, help="Pfad zur Audit-Datenbank")
+@click.option("--projects", default=None, help="Pfad zur Projektliste")
+@click.option("--projekt", default=None, help="Nur dieses Projekt")
+@click.option(
+    "--importieren/--nur-anzeigen",
+    default=False,
+    help="Historie jetzt aus der Search Console holen",
+)
+@click.option(
+    "--monate",
+    default=16,
+    type=int,
+    help="Wie weit zurueck (max. 16 — weiter gibt Google nicht her)",
+)
+@click.option(
+    "--alles-neu",
+    is_flag=True,
+    default=False,
+    help="Auch bereits archivierte Monate erneut holen",
+)
+@click.option(
+    "--top", default=10, type=int, help="Wie viele Gewinner/Verlierer je Liste"
+)
+@click.option("--export", "export_pfad", default=None, help="Als CSV herausschreiben")
+def historie(db, projects, projekt, importieren, monate, alles_neu, top, export_pfad):
+    """Langzeit-Historie aus der Search Console (bis 16 Monate).
+
+    Google gibt nur 16 Monate heraus — was heute nicht geholt wird, ist spaeter
+    verloren. Einmal importiert, bleibt ein Monat dauerhaft im eigenen Archiv.
+
+    Beispiele:
+      seo-autopilot historie --importieren            # alle Projekte, 16 Monate
+      seo-autopilot historie --projekt tentacl-ai     # Bericht ansehen
+      seo-autopilot historie --export historie.csv    # fuer Excel
+    """
+    import asyncio
+    from pathlib import Path
+
+    from ..historie import (
+        bericht_text,
+        exportiere_csv,
+        importiere,
+        monatsreihe,
+        standard_db_pfad,
+    )
+    from ..health import _lade_projekte
+
+    db_pfad = db or standard_db_pfad()
+    projekt_liste = _lade_projekte(Path(_projektliste_pfad(projects)))
+    if not projekt_liste:
+        # Exit-Code statt stillem return: Im Cron laeuft der Befehl aus einem
+        # beliebigen Verzeichnis. Ohne Projektliste wuerde er sonst jahrelang
+        # "erfolgreich" nichts tun.
+        raise click.ClickException(
+            f"Keine Projekte gefunden ({projects}). "
+            "Im Cron 'cd /opt/odoo/docs/seo-autopilot &&' voranstellen."
+        )
+
+    ziele = {projekt: projekt_liste[projekt]} if projekt else projekt_liste
+    if projekt and projekt not in projekt_liste:
+        raise click.ClickException(
+            f"Projekt '{projekt}' steht nicht in der Projektliste."
+        )
+
+    if importieren:
+        for pid, konfig in ziele.items():
+            ergebnis = asyncio.run(
+                importiere(db_pfad, pid, konfig, monate=monate, alles_neu=alles_neu)
+            )
+            if not ergebnis.erfolgreich:
+                click.echo(f"{pid}: {ergebnis.fehler}")
+                continue
+            click.echo(
+                f"{pid}: {ergebnis.monate_geholt} Monat(e) geholt, "
+                f"{ergebnis.monate_uebersprungen} schon im Archiv, "
+                f"{ergebnis.zeilen} Zeilen"
+            )
+            if ergebnis.monate_fehlgeschlagen:
+                # Sichtbar machen, nicht verschlucken: ein fehlgeschlagener
+                # Monat ist eine Luecke in der Zeitreihe, kein Nulltraffic.
+                click.echo(
+                    f"  ACHTUNG: {ergebnis.monate_fehlgeschlagen} Monat(e) "
+                    f"nicht abrufbar — bleiben offen, naechster Lauf versucht es erneut"
+                )
+        click.echo("")
+
+    if export_pfad:
+        anzahl = exportiere_csv(db_pfad, export_pfad, project_id=projekt)
+        click.echo(f"{anzahl} Zeilen nach {export_pfad} geschrieben.")
+        return
+
+    for pid in ziele:
+        if not monatsreihe(db_pfad, pid) and not importieren:
+            click.echo(f"{pid}: noch keine Historie — '--importieren' holt sie.")
+            continue
+        click.echo(bericht_text(db_pfad, pid, top=top))
+        click.echo("")
+
+
 if __name__ == "__main__":
     cli()

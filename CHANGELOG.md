@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.12.0] - 2026-08-19
+
+### Added
+- **Langzeit-Historie aus der Search Console** (`historie.py`, CLI `historie`) — bis **16 Monate** rueckwaerts, monatsweise archiviert in der Tabelle `gsc_historie`. Bisher kannte der Autopilot Suchdaten nur als rollierende 28-Tage-Momentaufnahme; damit war weder Saisonalitaet noch ein Vorjahresvergleich moeglich.
+- 🔑 **Der Import ist ein Archiv, keine Abfrage.** Google gibt nur 16 Monate heraus — ein heute nicht geholter Monat ist dauerhaft verloren. Einmal importiert, bleibt ein Monat in der eigenen Datenbank stehen, auch wenn Google ihn Jahre spaeter nicht mehr kennt.
+- Bericht in deutschem Klartext: Monatsreihe, Beginn der Sichtbarkeit, Vorjahresvergleich, weggebrochene und dazugewonnene Suchbegriffe und Seiten (letzte 3 Monate gegen die 3 davor).
+- CSV-Export fuer Excel (`--export`, Semikolon + BOM + Dezimalkomma).
+- `GSCDataSource.pull_range()` — Rohzeilen fuer frei waehlbaren Zeitraum und frei waehlbare Dimensionen. `pull_analytics` konnte nur "letzte N Tage ab heute", `pull_url_window` nur genau eine Adresse.
+- **Waechter-Anbindung** (`_pruefe_historie` in `health.py`): fehlender Cron und fehlender abgeschlossener Monat werden gemeldet. Ein Projekt ohne Search Console und ein noch leeres Archiv werden bewusst nicht bemaengelt.
+- Cron **taeglich 11:15** (vor dem Waechter 11:30). Kostet im Normalbetrieb nur den laufenden Monat, weil abgeschlossene Monate uebersprungen werden.
+
+### Fixed
+- **skinmatch war auf die falsche Search-Console-Property verdrahtet** (`sc-domain:tentacl.de`), Zugriff besteht auf `https://skin.tentacl.de/`. Das Projekt hat dadurch seit seiner Aufnahme **nie** Suchdaten bekommen — passend dazu stand in `seo_keywords` kein einziger Eintrag. Aufgefallen ist es erst, weil der Historien-Import 16 fehlgeschlagene Monate meldete statt 16 Nullmonate zu erfinden.
+
+### Sperren (jede zuerst rot bewiesen, dann gezielt sabotiert)
+1. **Abfragefehler wird nie als Null gespeichert.** Schlaegt eine Abfrage fehl, entsteht kein Eintrag — der Monat bleibt offen und wird beim naechsten Lauf erneut versucht. Ein als "0 Klicks" verbuchter Netzwerkfehler erzeugt sonst einen Einbruch, den es nie gab, und der Autopilot sucht anschliessend nach dessen Ursache. Auch ein **Teilfehler** speichert nichts: lieber kein Monat als ein halber.
+2. **Der laufende Monat gilt als unvollstaendig** (`vollstaendig=0`) und faellt aus jedem Vergleich heraus. Am 3. des Monats saehe er sonst immer wie ein Absturz aus.
+3. **Abgeschlossene Monate werden nicht neu geholt** — ausser innerhalb der Nachziehfrist von 5 Tagen, weil die Search Console rund drei Tage hinterherhinkt.
+4. **Mindest-Datenmenge fuer Vergleiche** (30 Einblendungen) — darunter ist jede Prozentangabe Zufall.
+5. **Kein Vorjahresvergleich gegen eine Website, die es noch nicht gab** (100 Einblendungen im Vorjahreszeitraum noetig).
+
+### Verified
+- Erster Live-Import: **tentacl-ai, joseph, lovebianca-ai, skinmatch je 16 Monate** archiviert (742 Zeilen), topal hat weiterhin kein GSC.
+- 🔑 **Der Live-Lauf deckte Sperre 5 erst auf:** Der Bericht meldete fuer tentacl.ai "+732 Einblendungen gegenueber Vorjahr" — rechnerisch richtig, als Aussage wertlos, weil die Domain erst ab Maerz 2026 ueberhaupt sichtbar ist (10 Nullmonate davor). Solche Zahlen landen sonst in einer Kundenmail. Der Bericht weist jetzt stattdessen den Beginn der Sichtbarkeit aus.
+- Cron-Befehl exakt so als root getestet (Exit 0), Dateibesitz der Datenbank unveraendert.
+- Waechter am Live-System: keine Historien-Befunde, der bekannte topal-Befund bleibt.
+- Echte Erkenntnis aus den Daten (joseph): Einblendungen von 334 auf 629 fast verdoppelt, aber CTR von 11,7 % auf 4,6 % gefallen und Position von 17,6 auf 24,7 verschlechtert — mehr Sichtbarkeit fuer schlechter passende Suchbegriffe.
+
+### Tests
+- +43 Tests (`tests/test_historie.py` 37, `tests/test_health_historie.py` 6). Total: **744**.
+- Alle fuenf Sperren wurden nach dem Gruenwerden gezielt sabotiert, um zu belegen, dass die Tests sie wirklich abdecken — jeweils wurden genau die zugehoerigen Tests rot.
+
+
 ## [1.11.0] - 2026-08-18
 
 ### Added
