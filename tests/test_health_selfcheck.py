@@ -83,12 +83,16 @@ def _gesund(quellen=None, source_config=None):
     keine Core Web Vitals, und genau das soll der Wächter melden (siehe
     ``TestWarnungen.test_pagespeed_ohne_schluessel``). Ein Platzhalterwert
     genügt — geprüft wird nur, ob überhaupt etwas hinterlegt ist.
+
+    `paket: klein` nimmt das Projekt aus der Paket-Prüfung (Search Console +
+    GA4 + Bericht) heraus — die hat ihre eigenen Tests in test_einrichtung.py.
     """
     return {
         "projects": {
             "beispiel": {
                 "domain": "https://example.com",
                 "enabled": True,
+                "paket": "klein",
                 "enabled_sources": quellen if quellen is not None else [],
                 "source_config": (
                     source_config
@@ -111,7 +115,7 @@ class TestGesunderZustand:
 
 class TestAusfaelleWerdenRot:
     def test_projekt_ohne_jeden_lauf(self, umgebung):
-        """Der reale topal-Fall: konfiguriert, aber nie ausgeführt."""
+        """Der reale handel-beispiel-Fall: konfiguriert, aber nie ausgeführt."""
         umgebung["schreibe_projekte"](_gesund())
         report = _pruefe(umgebung)
         assert report.exit_code == 2
@@ -125,7 +129,7 @@ class TestAusfaelleWerdenRot:
         assert any("kein Lauf" in b.titel for b in report.kritisch)
 
     def test_lauf_ohne_erfasste_seiten(self, umgebung):
-        """Der reale joseph-Fall: Domain zeigte ins Leere, Crawl lieferte nichts."""
+        """Der reale beratung-beispiel-Fall: Domain zeigte ins Leere, Crawl lieferte nichts."""
         umgebung["schreibe_projekte"](_gesund())
         umgebung["audit"]("beispiel", stunden_her=1, pages=0)
         report = _pruefe(umgebung)
@@ -155,7 +159,7 @@ class TestAusfaelleWerdenRot:
 
 class TestWarnungen:
     def test_gsc_aktiviert_aber_unkonfiguriert(self, umgebung):
-        """Der reale joseph-Fall: 'gsc' aktiv, aber ohne Zugangsdaten."""
+        """Der reale beratung-beispiel-Fall: 'gsc' aktiv, aber ohne Zugangsdaten."""
         umgebung["schreibe_projekte"](_gesund(quellen=["gsc"]))
         umgebung["audit"]("beispiel", stunden_her=1)
         report = _pruefe(umgebung)
@@ -225,7 +229,7 @@ class TestWarnungen:
 
 
 def test_fehlender_zeitplan_wird_gemeldet(umgebung):
-    """Der reale topal-Fall: aktiv, aber von keinem Cron aufgerufen."""
+    """Der reale handel-beispiel-Fall: aktiv, aber von keinem Cron aufgerufen."""
     umgebung["schreibe_projekte"](_gesund())
     umgebung["audit"]("beispiel", stunden_her=1)
     report = _pruefe(umgebung, crontab="0 7 * * * --project-id anderes\n")

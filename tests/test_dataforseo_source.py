@@ -67,9 +67,9 @@ SERP_ANTWORT = {
                             "type": "organic",
                             "rank_group": 1,
                             "rank_absolute": 1,
-                            "domain": "campingamsee.com",
+                            "domain": "camping-beispiel.de",
                             "title": "Camping am See – Bodensee",
-                            "url": "https://campingamsee.com/",
+                            "url": "https://camping-beispiel.de/",
                         },
                         {
                             "type": "people_also_ask",
@@ -103,7 +103,7 @@ SUCHVOLUMEN_ANTWORT = {
                     "cpc": 0.42,
                 },
                 {
-                    "keyword": "stellplatz allensbach",
+                    "keyword": "stellplatz camping-beispiel",
                     "search_volume": 210,
                     "competition": "LOW",
                     "cpc": 0.11,
@@ -120,7 +120,7 @@ BACKLINK_ANTWORT = {
             "status_code": 20000,
             "result": [
                 {
-                    "target": "campingamsee.com",
+                    "target": "camping-beispiel.de",
                     "referring_domains": 143,
                     "backlinks": 2871,
                     "rank": 212,
@@ -192,9 +192,9 @@ class TestAntwortenParsen:
         assert len(ergebnis.treffer) == 2
         erster = ergebnis.treffer[0]
         assert erster.position == 1
-        assert erster.domain == "campingamsee.com"
+        assert erster.domain == "camping-beispiel.de"
         assert erster.titel == "Camping am See – Bodensee"
-        assert erster.url == "https://campingamsee.com/"
+        assert erster.url == "https://camping-beispiel.de/"
         # rank_absolute hat Vorrang vor rank_group
         assert ergebnis.treffer[1].position == 3
 
@@ -223,7 +223,7 @@ class TestAntwortenParsen:
     async def test_suchvolumen_wird_geparst(self):
         quelle = _quelle(_antwort(SUCHVOLUMEN_ANTWORT))
         ergebnis = await quelle.suchvolumen(
-            ["campingplatz bodensee", "stellplatz allensbach"]
+            ["campingplatz bodensee", "stellplatz camping-beispiel"]
         )
         assert ergebnis.ok
         assert len(ergebnis.eintraege) == 2
@@ -237,10 +237,10 @@ class TestAntwortenParsen:
     async def test_backlinks_werden_geparst(self):
         quelle = _quelle(_antwort(BACKLINK_ANTWORT))
         ergebnis = await quelle.backlink_uebersicht(
-            "https://campingamsee.com/impressum"
+            "https://camping-beispiel.de/impressum"
         )
         assert ergebnis.ok
-        assert ergebnis.domain == "campingamsee.com"
+        assert ergebnis.domain == "camping-beispiel.de"
         assert ergebnis.verweisende_domains == 143
         assert ergebnis.backlinks_gesamt == 2871
         assert ergebnis.vertrauenswert == 212

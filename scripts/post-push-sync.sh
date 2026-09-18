@@ -34,8 +34,8 @@ fi
 # === 2. Reminder fuer manuelle Schritte ===
 echo ""
 echo -e "${YELLOW}Manuelle Schritte pruefen:${NC}"
-echo "  [ ] Landing Page:  /opt/apps/landing/frontend/dist/seo-autopilot/index.html"
-echo "  [ ] llms.txt:      /opt/apps/landing/frontend/dist/llms.txt"
+echo "  [ ] Landing Page:  /var/www/meine-website/dist/seo-autopilot/index.html"
+echo "  [ ] llms.txt:      /var/www/meine-website/dist/llms.txt"
 echo "  [ ] seo-check:     /var/www/seo-check/index.html"
 echo "  [ ] PyPI:          python -m build && twine upload dist/*"
 echo "  [ ] Container:     sudo docker compose build && up -d seo-autopilot"

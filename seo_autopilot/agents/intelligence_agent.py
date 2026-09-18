@@ -139,10 +139,12 @@ class IntelligenceAgent:
         domain = project.domain
         impact = ProjectImpact(project_id=project.id, domain=domain)
 
-        api_key = settings.CLAUDE_API_KEY
-        if not api_key:
+        # Seit 16.09.2026 ueber Roberts Max-Abo (abo_ki), nie ueber den bezahlten API-Key
+        from .. import abo_ki
+
+        if not abo_ki.verfuegbar():
             logger.warning(
-                "[intelligence] No CLAUDE_API_KEY — using heuristic assessment"
+                "[intelligence] Abo-Zugang fehlt — using heuristic assessment"
             )
             return self._heuristic_assessment(event, project)
 
@@ -159,27 +161,12 @@ class IntelligenceAgent:
         )
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.post(
-                    "https://api.anthropic.com/v1/messages",
-                    headers={
-                        "x-api-key": api_key,
-                        "anthropic-version": "2023-06-01",
-                        "content-type": "application/json",
-                    },
-                    json={
-                        "model": settings.CLAUDE_MODEL,
-                        "max_tokens": 256,
-                        "messages": [{"role": "user", "content": prompt}],
-                    },
-                )
+            import asyncio
 
-            if resp.status_code == 200:
-                text = resp.json()["content"][0]["text"]
-                impact = self._parse_impact_response(text, project.id, domain)
-            else:
-                logger.warning(f"[intelligence] Claude API error {resp.status_code}")
-                impact = self._heuristic_assessment(event, project)
+            text = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: abo_ki.fragen(prompt, modell=settings.CLAUDE_MODEL)
+            )
+            impact = self._parse_impact_response(text, project.id, domain)
 
         except Exception as exc:
             logger.warning(f"[intelligence] Claude API call failed: {exc}")

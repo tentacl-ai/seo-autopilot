@@ -35,6 +35,30 @@ HIGH_BOUNCE_THRESHOLD = 70.0  # Prozent
 MIN_SESSIONS = 30
 
 
+# Such-Operatoren sind keine Kundensuchen, sondern Pruefabfragen (meist von uns
+# selbst). "site:tentacl.ai" landete am 22.08.2026 als "Chance" im Bericht.
+SUCH_OPERATOREN = (
+    "site:",
+    "inurl:",
+    "intitle:",
+    "intext:",
+    "cache:",
+    "related:",
+    "info:",
+)
+
+
+def echte_suchbegriffe(keywords: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Filtert Operator-Abfragen und leere Begriffe heraus."""
+    aus = []
+    for kw in keywords:
+        q = str(kw.get("query") or "").strip().lower()
+        if not q or any(op in q for op in SUCH_OPERATOREN):
+            continue
+        aus.append(kw)
+    return aus
+
+
 class KeywordAgent(Agent):
     """Real GSC-backed keyword research agent."""
 
@@ -230,7 +254,7 @@ class KeywordAgent(Agent):
     ) -> List[Dict[str, Any]]:
         """Low-CTR opportunities: ranking decent but clicks underperforming."""
         issues = []
-        for kw in keywords:
+        for kw in echte_suchbegriffe(keywords):
             impressions = kw.get("impressions", 0)
             clicks = kw.get("clicks", 0)
             position = kw.get("position", 100)
@@ -270,7 +294,7 @@ class KeywordAgent(Agent):
     ) -> List[Dict[str, Any]]:
         """Queries on page 2 (pos 11-20) that could be pushed to page 1."""
         issues = []
-        for kw in keywords:
+        for kw in echte_suchbegriffe(keywords):
             position = kw.get("position", 100)
             impressions = kw.get("impressions", 0)
             if (

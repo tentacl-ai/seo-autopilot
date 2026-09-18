@@ -4,7 +4,7 @@ Lernschleife für widerlegte Befunde.
 Seit 2026-08-17 prüfen sich schwere Befunde in `verification.py` selbst gegen
 die Realität. Was dabei widerlegt wird, verschwand bisher in einer Logzeile —
 und damit auch die Information, WELCHE Prüfung im Analyzer eigentlich falsch
-liegt. Genau das war der eigentliche Schaden bei joseph-hehenwarter.de: Nicht
+liegt. Genau das war der eigentliche Schaden bei beratung-beispiel.de: Nicht
 der einzelne Fehlalarm, sondern dass niemand sehen konnte, dass derselbe
 Fehlalarm seit Wochen bei mehreren Projekten auftrat.
 
@@ -13,7 +13,7 @@ Dieses Modul schreibt jeden widerlegten Befund in die Tabelle
 
     from seo_autopilot.learning import record_refuted, muster_bericht
 
-    record_refuted("seo_autopilot.db", "joseph", audit_id, widerlegt)
+    record_refuted("seo_autopilot.db", "beratung-beispiel", audit_id, widerlegt)
     for m in muster_bericht("seo_autopilot.db"):
         print(m.issue_type, m.treffer, m.projekte)
 

@@ -57,6 +57,51 @@ class TestLegalPages:
         assert "missing_datenschutz" not in types
 
 
+class TestLegalSectionsOnOtherPages:
+    """natur-beispiel.at 2026-09-15: Datenschutz steht als Abschnitt in /impressum, die Person-Seite heisst /klaus."""
+
+    def test_datenschutz_as_section_heading(self, analyzer):
+        page = _page("https://example.com/impressum")
+        page["h2"] = ["Impressum", "Datenschutzerklärung"]
+        result = analyzer.analyze([_page("https://example.com/"), page], DOMAIN)
+        assert "missing_datenschutz" not in [i["type"] for i in result["issues"]]
+
+    def test_datenschutz_as_anchor_link(self, analyzer):
+        start = _page("https://example.com/")
+        start["internal_link_urls"] = ["https://example.com/impressum#datenschutz"]
+        result = analyzer.analyze(
+            [start, _page("https://example.com/impressum")], DOMAIN
+        )
+        assert "missing_datenschutz" not in [i["type"] for i in result["issues"]]
+
+    def test_about_page_via_person_schema_url(self, analyzer):
+        person = {
+            "@type": "Person",
+            "name": "Klaus",
+            "url": "https://example.com/klaus",
+        }
+        pages = [
+            _page(
+                "https://example.com/", schema_types=["Person"], schema_data=[person]
+            ),
+            _page(
+                "https://example.com/klaus",
+                schema_types=["Person"],
+                schema_data=[person],
+            ),
+        ]
+        result = analyzer.analyze(pages, DOMAIN)
+        assert "missing_about_page" not in [i["type"] for i in result["issues"]]
+
+    def test_person_url_on_root_is_no_about_page(self, analyzer):
+        person = {"@type": "Person", "name": "Klaus", "url": "https://example.com/"}
+        pages = [
+            _page("https://example.com/", schema_types=["Person"], schema_data=[person])
+        ]
+        result = analyzer.analyze(pages, DOMAIN)
+        assert "missing_about_page" in [i["type"] for i in result["issues"]]
+
+
 class TestContactPage:
     def test_missing_contact(self, analyzer):
         pages = [_page("https://example.com/")]

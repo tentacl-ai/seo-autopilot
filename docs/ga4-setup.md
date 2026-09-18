@@ -23,7 +23,7 @@ Leserechte an der Property:
 1. **Verwaltung → Property-Zugriffsverwaltung**
 2. Oben rechts auf **+** → **Nutzer hinzufügen**
 3. E-Mail-Adresse eintragen:
-   `tentacl-seo-bot@tentacl-seo.iam.gserviceaccount.com`
+   `<dienstkonto>@<gcp-projekt>.iam.gserviceaccount.com`
 4. Rolle **Betrachter** auswählen (mehr braucht es nicht — nur lesen)
 5. Den Haken bei "E-Mail-Benachrichtigung senden" kann man wegnehmen
 6. **Hinzufügen**
@@ -46,10 +46,10 @@ projects:
     source_config:
       gsc:
         property_url: sc-domain:tentacl.ai
-        credentials_path: /opt/odoo/credentials/tentacl-seo-service-account.json
+        credentials_path: credentials/service-account.json
       ga4:
         property_id: "123456789"
-        credentials_path: /opt/odoo/credentials/tentacl-seo-service-account.json
+        credentials_path: credentials/service-account.json
 ```
 
 Die Schlüsseldatei ist dieselbe wie bei der Search Console.

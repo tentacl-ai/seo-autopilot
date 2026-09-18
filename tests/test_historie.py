@@ -511,13 +511,13 @@ def test_projekt_ohne_gsc_hat_keine_konfiguration():
 
 @pytest.mark.asyncio
 async def test_import_ohne_gsc_meldet_statt_zu_werfen(db):
-    """Ein Projekt ohne Search Console ist kein Absturzgrund — topal ist so eins."""
+    """Ein Projekt ohne Search Console ist kein Absturzgrund — handel-beispiel ist so eins."""
     ergebnis = await importiere(
-        db, "topal", {"enabled_sources": []}, heute=date(2026, 8, 19)
+        db, "handel-beispiel", {"enabled_sources": []}, heute=date(2026, 8, 19)
     )
     assert not ergebnis.erfolgreich
     assert "Search Console" in ergebnis.fehler
-    assert zeilen(db, "topal") == []
+    assert zeilen(db, "handel-beispiel") == []
 
 
 # --------------------------------------------------------------------------

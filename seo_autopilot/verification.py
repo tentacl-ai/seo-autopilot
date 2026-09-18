@@ -1,7 +1,7 @@
 """
 Gegenprobe für schwere Befunde ("Auto-Verify").
 
-Am 2026-08-17 waren bei joseph-hehenwarter.de **fünf von fünf** schweren
+Am 2026-08-17 waren bei beratung-beispiel.de **fünf von fünf** schweren
 Befunden falsch — Impressum, Datenschutz, Firmen-Schema, Sitemap-Adressen,
 Bildbeschreibungen. Alle fünf ließen sich in Sekunden am Live-HTML widerlegen.
 Genau das macht dieses Modul jetzt automatisch, BEVOR ein Befund gemeldet wird.

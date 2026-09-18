@@ -1,0 +1,9 @@
+{
+ "host": "kunde-beispiel.de",
+ "marken": ["kunde-beispiel.de", "Beispiel GmbH"],
+ "fragen": [
+  "Wer ist die Beispiel GmbH?",
+  "Ich suche in Musterstadt einen Anbieter für <Leistung>. Wen kannst du empfehlen?",
+  "Welche Anbieter für <Leistung> gibt es im Raum Musterstadt?"
+ ]
+}

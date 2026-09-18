@@ -445,8 +445,8 @@ def test_text_vermeidet_doppelte_domain_und_falschen_plural(umgebung):
     umgebung["schreibe_projekte"](
         {
             "b": {
-                "name": "BiancaAI (lovebianca.ai)",
-                "domain": "https://www.lovebianca.ai",
+                "name": "Coaching-Beispiel (coaching-beispiel.de)",
+                "domain": "https://www.coaching-beispiel.de",
             }
         }
     )
@@ -456,7 +456,7 @@ def test_text_vermeidet_doppelte_domain_und_falschen_plural(umgebung):
     text = als_text(_bericht(umgebung))
 
     # Domain steckt schon im Namen -> nicht zweimal
-    assert text.count("lovebianca.ai") == 1
+    assert text.count("coaching-beispiel.de") == 1
     assert "in 2 Durchläufen" in text
     assert "Durchlaufen" not in text
     # Bei gleichem Wert keine sinnlose "+0 Punkte"-Angabe

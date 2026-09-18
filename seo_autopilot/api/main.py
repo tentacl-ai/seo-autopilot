@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="SEO Autopilot API",
     description="Multi-tenant SEO automation platform",
-    version="1.12.0",
+    version="1.16.0",
 )
 
 # CORS
@@ -210,7 +210,7 @@ async def shutdown_event():
 @app.get("/api/health")
 async def health():
     """Health Check"""
-    return {"status": "ok", "version": "1.12.0"}
+    return {"status": "ok", "version": "1.16.0"}
 
 
 @app.get("/api/projects", response_model=List[ProjectResponse])
@@ -460,6 +460,11 @@ async def websocket_events(websocket: WebSocket, project_id: str):
 # ============================================================
 
 
+# Ergebnis je Lauf fuer die CLI: "completed" | "failed" | "nicht_gespeichert".
+# Die Funktion gibt aus Kompatibilitaet weiter nur die audit_id zurueck.
+LAUF_STATUS: Dict[str, str] = {}
+
+
 async def run_audit_for_project(
     project_id: str, force_apply: bool = False
 ) -> Optional[str]:
@@ -501,6 +506,12 @@ async def run_audit_for_project(
     ]
 
     try:
+        # Identitaetsschutz: VOR jeder Analyse und jedem Auto-Fix. Scheitert
+        # er, endet der Lauf als "failed" (CLI: Exit 1) — siehe identitaet.py.
+        from ..identitaet import sicherstellen as _identitaet_sicherstellen
+
+        await _identitaet_sicherstellen(project)
+
         for AgentCls in agent_classes:
             agent = AgentCls(project_id, audit_id, project, context=ctx)
             result = await agent.run()
@@ -510,11 +521,29 @@ async def run_audit_for_project(
         ctx.status = "completed"
         ctx.calculate_score()
 
-        # Persist to DB (best-effort, non-fatal)
+        # Persist to DB. Scheitert das Speichern, gilt der Lauf fuer die CLI als
+        # fehlgeschlagen (Exit 1) — sonst wiederholt sich der stille Datenverlust
+        # vom Mai 2026 (Laeufe "ok", aber nichts gespeichert).
         try:
             await persist_audit(ctx)
         except Exception as exc:
-            logger.warning(f"Audit persistence failed: {exc}")
+            logger.error(f"Audit persistence failed: {exc}")
+            LAUF_STATUS[audit_id] = "nicht_gespeichert"
+
+        # Freigaben fuer inzwischen verschwundene Befunde schliessen (jedes
+        # Projekt, nicht nur die mit Kundenbericht)
+        try:
+            from ..ausfuehrung import erledigte_schliessen, standard_db_pfad
+
+            n = erledigte_schliessen(
+                standard_db_pfad(),
+                project_id,
+                {i.get("type") for i in ctx.all_issues if i.get("type")},
+            )
+            if n:
+                logger.info(f"[freigabe] {n} erledigte Vorschlaege geschlossen")
+        except Exception as exc:
+            logger.warning(f"Freigaben-Aufraeumen fehlgeschlagen: {exc}")
 
         # Generate HTML report
         try:
@@ -546,6 +575,7 @@ async def run_audit_for_project(
             f"Audit completed: {audit_id} score={ctx.score} "
             f"high={sev['high']} med={sev['medium']} low={sev['low']}"
         )
+        LAUF_STATUS.setdefault(audit_id, "completed")
         return audit_id
 
     except Exception as exc:
@@ -553,6 +583,13 @@ async def run_audit_for_project(
         ctx.error = str(exc)
         ctx.completed_at = datetime.utcnow()
         logger.exception("Audit failed")
+        LAUF_STATUS[audit_id] = "failed"
+        # Fehlschlag speichern, damit der Waechter ihn sieht ("Letzter Lauf endete
+        # mit Status failed") — vorher verschwand ein Absturz spurlos.
+        try:
+            await persist_audit(ctx)
+        except Exception as exc2:
+            logger.error(f"Persisting failed audit also failed: {exc2}")
         await event_bus.emit(
             Event(
                 type=EventType.AUDIT_FAILED,

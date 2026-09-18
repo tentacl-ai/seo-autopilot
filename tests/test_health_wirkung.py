@@ -17,19 +17,19 @@ from seo_autopilot.health import run_selfcheck
 from seo_autopilot.wirkung import Messung, speichere_messung, tabelle_anlegen
 
 CRON_GESUND = (
-    "45 11 * * * . /opt/scripts/telegram.env && cd /opt/odoo/docs/seo-autopilot "
-    "&& /opt/.../venv/bin/python3 -m seo_autopilot.cli.main wirkung --messen\n"
-    "0 10 * * * /opt/.../python3 -m "
-    "seo_autopilot.cli.main run --project-id joseph\n"
+    "45 11 * * * . /pfad/zugangsdaten.env && cd <Installationsordner> "
+    "&& /srv/seo-autopilot/venv/bin/python3 -m seo_autopilot.cli.main wirkung --messen\n"
+    "0 10 * * * /srv/seo-autopilot/venv/bin/python3 -m "
+    "seo_autopilot.cli.main run --project-id beratung-beispiel\n"
 )
 
 CRON_OHNE_WIRKUNG = (
-    "0 10 * * * cd /opt/odoo/docs/seo-autopilot && /opt/.../python3 -m "
-    "seo_autopilot.cli.main run --project-id joseph\n"
+    "0 10 * * * cd <Installationsordner> && /srv/seo-autopilot/venv/bin/python3 -m "
+    "seo_autopilot.cli.main run --project-id beratung-beispiel\n"
 )
 
 CRON_OHNE_CD = (
-    "45 11 * * * . /opt/scripts/telegram.env && /opt/.../venv/bin/python3 -m "
+    "45 11 * * * . /pfad/zugangsdaten.env && /srv/seo-autopilot/venv/bin/python3 -m "
     "seo_autopilot.cli.main wirkung --messen\n"
 )
 
@@ -39,8 +39,7 @@ def umgebung(tmp_path):
     """Minimal lauffähige DB + Projektliste, damit der Wächter durchläuft."""
     db = tmp_path / "seo.db"
     con = sqlite3.connect(str(db))
-    con.executescript(
-        """
+    con.executescript("""
         create table alembic_version (version_num text);
         create table seo_audits (
             id text primary key, project_id text, started_at text,
@@ -48,14 +47,13 @@ def umgebung(tmp_path):
         );
         create table seo_issues (id text primary key, audit_id text);
         create table seo_projects (id text primary key);
-        """
-    )
+        """)
     jetzt = datetime.now(timezone.utc)
     con.execute(
         "insert into seo_audits "
         "(id, project_id, started_at, status, score, issues_found, total_pages) "
         "values (?, ?, ?, ?, ?, ?, ?)",
-        ("a1", "joseph", jetzt.isoformat(), "completed", 70.0, 12, 17),
+        ("a1", "beratung-beispiel", jetzt.isoformat(), "completed", 70.0, 12, 17),
     )
     con.commit()
     con.close()
@@ -63,7 +61,7 @@ def umgebung(tmp_path):
     projekte = tmp_path / "projects.yaml"
     projekte.write_text(
         "projects:\n"
-        "  joseph:\n"
+        "  beratung-beispiel:\n"
         "    domain: https://example.com\n"
         "    enabled: true\n"
         "    schedule_cron: '0 10 * * *'\n"
@@ -81,7 +79,7 @@ def _befunde_zu_wirkung(report):
 def _faellige_aenderung(db, tage_her=30):
     notiere_aenderung(
         str(db),
-        "joseph",
+        "beratung-beispiel",
         AKTION_META_TITLE,
         ziel_url="https://example.com/",
         vorher="Alt",
@@ -197,7 +195,7 @@ class TestLiegengebliebeneMessungen:
             Messung(
                 id="m1",
                 change_id="fremd",
-                project_id="joseph",
+                project_id="beratung-beispiel",
                 ziel_url="https://example.com/x",
                 aktion=AKTION_META_TITLE,
                 urheber="autopilot",
@@ -229,7 +227,7 @@ class TestLiegengebliebeneMessungen:
             Messung(
                 id="m2",
                 change_id="fremd",
-                project_id="joseph",
+                project_id="beratung-beispiel",
                 ziel_url="https://example.com/x",
                 aktion=AKTION_META_TITLE,
                 urheber="autopilot",

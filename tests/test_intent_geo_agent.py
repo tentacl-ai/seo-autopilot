@@ -94,14 +94,17 @@ class TestKeywordSelection:
 class TestAPICapAndSkip:
     @pytest.mark.asyncio
     async def test_graceful_skip_no_api_key(self):
-        """No CLAUDE_API_KEY → skip gracefully, no error."""
-        result = await analyze_keywords(
-            gsc_keywords=[_kw("test", 10, 200)],
-            pages=[_page()],
-            api_key="",
-        )
+        """Ohne Abo-Zugang → skip gracefully (nie Rueckfall auf die bezahlte API)."""
+        from unittest.mock import patch
+
+        with patch("seo_autopilot.abo_ki.verfuegbar", return_value=False):
+            result = await analyze_keywords(
+                gsc_keywords=[_kw("test", 10, 200)],
+                pages=[_page()],
+                api_key="",
+            )
         assert result.skipped_reason is not None
-        assert "CLAUDE_API_KEY" in result.skipped_reason
+        assert "Abo" in result.skipped_reason
         assert result.api_calls_used == 0
         assert result.analyses == []
 

@@ -72,6 +72,14 @@ class PageSpeedResult:
     tti_ms: Optional[float] = None
     tti_display: Optional[str] = None
 
+    # Welches Element ist das LCP-Element? (Lighthouse-Audit
+    # "largest-contentful-paint-element"). Damit laesst sich ein vermuteter
+    # LCP-Bildbefund bestaetigen oder widerlegen (Fehlalarm 18.09.2026:
+    # natur-beispiel /einblicke — gemeldet war ein Bild, das LCP-Element ist Text).
+    lcp_element_snippet: Optional[str] = None
+    lcp_element_selector: Optional[str] = None
+    lcp_element_label: Optional[str] = None
+
     # Field data (CrUX — real user metrics, only available for popular pages)
     crux_lcp_ms: Optional[float] = None
     crux_lcp_rating: Optional[str] = None
@@ -207,6 +215,7 @@ async def fetch_pagespeed(
         _extract_metric(result, audits, "first-contentful-paint", "fcp")
         _extract_metric(result, audits, "speed-index", "si")
         _extract_metric(result, audits, "interactive", "tti")
+        _extract_lcp_element(result, audits)
 
         # CrUX Field Data (loadingExperience — real user metrics)
         _extract_crux_data(result, data)
@@ -258,6 +267,37 @@ def _extract_metric(result: PageSpeedResult, audits: Dict, audit_key: str, prefi
         setattr(result, f"{prefix}_display", display)
     if numeric is not None:
         setattr(result, f"{prefix}_ms", round(numeric, 2))
+
+
+def _finde_knoten(obj: Any) -> Optional[Dict]:
+    """Erster Lighthouse-Knoten ({"type": "node", "snippet": ...}) in den Details.
+
+    Das Format hat sich zwischen Lighthouse-Versionen geaendert (flache
+    Tabelle vs. Liste von Tabellen) — deshalb rekursiv statt fester Pfad.
+    """
+    if isinstance(obj, dict):
+        knoten = obj.get("node")
+        if isinstance(knoten, dict) and knoten.get("snippet"):
+            return knoten
+        for wert in obj.values():
+            gefunden = _finde_knoten(wert)
+            if gefunden:
+                return gefunden
+    elif isinstance(obj, list):
+        for wert in obj:
+            gefunden = _finde_knoten(wert)
+            if gefunden:
+                return gefunden
+    return None
+
+
+def _extract_lcp_element(result: PageSpeedResult, audits: Dict) -> None:
+    audit = audits.get("largest-contentful-paint-element") or {}
+    knoten = _finde_knoten(audit.get("details"))
+    if knoten:
+        result.lcp_element_snippet = str(knoten.get("snippet") or "")[:1000]
+        result.lcp_element_selector = knoten.get("selector")
+        result.lcp_element_label = knoten.get("nodeLabel")
 
 
 # CrUX metric keys in PSI response

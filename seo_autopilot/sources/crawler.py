@@ -26,7 +26,7 @@ from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
-USER_AGENT = "SEOAutopilotBot/0.5 (+https://github.com/tentacl-ai/seo-autopilot)"
+USER_AGENT = "SEOAutopilotBot/1.15 (+https://github.com/tentacl-ai/seo-autopilot)"
 DEFAULT_TIMEOUT = 20.0
 MAX_HTML_BYTES = 2_000_000  # 2 MB
 
@@ -73,6 +73,8 @@ class PageData:
     schema_data: List[Dict] = field(default_factory=list)
 
     security_headers: Dict[str, str] = field(default_factory=dict)
+    # X-Robots-Tag-Header (noindex kann auch dort stehen statt im HTML)
+    x_robots_tag: str = ""
     https: bool = False
     error: Optional[str] = None
     rendered_via: str = "httpx"  # "httpx" oder "playwright"
@@ -104,6 +106,11 @@ class SEOCrawler:
         self.concurrency = concurrency
         self._client: Optional[httpx.AsyncClient] = None
         self._semaphore = asyncio.Semaphore(concurrency)
+        # Adressen aus der Sitemap, die auf einem FREMDEN Host liegen. Sie
+        # werden nicht gecrawlt (sonst landen Befunde und PageSpeed-Abrufe
+        # einer anderen Website unter diesem Projekt), aber gemeldet.
+        self.fremde_urls: List[str] = []
+        self.nicht_gecrawlt: List[str] = []
 
     async def __aenter__(self) -> "SEOCrawler":
         self._client = httpx.AsyncClient(
@@ -147,6 +154,15 @@ class SEOCrawler:
         if not urls:
             urls = await self._discover_via_homepage(domain)
 
+        # Nur derselbe Host (www/nicht-www gelten als gleich).
+        urls, fremd = trenne_fremde_hosts(urls, domain)
+        if fremd:
+            self.fremde_urls = fremd
+            logger.warning(
+                f"[crawler] {len(fremd)} Sitemap-Adresse(n) auf fremdem Host "
+                f"werden nicht gecrawlt (z. B. {fremd[0]})"
+            )
+
         # always include the root
         if domain not in urls and f"{domain}/" not in urls:
             urls.insert(0, domain)
@@ -159,7 +175,11 @@ class SEOCrawler:
                 seen.add(u)
                 deduped.append(u)
 
-        return self._prioritize(deduped)[:limit]
+        geordnet = self._prioritize(deduped)
+        # Was das Limit abschneidet, bleibt bekannt: die Linkpruefung liest
+        # diese Seiten zusaetzlich als Linkquelle (link_check.hole_linkquellen).
+        self.nicht_gecrawlt = geordnet[limit:]
+        return geordnet[:limit]
 
     @staticmethod
     def _prioritize(urls: List[str]) -> List[str]:
@@ -167,7 +187,7 @@ class SEOCrawler:
 
         Impressum/Datenschutz/Kontakt usually sit at the END of a sitemap. With
         a small `limit` they were cut off, and the E-E-A-T analyzer then reported
-        "No Impressum found" on sites that clearly have one (joseph-hehenwarter.de,
+        "No Impressum found" on sites that clearly have one (beratung-beispiel.de,
         17 sitemap URLs vs. limit 15 — 2026-08-17). Order otherwise untouched.
         """
         trust_markers = (
@@ -289,6 +309,7 @@ class SEOCrawler:
             page.response_bytes = len(resp.content)
             page.https = page.final_url.startswith("https://")
             page.security_headers = _extract_security_headers(resp.headers)
+            page.x_robots_tag = resp.headers.get("x-robots-tag", "")
 
             if resp.status_code != 200 or "html" not in page.content_type.lower():
                 return page
@@ -364,6 +385,26 @@ class SEOCrawler:
                     )
 
             return page
+
+
+def host_ohne_www(url: str) -> str:
+    """Hostname ohne fuehrendes ``www.`` und ohne Port, klein geschrieben."""
+    host = (urlparse(url).hostname or "").lower()
+    return host[4:] if host.startswith("www.") else host
+
+
+def trenne_fremde_hosts(urls: List[str], domain: str):
+    """(eigene, fremde) — www/nicht-www zaehlen als derselbe Host.
+
+    Anlass 18.09.2026: Eine Sitemap listete Adressen einer anderen Domain; der
+    Crawler folgte ihnen, und deren Befunde (inkl. PageSpeed-Abrufe) landeten
+    unter dem falschen Projekt.
+    """
+    eigen_host = host_ohne_www(domain)
+    eigene, fremde = [], []
+    for u in urls:
+        (eigene if host_ohne_www(u) == eigen_host else fremde).append(u)
+    return eigene, fremde
 
 
 # ---------------------------------------------------------------------------

@@ -47,7 +47,6 @@ from seo_autopilot.wirkung import (
     tabelle_anlegen,
 )
 
-
 # ---------------------------------------------------------------------------
 # Hilfen
 # ---------------------------------------------------------------------------
@@ -72,8 +71,15 @@ def _fenster(clicks=0, impressions=0, position=0.0):
     }
 
 
-def _trage_ein(db, projekt="joseph", url="https://example.com/", tage_her=30,
-               aktion=AKTION_META_TITLE, urheber=URHEBER_AUTOPILOT, status=None):
+def _trage_ein(
+    db,
+    projekt="beratung-beispiel",
+    url="https://example.com/",
+    tage_her=30,
+    aktion=AKTION_META_TITLE,
+    urheber=URHEBER_AUTOPILOT,
+    status=None,
+):
     """Legt eine Änderung im Änderungsbuch an und gibt ihre ID zurück."""
     zeitpunkt = datetime.now(timezone.utc) - timedelta(days=tage_her)
     kwargs = {}
@@ -254,7 +260,7 @@ class TestDatenmengeSkaliertMitFenster:
 class TestWidersprechendeSignale:
     """Position vorn, aber weniger Sichtbarkeit — kein Erfolg.
 
-    Genau dieser Fall trat beim ersten Live-Lauf auf (joseph-Startseite:
+    Genau dieser Fall trat beim ersten Live-Lauf auf (beratung-beispiel-Startseite:
     Position 6,7 → 2,8 bei gleichzeitig weniger Einblendungen und Klicks).
     Ohne diese Regel haette das Werkzeug eine Massnahme belohnt, die
     Sichtbarkeit gekostet hat.
@@ -334,7 +340,7 @@ class TestFaelligkeit:
         """Eine Datei ohne oeffentliche URL ist nicht nachschlagbar."""
         notiere_aenderung(
             db,
-            "joseph",
+            "beratung-beispiel",
             AKTION_META_TITLE,
             datei_pfad="/var/www/index.html",
             zeitpunkt=datetime.now(timezone.utc) - timedelta(days=30),
@@ -342,13 +348,15 @@ class TestFaelligkeit:
         assert faellige_messungen(db) == []
 
     def test_filter_auf_projekt(self, db):
-        _trage_ein(db, projekt="joseph", tage_her=30)
+        _trage_ein(db, projekt="beratung-beispiel", tage_her=30)
         _trage_ein(db, projekt="tentacl-ai", tage_her=30, url="https://tentacl.ai/")
 
-        nur_joseph = faellige_messungen(db, project_id="joseph")
+        nur_beratung_beispiel = faellige_messungen(db, project_id="beratung-beispiel")
 
-        assert nur_joseph
-        assert all(a.project_id == "joseph" for a, _ in nur_joseph)
+        assert nur_beratung_beispiel
+        assert all(
+            a.project_id == "beratung-beispiel" for a, _ in nur_beratung_beispiel
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -356,9 +364,16 @@ class TestFaelligkeit:
 # ---------------------------------------------------------------------------
 
 
-def _messung(change_id, fenster=7, urteil=URTEIL_VERBESSERT,
-             aktion=AKTION_META_TITLE, urheber=URHEBER_AUTOPILOT,
-             projekt="joseph", pos_vorher=10.0, pos_nachher=5.0):
+def _messung(
+    change_id,
+    fenster=7,
+    urteil=URTEIL_VERBESSERT,
+    aktion=AKTION_META_TITLE,
+    urheber=URHEBER_AUTOPILOT,
+    projekt="beratung-beispiel",
+    pos_vorher=10.0,
+    pos_nachher=5.0,
+):
     return Messung(
         id=str(uuid.uuid4()),
         change_id=change_id,
@@ -497,9 +512,7 @@ class TestBilanz:
 
     def test_urteilslose_messungen_verwaessern_die_quote_nicht(self, db):
         speichere_messung(db, _messung(str(uuid.uuid4()), urteil=URTEIL_VERBESSERT))
-        speichere_messung(
-            db, _messung(str(uuid.uuid4()), urteil=URTEIL_ZU_WENIG_DATEN)
-        )
+        speichere_messung(db, _messung(str(uuid.uuid4()), urteil=URTEIL_ZU_WENIG_DATEN))
         speichere_messung(
             db, _messung(str(uuid.uuid4()), urteil=URTEIL_NICHT_ZURECHENBAR)
         )
@@ -511,9 +524,7 @@ class TestBilanz:
         assert zeile["ohne_urteil"] == 2, "bleibt sichtbar, zaehlt aber nicht mit"
 
     def test_fremde_aenderungen_schoenen_die_eigene_quote_nicht(self, db):
-        speichere_messung(
-            db, _messung(str(uuid.uuid4()), urteil=URTEIL_VERSCHLECHTERT)
-        )
+        speichere_messung(db, _messung(str(uuid.uuid4()), urteil=URTEIL_VERSCHLECHTERT))
         for _ in range(3):
             speichere_messung(
                 db,
@@ -558,7 +569,9 @@ class TestDarstellung:
     def test_fremde_messungen_werden_ausgewiesen(self, db):
         speichere_messung(
             db,
-            _messung(str(uuid.uuid4()), urteil=URTEIL_VERBESSERT, urheber=URHEBER_MENSCH),
+            _messung(
+                str(uuid.uuid4()), urteil=URTEIL_VERBESSERT, urheber=URHEBER_MENSCH
+            ),
         )
         text = als_text(messungen(db))
         assert "nicht unser Verdienst" in text

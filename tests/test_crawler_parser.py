@@ -77,9 +77,9 @@ HTML_GRAPH = """
   {
     "@context": "https://schema.org",
     "@graph": [
-      {"@type": "Organization", "name": "BiancaAI"},
-      {"@type": "WebSite", "name": "lovebianca.ai"},
-      {"@type": "Person", "name": "Bianca"}
+      {"@type": "Organization", "name": "Coaching-Beispiel"},
+      {"@type": "WebSite", "name": "coaching-beispiel.de"},
+      {"@type": "Person", "name": "Coaching-Beispiel"}
     ]
   }
   </script>

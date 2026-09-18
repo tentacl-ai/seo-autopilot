@@ -93,7 +93,7 @@ class TestTabelle:
 
     def test_idempotent_ohne_datenverlust(self, db):
         """Der zweite Aufruf darf bestehende Eintraege nicht wegwerfen."""
-        notiere_aenderung(db, "joseph", AKTION_META_TITLE, nachher="Titel")
+        notiere_aenderung(db, "beratung-beispiel", AKTION_META_TITLE, nachher="Titel")
         tabelle_anlegen(db)
         assert len(aenderungen(db)) == 1
 
@@ -134,7 +134,7 @@ class TestNotieren:
     def test_aenderung_wird_vollstaendig_protokolliert(self, db):
         kennung = notiere_aenderung(
             db,
-            "joseph",
+            "beratung-beispiel",
             AKTION_META_TITLE,
             audit_id="audit-7",
             ziel_url="https://example.com/preise",
@@ -154,7 +154,7 @@ class TestNotieren:
         a = liste[0]
         assert isinstance(a, Aenderung)
         assert a.id == kennung
-        assert a.project_id == "joseph"
+        assert a.project_id == "beratung-beispiel"
         assert a.audit_id == "audit-7"
         assert a.urheber == URHEBER_AUTOPILOT
         assert a.aktion == AKTION_META_TITLE
@@ -170,22 +170,24 @@ class TestNotieren:
         assert a.wirksam is True
 
     def test_jede_aenderung_bekommt_eigene_id(self, db):
-        a = notiere_aenderung(db, "joseph", AKTION_META_TITLE, nachher="A")
-        b = notiere_aenderung(db, "joseph", AKTION_META_TITLE, nachher="B")
+        a = notiere_aenderung(db, "beratung-beispiel", AKTION_META_TITLE, nachher="A")
+        b = notiere_aenderung(db, "beratung-beispiel", AKTION_META_TITLE, nachher="B")
         assert a and b and a != b
         assert len(aenderungen(db)) == 2
 
     def test_unbekannter_urheber_wird_nicht_erfunden(self, db):
         """Ein Tippfehler darf keine vierte Urheber-Kategorie ins Buch bringen."""
-        notiere_aenderung(db, "joseph", AKTION_META_TITLE, urheber="hacker")
+        notiere_aenderung(db, "beratung-beispiel", AKTION_META_TITLE, urheber="hacker")
         assert aenderungen(db)[0].urheber == URHEBER_UNBEKANNT
 
     def test_leere_aktion_wird_zu_sonstiges(self, db):
-        notiere_aenderung(db, "joseph", "")
+        notiere_aenderung(db, "beratung-beispiel", "")
         assert aenderungen(db)[0].aktion == AKTION_UNBEKANNT
 
     def test_none_werte_werden_zu_leerem_text(self, db):
-        notiere_aenderung(db, "joseph", AKTION_META_TITLE, vorher=None, nachher=None)
+        notiere_aenderung(
+            db, "beratung-beispiel", AKTION_META_TITLE, vorher=None, nachher=None
+        )
         a = aenderungen(db)[0]
         assert a.vorher == "" and a.nachher == ""
 
@@ -199,16 +201,19 @@ class TestRobustheit:
     def test_kaputte_db_bricht_protokollieren_nicht_ab(self, kaputte_db):
         """Rueckgabe leerer String, KEINE Ausnahme — sonst stirbt der Fix."""
         kennung = notiere_aenderung(
-            kaputte_db, "joseph", AKTION_META_TITLE, nachher="Neu"
+            kaputte_db, "beratung-beispiel", AKTION_META_TITLE, nachher="Neu"
         )
         assert kennung == ""
 
     def test_unerreichbarer_pfad_bricht_nichts_ab(self, tmp_path):
         pfad = str(tmp_path / "gibt" / "es" / "nicht" / "buch.db")
         assert tabelle_anlegen(pfad) is False
-        assert notiere_aenderung(pfad, "joseph", AKTION_META_TITLE) == ""
+        assert notiere_aenderung(pfad, "beratung-beispiel", AKTION_META_TITLE) == ""
         assert aenderungen(pfad) == []
-        assert letzter_stand(pfad, "joseph", AKTION_META_TITLE, "https://x/") is None
+        assert (
+            letzter_stand(pfad, "beratung-beispiel", AKTION_META_TITLE, "https://x/")
+            is None
+        )
 
     def test_kaputte_db_bricht_lesen_nicht_ab(self, kaputte_db):
         assert aenderungen(kaputte_db) == []
@@ -221,14 +226,14 @@ class TestRobustheit:
 
     def test_fremderkennung_ueberlebt_kaputte_db(self, kaputte_db):
         funde = erkenne_fremde_aenderungen(
-            kaputte_db, "joseph", [seite("https://example.com/", "Titel")]
+            kaputte_db, "beratung-beispiel", [seite("https://example.com/", "Titel")]
         )
         assert funde == []
 
     def test_muell_in_der_seitenliste_wird_uebersprungen(self, db):
         funde = erkenne_fremde_aenderungen(
             db,
-            "joseph",
+            "beratung-beispiel",
             [None, "kaputt", {}, seite("https://example.com/", "Titel")],
         )
         assert len(funde) == 1
@@ -244,14 +249,14 @@ class TestFilter:
     def test_zeitfenster_greift(self, db):
         notiere_aenderung(
             db,
-            "joseph",
+            "beratung-beispiel",
             AKTION_META_TITLE,
             nachher="alt",
             zeitpunkt=JETZT - timedelta(days=60),
         )
         notiere_aenderung(
             db,
-            "joseph",
+            "beratung-beispiel",
             AKTION_META_TITLE,
             nachher="neu",
             zeitpunkt=JETZT - timedelta(days=3),
@@ -265,25 +270,34 @@ class TestFilter:
 
     def test_ohne_zeitfenster_kommt_alles(self, db):
         notiere_aenderung(
-            db, "joseph", AKTION_META_TITLE, zeitpunkt=JETZT - timedelta(days=900)
+            db,
+            "beratung-beispiel",
+            AKTION_META_TITLE,
+            zeitpunkt=JETZT - timedelta(days=900),
         )
         assert len(aenderungen(db, tage=0, jetzt=JETZT)) == 1
 
     def test_projektfilter_greift(self, db):
-        notiere_aenderung(db, "joseph", AKTION_META_TITLE, nachher="J", zeitpunkt=JETZT)
-        notiere_aenderung(db, "topal", AKTION_META_TITLE, nachher="T", zeitpunkt=JETZT)
+        notiere_aenderung(
+            db, "beratung-beispiel", AKTION_META_TITLE, nachher="J", zeitpunkt=JETZT
+        )
+        notiere_aenderung(
+            db, "handel-beispiel", AKTION_META_TITLE, nachher="T", zeitpunkt=JETZT
+        )
 
-        nur_joseph = aenderungen(db, project_id="joseph", jetzt=JETZT)
-        assert [a.nachher for a in nur_joseph] == ["J"]
+        nur_beratung_beispiel = aenderungen(
+            db, project_id="beratung-beispiel", jetzt=JETZT
+        )
+        assert [a.nachher for a in nur_beratung_beispiel] == ["J"]
         assert len(aenderungen(db, jetzt=JETZT)) == 2
 
     def test_chronologische_reihenfolge(self, db):
         notiere_aenderung(
-            db, "joseph", AKTION_META_TITLE, nachher="zweit", zeitpunkt=JETZT
+            db, "beratung-beispiel", AKTION_META_TITLE, nachher="zweit", zeitpunkt=JETZT
         )
         notiere_aenderung(
             db,
-            "joseph",
+            "beratung-beispiel",
             AKTION_META_TITLE,
             nachher="erst",
             zeitpunkt=JETZT - timedelta(days=2),
@@ -292,10 +306,18 @@ class TestFilter:
 
     def test_nur_offene_blendet_zurueckgenommene_aus(self, db):
         bleibt = notiere_aenderung(
-            db, "joseph", AKTION_META_TITLE, nachher="bleibt", zeitpunkt=JETZT
+            db,
+            "beratung-beispiel",
+            AKTION_META_TITLE,
+            nachher="bleibt",
+            zeitpunkt=JETZT,
         )
         weg = notiere_aenderung(
-            db, "joseph", AKTION_META_DESCRIPTION, nachher="weg", zeitpunkt=JETZT
+            db,
+            "beratung-beispiel",
+            AKTION_META_DESCRIPTION,
+            nachher="weg",
+            zeitpunkt=JETZT,
         )
         assert markiere_zurueckgenommen(db, weg, zeitpunkt=JETZT) is True
 
@@ -306,7 +328,7 @@ class TestFilter:
     def test_nur_offene_blendet_fehlgeschlagene_aus(self, db):
         notiere_aenderung(
             db,
-            "joseph",
+            "beratung-beispiel",
             AKTION_SCHEMA,
             nachher="{}",
             status=STATUS_FEHLGESCHLAGEN,
@@ -325,7 +347,7 @@ class TestRuecknahme:
     def test_zurueckgenommene_aenderung_ist_erkennbar(self, db):
         kennung = notiere_aenderung(
             db,
-            "joseph",
+            "beratung-beispiel",
             AKTION_META_TITLE,
             nachher="Neuer Titel",
             rueckgaengig_moeglich=True,
@@ -342,7 +364,7 @@ class TestRuecknahme:
     def test_ruecknahme_loescht_den_eintrag_nicht(self, db):
         """Im Buch wird nie geloescht — sonst fehlt die Erklaerung fuer den Einbruch."""
         kennung = notiere_aenderung(
-            db, "joseph", AKTION_META_TITLE, vorher="alt", nachher="neu"
+            db, "beratung-beispiel", AKTION_META_TITLE, vorher="alt", nachher="neu"
         )
         markiere_zurueckgenommen(db, kennung)
         a = aenderungen(db)[0]
@@ -356,7 +378,7 @@ class TestRuecknahme:
         """Sonst vergleicht die Fremderkennung gegen einen entfernten Wert."""
         kennung = notiere_aenderung(
             db,
-            "joseph",
+            "beratung-beispiel",
             AKTION_META_TITLE,
             ziel_url="https://example.com/",
             nachher="Weg",
@@ -364,7 +386,9 @@ class TestRuecknahme:
         )
         markiere_zurueckgenommen(db, kennung, zeitpunkt=JETZT)
         assert (
-            letzter_stand(db, "joseph", AKTION_META_TITLE, "https://example.com/")
+            letzter_stand(
+                db, "beratung-beispiel", AKTION_META_TITLE, "https://example.com/"
+            )
             is None
         )
 
@@ -378,35 +402,41 @@ class TestDiff:
     def test_diff_zeigt_vorher_und_nachher(self, db):
         notiere_aenderung(
             db,
-            "joseph",
+            "beratung-beispiel",
             AKTION_META_TITLE,
             vorher="Startseite",
-            nachher="Steuerberatung Wien — Kanzlei Hehenwarter",
+            nachher="Steuerberatung Wien — Kanzlei Beispiel-Beratung",
         )
         text = diff_text(aenderungen(db)[0])
         assert "-Startseite" in text
-        assert "+Steuerberatung Wien — Kanzlei Hehenwarter" in text
+        assert "+Steuerberatung Wien — Kanzlei Beispiel-Beratung" in text
 
     def test_diff_ohne_vorher_zeigt_nur_das_neue(self, db):
         notiere_aenderung(
-            db, "joseph", AKTION_META_DESCRIPTION, vorher="", nachher="Ganz neu"
+            db,
+            "beratung-beispiel",
+            AKTION_META_DESCRIPTION,
+            vorher="",
+            nachher="Ganz neu",
         )
         text = diff_text(aenderungen(db)[0])
         assert "vorher nichts vorhanden" in text
         assert "+ Ganz neu" in text
 
     def test_diff_ohne_daten_ist_ehrlich(self, db):
-        notiere_aenderung(db, "joseph", "robots_txt")
+        notiere_aenderung(db, "beratung-beispiel", "robots_txt")
         assert "kein Vorher/Nachher" in diff_text(aenderungen(db)[0])
 
     def test_diff_bei_gleichem_text(self, db):
-        notiere_aenderung(db, "joseph", AKTION_META_TITLE, vorher="X", nachher="X")
+        notiere_aenderung(
+            db, "beratung-beispiel", AKTION_META_TITLE, vorher="X", nachher="X"
+        )
         assert "keine Textänderung" in diff_text(aenderungen(db)[0])
 
     def test_diff_wird_gekuerzt(self, db):
         notiere_aenderung(
             db,
-            "joseph",
+            "beratung-beispiel",
             AKTION_SCHEMA,
             vorher="\n".join(f"alt {i}" for i in range(200)),
             nachher="\n".join(f"neu {i}" for i in range(200)),
@@ -417,7 +447,11 @@ class TestDiff:
 
     def test_diff_kuerzt_ueberlange_zeilen(self, db):
         notiere_aenderung(
-            db, "joseph", AKTION_SCHEMA, vorher="a" * 5000, nachher="b" * 5000
+            db,
+            "beratung-beispiel",
+            AKTION_SCHEMA,
+            vorher="a" * 5000,
+            nachher="b" * 5000,
         )
         for zeile in diff_text(aenderungen(db)[0]).splitlines():
             assert len(zeile) < 400
@@ -432,7 +466,9 @@ class TestFremderkennung:
     def test_erster_crawl_meldet_niemanden_an(self, db):
         """Ohne Vergleichspunkt ist ein Vorwurf unmoeglich — nur Basis erfassen."""
         funde = erkenne_fremde_aenderungen(
-            db, "joseph", [seite("https://example.com/", "Titel", "Beschreibung")]
+            db,
+            "beratung-beispiel",
+            [seite("https://example.com/", "Titel", "Beschreibung")],
         )
         assert all(f["urheber"] == URHEBER_UNBEKANNT for f in funde)
         assert {f["aktion"] for f in funde} == {
@@ -445,14 +481,16 @@ class TestFremderkennung:
         seiten = [seite("https://example.com/", "Alter Titel")]
         protokolliere_fremde_aenderungen(
             db,
-            "joseph",
+            "beratung-beispiel",
             "audit-1",
-            erkenne_fremde_aenderungen(db, "joseph", seiten),
+            erkenne_fremde_aenderungen(db, "beratung-beispiel", seiten),
             zeitpunkt=JETZT - timedelta(days=7),
         )
 
         funde = erkenne_fremde_aenderungen(
-            db, "joseph", [seite("https://example.com/", "Vom Kunden geaendert")]
+            db,
+            "beratung-beispiel",
+            [seite("https://example.com/", "Vom Kunden geaendert")],
         )
         fremd = [f for f in funde if f["urheber"] == URHEBER_MENSCH]
         assert len(fremd) == 1
@@ -465,7 +503,7 @@ class TestFremderkennung:
         """Was der Autopilot selbst geschrieben hat, ist keine Fremdaenderung."""
         notiere_aenderung(
             db,
-            "joseph",
+            "beratung-beispiel",
             AKTION_META_TITLE,
             ziel_url="https://example.com/",
             vorher="Startseite",
@@ -476,7 +514,7 @@ class TestFremderkennung:
 
         funde = erkenne_fremde_aenderungen(
             db,
-            "joseph",
+            "beratung-beispiel",
             [seite("https://example.com/", "Steuerberatung Wien — Kanzlei")],
             basis_erfassen=False,
         )
@@ -485,7 +523,7 @@ class TestFremderkennung:
     def test_fremde_meta_description_wird_erkannt(self, db):
         notiere_aenderung(
             db,
-            "joseph",
+            "beratung-beispiel",
             AKTION_META_DESCRIPTION,
             ziel_url="https://example.com/",
             nachher="Von uns gesetzt.",
@@ -493,7 +531,7 @@ class TestFremderkennung:
         )
         funde = erkenne_fremde_aenderungen(
             db,
-            "joseph",
+            "beratung-beispiel",
             [seite("https://example.com/", None, "Vom Kunden ueberschrieben.")],
             basis_erfassen=False,
         )
@@ -501,18 +539,18 @@ class TestFremderkennung:
         assert funde[0]["urheber"] == URHEBER_MENSCH
 
     def test_fremderkennung_trennt_projekte(self, db):
-        """Der Stand von topal darf nie den von joseph erklaeren."""
+        """Der Stand von handel-beispiel darf nie den von beratung-beispiel erklaeren."""
         notiere_aenderung(
             db,
-            "topal",
+            "handel-beispiel",
             AKTION_META_TITLE,
             ziel_url="https://example.com/",
-            nachher="Topal-Titel",
+            nachher="handel-beispiel-Titel",
             zeitpunkt=JETZT - timedelta(days=1),
         )
         funde = erkenne_fremde_aenderungen(
             db,
-            "joseph",
+            "beratung-beispiel",
             [seite("https://example.com/", "Ganz anderer Titel")],
             basis_erfassen=False,
         )
@@ -521,7 +559,7 @@ class TestFremderkennung:
     def test_leerraum_allein_ist_keine_aenderung(self, db):
         notiere_aenderung(
             db,
-            "joseph",
+            "beratung-beispiel",
             AKTION_META_TITLE,
             ziel_url="https://example.com/",
             nachher="Titel",
@@ -529,7 +567,7 @@ class TestFremderkennung:
         )
         funde = erkenne_fremde_aenderungen(
             db,
-            "joseph",
+            "beratung-beispiel",
             [seite("https://example.com/", "  Titel  ")],
             basis_erfassen=False,
         )
@@ -539,7 +577,7 @@ class TestFremderkennung:
         """Nach einem Redirect zaehlt die Adresse, die wirklich ausgeliefert wird."""
         funde = erkenne_fremde_aenderungen(
             db,
-            "joseph",
+            "beratung-beispiel",
             [
                 {
                     "url": "http://example.com",
@@ -555,16 +593,16 @@ class TestFremderkennung:
         seiten = [seite("https://example.com/", "Alt")]
         protokolliere_fremde_aenderungen(
             db,
-            "joseph",
+            "beratung-beispiel",
             "audit-1",
-            erkenne_fremde_aenderungen(db, "joseph", seiten),
+            erkenne_fremde_aenderungen(db, "beratung-beispiel", seiten),
             zeitpunkt=JETZT - timedelta(days=5),
         )
         funde = erkenne_fremde_aenderungen(
-            db, "joseph", [seite("https://example.com/", "Neu von Hand")]
+            db, "beratung-beispiel", [seite("https://example.com/", "Neu von Hand")]
         )
         geschrieben = protokolliere_fremde_aenderungen(
-            db, "joseph", "audit-2", funde, zeitpunkt=JETZT
+            db, "beratung-beispiel", "audit-2", funde, zeitpunkt=JETZT
         )
         assert geschrieben >= 1
 
@@ -588,7 +626,7 @@ class TestAlsText:
     def test_text_nennt_urheber_und_ziel(self, db):
         notiere_aenderung(
             db,
-            "joseph",
+            "beratung-beispiel",
             AKTION_META_TITLE,
             ziel_url="https://example.com/preise",
             nachher="Neuer Titel",
@@ -597,7 +635,7 @@ class TestAlsText:
             zeitpunkt=JETZT,
         )
         text = als_text(aenderungen(db, jetzt=JETZT))
-        assert "[joseph]" in text
+        assert "[beratung-beispiel]" in text
         assert "Autopilot" in text
         assert "meta_title" in text
         assert "https://example.com/preise" in text
@@ -607,7 +645,7 @@ class TestAlsText:
     def test_text_warnt_bei_fremden_aenderungen(self, db):
         notiere_aenderung(
             db,
-            "joseph",
+            "beratung-beispiel",
             AKTION_META_TITLE,
             urheber=URHEBER_MENSCH,
             ziel_url="https://example.com/",
@@ -620,7 +658,7 @@ class TestAlsText:
 
     def test_text_markiert_zurueckgenommene(self, db):
         kennung = notiere_aenderung(
-            db, "joseph", AKTION_META_TITLE, nachher="X", zeitpunkt=JETZT
+            db, "beratung-beispiel", AKTION_META_TITLE, nachher="X", zeitpunkt=JETZT
         )
         markiere_zurueckgenommen(db, kennung, zeitpunkt=JETZT)
         assert "zurueckgenommen" in als_text(aenderungen(db, jetzt=JETZT))
@@ -628,7 +666,7 @@ class TestAlsText:
     def test_text_mit_diff_zeigt_den_vergleich(self, db):
         notiere_aenderung(
             db,
-            "joseph",
+            "beratung-beispiel",
             AKTION_META_TITLE,
             vorher="Alt",
             nachher="Neu",
@@ -675,11 +713,13 @@ class TestHelfer:
         for tag, wert in ((5, "erst"), (3, "dann"), (1, "zuletzt")):
             notiere_aenderung(
                 db,
-                "joseph",
+                "beratung-beispiel",
                 AKTION_META_TITLE,
                 ziel_url="https://example.com/",
                 nachher=wert,
                 zeitpunkt=JETZT - timedelta(days=tag),
             )
-        stand = letzter_stand(db, "joseph", AKTION_META_TITLE, "https://example.com/")
+        stand = letzter_stand(
+            db, "beratung-beispiel", AKTION_META_TITLE, "https://example.com/"
+        )
         assert stand is not None and stand.nachher == "zuletzt"

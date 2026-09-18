@@ -6,7 +6,9 @@ Rate Limited: 3 Scans/Stunde, 10/Tag pro IP.
 """
 
 import asyncio
+import ipaddress
 import logging
+import socket
 import time
 import re
 from collections import defaultdict
@@ -134,20 +136,41 @@ def _validate_url(url: str) -> str:
     if not parsed.hostname:
         raise HTTPException(status_code=400, detail="Ungueltige URL.")
 
-    # Keine Private IPs / localhost
     hostname = parsed.hostname.lower()
-    blocked = ["localhost", "127.0.0.1", "0.0.0.0", "::1", "10.", "192.168.", "172."]
-    for b in blocked:
-        if hostname.startswith(b):
-            raise HTTPException(
-                status_code=400, detail="Lokale/private Adressen sind nicht erlaubt."
-            )
 
     # Domain muss mindestens einen Punkt haben
     if "." not in hostname:
         raise HTTPException(
             status_code=400, detail="Bitte eine vollstaendige Domain eingeben."
         )
+
+    # SSRF-Schutz: Hostname tatsaechlich aufloesen und JEDE Ziel-IP gegen
+    # interne Netze pruefen. Eine reine String-Blockliste reicht nicht – ein
+    # Hostname kann auf eine private IP oder die Cloud-Metadaten-Adresse
+    # (169.254.169.254) zeigen und so interne Dienste erreichbar machen.
+    try:
+        addr_infos = socket.getaddrinfo(hostname, None)
+    except (socket.gaierror, UnicodeError):
+        raise HTTPException(
+            status_code=400, detail="Domain konnte nicht aufgeloest werden."
+        )
+    for info in addr_infos:
+        try:
+            ip = ipaddress.ip_address(info[4][0])
+        except ValueError:
+            continue
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Lokale/private Adressen sind nicht erlaubt.",
+            )
 
     return f"{parsed.scheme}://{parsed.netloc}"
 

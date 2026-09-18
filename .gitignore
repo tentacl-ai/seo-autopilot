@@ -29,3 +29,13 @@ build/
 PHASE2.md
 STATUS.md
 seo_autopilot_landing.html
+
+# Testfragen fuer die KI-Sichtbarkeit sind Konfiguration, keine Zugangsdaten (v1.14.0)
+!konfig/ki-fragen/*.json
+.browsers/
+
+# Eigene, nicht oeffentliche Dateien (Kundenfragen, Beweisskripte, Zusatzabschnitte)
+lokal/
+projects.yaml.bak-*
+seo_autopilot.db.bak-*
+run-cron.sh

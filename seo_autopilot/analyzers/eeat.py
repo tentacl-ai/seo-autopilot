@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any, Dict, List
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,19 @@ AUTHORITY_SAMEAS = {
     "x.com": "Twitter/X",
     "facebook.com": "Facebook",
     "youtube.com": "YouTube",
+    # Fuer lokale Betriebe die eigentlich relevanten Profile (Fehlalarm
+    # 18.09.2026: Instagram und Google-Unternehmensprofil galten nicht).
+    "instagram.com": "Instagram",
+    "maps.google.": "Google-Unternehmensprofil",
+    "google.com/maps": "Google-Unternehmensprofil",
+    "google.de/maps": "Google-Unternehmensprofil",
+    "g.page": "Google-Unternehmensprofil",
+    "business.google.com": "Google-Unternehmensprofil",
+    "maps.app.goo.gl": "Google-Unternehmensprofil",
+    "tripadvisor.": "Tripadvisor",
+    "tiktok.com": "TikTok",
+    "xing.com": "XING",
+    "provenexpert.com": "ProvenExpert",
 }
 
 # --- Score weights ---
@@ -81,10 +95,51 @@ def _url_matches(url: str, patterns: List[str]) -> bool:
     return any(p in path for p in patterns)
 
 
+def _has_datenschutz_section(pages: List[Dict[str, Any]]) -> bool:
+    """Datenschutz als Abschnitt einer anderen Seite (z. B. /impressum#datenschutz).
+
+    Kleine Websites fuehren Impressum und Datenschutz oft auf einer Seite; das ist
+    rechtlich zulaessig. Frueher zaehlte nur eine eigene Adresse (natur-beispiel.at, 2026-09-15).
+    """
+    for p in pages:
+        if any(
+            _url_matches(h or "", LEGAL_PATTERNS["datenschutz"])
+            for h in p.get("h2") or []
+        ):
+            return True
+        if any(
+            "#" in u and _url_matches(u.split("#", 1)[1], LEGAL_PATTERNS["datenschutz"])
+            for u in p.get("internal_link_urls") or []
+        ):
+            return True
+    return False
+
+
+def _has_person_page(urls: List[str], schemas: List[Dict[str, Any]]) -> bool:
+    """Eigene Seite ueber die Person/Firma: eine gecrawlte Unterseite ist die `url` einer
+    Person oder Organisation im Schema (z. B. Person.url = /klaus). Die Startseite zaehlt nicht.
+    """
+
+    def norm(u: str) -> str:
+        return u.lower().split("#")[0].split("?")[0].rstrip("/")
+
+    unterseiten = {norm(u) for u in urls if urlparse(u).path.strip("/")}
+    for s in schemas:
+        typen = s.get("@type")
+        typen = typen if isinstance(typen, list) else [typen]
+        if any(
+            isinstance(t, str) and (t == "Person" or t.lower() in ORGANIZATION_TYPES)
+            for t in typen
+        ):
+            if isinstance(s.get("url"), str) and norm(s["url"]) in unterseiten:
+                return True
+    return False
+
+
 # schema.org subtypes of Organization that sites legitimately use instead of
 # the bare "Organization" type. Previously only Organization/Corporation
 # counted, so e.g. a FinancialService was reported as "no Organization schema"
-# although the entity was correct (joseph-hehenwarter.de, 2026-08-17).
+# although the entity was correct (beratung-beispiel.de, 2026-08-17).
 ORGANIZATION_TYPES = {
     "organization",
     "corporation",
@@ -152,7 +207,7 @@ class EEATAnalyzer:
         has_impressum = any(_url_matches(u, LEGAL_PATTERNS["impressum"]) for u in urls)
         has_datenschutz = any(
             _url_matches(u, LEGAL_PATTERNS["datenschutz"]) for u in urls
-        )
+        ) or _has_datenschutz_section(pages)
 
         signals["impressum"] = has_impressum
         signals["datenschutz"] = has_datenschutz
@@ -203,8 +258,20 @@ class EEATAnalyzer:
             )
 
         # --- About page ---
-        about_patterns = ["about", "ueber-uns", "über-uns", "about-us", "team"]
-        has_about = any(_url_matches(u, about_patterns) for u in urls)
+        # "ueber-mich"/"über-mich" fehlten: Bei Einzelberatern heisst die Seite so
+        # (Fehlalarm 16.09.2026 auf beratung-beispiel.de/ueber-mich).
+        about_patterns = [
+            "about",
+            "ueber-uns",
+            "ueber-mich",
+            "über-uns",
+            "über-mich",
+            "about-us",
+            "team",
+        ]
+        has_about = any(
+            _url_matches(u, about_patterns) for u in urls
+        ) or _has_person_page(urls, schema_all)
         signals["about_page"] = has_about
 
         if not has_about:
@@ -229,7 +296,10 @@ class EEATAnalyzer:
         # sameAs links in Organization
         sameas_found: Dict[str, str] = {}
         for org in org_schemas:
-            for link in org.get("sameAs", []):
+            same_as = org.get("sameAs") or []
+            # sameAs darf laut schema.org auch ein einzelner Text sein — vorher
+            # wurde dann Zeichen fuer Zeichen verglichen und nichts gefunden.
+            for link in [same_as] if isinstance(same_as, str) else same_as:
                 if isinstance(link, str):
                     for domain_pattern, label in AUTHORITY_SAMEAS.items():
                         if domain_pattern in link.lower():

@@ -149,9 +149,7 @@ class TestErfahrungswerte:
         for i in range(4):
             speichere_messung(db, self._messung(i, URTEIL_VERBESSERT))
 
-        chancen = bewerte_chancen(
-            [_befund(besucher=100)], projekt="p", db_pfad=db
-        )
+        chancen = bewerte_chancen([_befund(besucher=100)], projekt="p", db_pfad=db)
 
         assert chancen[0].sicherheit_belegt
         assert chancen[0].sicherheit == pytest.approx(1.0)

@@ -6,55 +6,82 @@
 [![FastAPI](https://img.shields.io/badge/fastapi-0.110-green)](https://fastapi.tiangolo.com/)
 [![Async SQLAlchemy](https://img.shields.io/badge/sqlalchemy-2.0-orange)](https://www.sqlalchemy.org/)
 
-**Production-ready, multi-tenant SEO automation platform** with real crawler, 60+ documented issue detectors, GEO audit, llms.txt validation, IndexNow support, topical authority analysis, and AI-powered fix generation.
+**Multi-tenant SEO automation that closes the loop:** crawl → find → fix → measure → report.
 
-> Crawl your website, detect SEO issues across 12 analysis dimensions, prioritize by ROI, and generate actionable fixes — all from a single CLI command.
+> Version 1.16.0 · 1098 tests · 17 analysis dimensions · 136 documented issue types
+
+Most SEO tools stop at a list of warnings. SEO Autopilot repairs what it finds,
+writes the change into the site's repository, and then uses Search Console to
+prove — 7, 14, 28 and 56 days later — whether the change actually helped.
+
+---
 
 ## What It Does
 
-SEO Autopilot turns raw web crawl data into a **prioritized action plan**:
+1. **Crawls your site** — httpx + BeautifulSoup, Playwright fallback for
+   JavaScript-rendered pages (rendered at phone size, 412×915, mobile-first like
+   Google). The crawler follows its own host only.
+2. **Pulls real data** — Google Search Console (28-day window plus a 16-month
+   archive), Google Analytics 4, PageSpeed Insights / CrUX, robots.txt, Bing.
+3. **Analyzes 17 dimensions** — on-page, canonical, redirects, hreflang, schema,
+   links, images, duplicates, topical authority, Core Web Vitals, security, GEO.
+4. **Scores by cause, not by count** — one root cause per URL counts once,
+   diminishing returns per issue type, recommendations capped (see
+   [Scoring](#scoring)).
+5. **Fixes automatically** — metadata and markup on every project; visible page
+   text only where the project is explicitly set to `betriebsart: autopilot`.
+   Everything else goes into an approval queue with a plain-language reason.
+6. **Recommends what to write** — FAQ blocks, missing sections, headings,
+   internal links, answer-first intros, new pages — derived **only** from real
+   Search Console demand ([details](#recommendations--auto-writing)).
+7. **Measures the effect** — every change is compared against the equivalent
+   window before it, with five guard rails that prefer "no verdict" over a
+   flattering one.
+8. **Reports weekly** — one customer report per site, identical structure for
+   every site, delivered by mail.
+9. **Watches itself** — `selfcheck` fails loudly when the tool itself is broken
+   (missing Pillow, missing Playwright browser, missing PageSpeed key, stale
+   approval queue, missing cron).
+10. **Watches the market** — daily radar over search/ads/AI-search sources, with
+    every AI-reported item discarded unless its source URL actually resolves.
 
-1. **Crawls your site** – httpx + BeautifulSoup, automatic Playwright fallback for SPAs, sitemap.xml discovery, 14+ HTML attributes parsed
-2. **Pulls real data** – Google Search Console (28-day), PageSpeed Insights (INP/LCP/CLS via CrUX), robots.txt
-3. **Analyzes 12 dimensions** – On-page, canonical, redirects, schema, GEO, llms.txt/ai.txt, topical authority, duplicates, link graph, CWV, security
-4. **Detects 60+ documented issue types** – From missing titles to AI-crawler blocking, llms.txt validation, IndexNow, canonical chains, thin content, keyword cannibalization
-5. **Prioritizes by ROI** – Quick-wins (< 30min), this-week tasks, backlog — sorted by impact x confidence x ease
-6. **Generates fixes** – Claude API writes optimized titles, meta descriptions, JSON-LD snippets
-7. **Tracks regressions** – Delta engine compares audits over time, alerts on score drops
-8. **Monitors algorithm updates** – Intelligence feed polls Google Search Central + SEO blogs, detects confirmed events
-9. **Ships HTML reports** – Self-contained Jinja2 templates with Telegram notifications
-10. **Schedules audits** – APScheduler cron jobs, multi-tenant isolation, WebSocket event streaming
-
-**744 tests.** Lightweight stack: httpx/BS4/FastAPI. Optional Playwright fallback for JavaScript-rendered SPAs (React, Next.js, Vue, Nuxt).
+Lightweight stack: httpx / BeautifulSoup / FastAPI / SQLAlchemy. SQLite by
+default, PostgreSQL supported.
 
 ---
 
 ## Installation
-
-### From PyPI (Recommended)
-
-```bash
-pip install seo-autopilot
-```
 
 ### From Source
 
 ```bash
 git clone https://github.com/tentacl-ai/seo-autopilot.git
 cd seo-autopilot
-pip install -e .
+python3 -m venv venv
+venv/bin/pip install -e .
 
 # Optional: dev dependencies
-pip install -e ".[dev]"
+venv/bin/pip install -e ".[dev]"
 ```
+
+Optional components, each of which the watchdog will report as missing:
+
+```bash
+venv/bin/pip install pillow feedparser playwright
+PLAYWRIGHT_BROWSERS_PATH=./.browsers venv/bin/python -m playwright install chromium
+```
+
+`PLAYWRIGHT_BROWSERS_PATH` matters when audits run from a system cron under a
+different user — otherwise the browser is installed into a home directory that
+the cron job cannot see.
 
 ### Docker
 
 ```bash
 docker build -t seo-autopilot .
 docker run -p 8002:8002 \
-  -e DATABASE_URL="sqlite:///seo.db" \
-  -e CLAUDE_API_KEY="sk-..." \
+  -e DATABASE_URL="sqlite+aiosqlite:///seo.db" \
+  -e CLAUDE_API_KEY="sk-ant-..." \
   seo-autopilot
 ```
 
@@ -62,66 +89,496 @@ docker run -p 8002:8002 \
 
 ## Quickstart
 
-### 1. Configure a Project
+### 1. Set up a site — the "full package"
 
-Create `projects.yaml`:
+Do not hand-write `projects.yaml` for a new site. The `einrichten` command
+checks the site, finds the Search Console and GA4 properties, tests them, and
+prints a complete project block:
+
+```bash
+venv/bin/python -m seo_autopilot.cli.main einrichten \
+    --projekt kunde-beispiel --domain https://kunde-beispiel.de \
+    --bericht-an reports@example.com
+
+# looks good? write it (a backup of projects.yaml is placed next to it)
+venv/bin/python -m seo_autopilot.cli.main einrichten \
+    --projekt kunde-beispiel --domain https://kunde-beispiel.de \
+    --bericht-an reports@example.com --schreiben
+```
+
+Step-by-step guide: [docs/einrichtung.md](docs/einrichtung.md) (German).
+Full operator manual: [docs/handbuch.md](docs/handbuch.md) (German).
+
+### 2. Set environment variables
+
+```bash
+export CLAUDE_API_KEY="sk-ant-..."          # falls back to ANTHROPIC_API_KEY
+export PAGESPEED_API_KEY="AIzaSy..."        # strongly recommended, see below
+export DATABASE_URL="sqlite+aiosqlite:///seo_autopilot.db"
+```
+
+### 3. Run
+
+```bash
+venv/bin/python -m seo_autopilot.cli.main config list
+venv/bin/python -m seo_autopilot.cli.main run --project-id kunde-beispiel
+```
+
+`run` exits **1** when an audit fails; a failed run is stored with status
+`failed` so the watchdog reports it. A green exit code means the audit really
+completed.
+
+### 4. Look at the result
+
+```bash
+venv/bin/python -m seo_autopilot.cli.main api    # FastAPI on http://localhost:8002
+```
+
+Or open `reports/latest.html`.
+
+---
+
+## Analysis Dimensions
+
+17 analyzer modules live in `seo_autopilot/analyzers/`:
+
+| Module | What it checks |
+|---|---|
+| `canonical_engine` | Canonical resolution across HTTP header, HTML `<link>`, sitemap and internal links; chains, loops and conflicts with hreflang/noindex |
+| `redirect_audit` | Redirect chains, loops, 302 where 301 belongs, cross-domain hops, soft-404, 5xx clusters |
+| `robots_sitemap` | robots.txt (AI-crawler blocks, CSS/JS blocks, missing sitemap directive, overly broad disallow) and sitemap health (3xx/4xx entries, stale lastmod, foreign hosts) |
+| `schema_validation` | JSON-LD syntax plus required fields per schema type, and which pages could unlock which rich result |
+| `seiten_checks` | Utility pages (`/login`, `/dashboard`, `/warenkorb`) indexable without `noindex`, duplicate titles and meta descriptions, mixed content, skipped heading levels, missing LocalBusiness schema where an address or phone link is shown |
+| `link_check` | Broken internal links — including targets outside the crawl limit and unreplaced template placeholders — and catch-all error pages that answer HTTP 200 with the homepage for every wrong URL |
+| `link_graph` | Internal link graph: orphan pages, click depth, broken links, link-equity sinks, PageRank distribution (own implementation, no networkx) |
+| `hreflang_audit` | Is the hreflang target reachable, does it link back, does the declared language match the actual content, is there an `x-default` |
+| `duplicate_content` | SimHash near-duplicates (canonical-aware, confirmed by real word overlap before reporting), thin content, keyword cannibalization |
+| `topical_authority` | Topic clusters from URL paths and title overlap, pillar pages, coverage gaps from Search Console, cluster cannibalization |
+| `image_audit` | Missing `alt`, missing `width`/`height`, oversized files, lazy loading or missing priority on the LCP image — all without an external API, so it keeps working when PageSpeed quota runs out |
+| `bild_variante` | Which image file a phone actually downloads: evaluates `<picture>`, `srcset` and `sizes` against a fixed reference device (412 CSS px, DPR 2.625, like Lighthouse "mobile") instead of measuring the largest variant in `src` |
+| `lcp_abgleich` | Reconciles guessed LCP image findings against the measured LCP element (PageSpeed, or Chrome via Playwright); measurement beats assumption, and in doubt severity is lowered |
+| `eeat` | Machine-verifiable trust signals: legal pages, Organization schema with `sameAs`, author schema with dates, reachable contact page |
+| `geo_audit` | Structural readiness for AI citations: answer-first intros, question headings, fact density, entity clarity |
+| `llms_ai_txt` | `llms.txt`, `llms-full.txt`, `ai.txt` and the IndexNow key file |
+| `delta` | Audit-over-audit comparison: new issues, resolved issues, score movement, CWV and GEO trends |
+
+Core Web Vitals (INP, LCP, CLS — field data from CrUX plus lab data) and
+security headers are checked in the analyzer agent itself.
+
+`geo_audit` and `llms_ai_txt` findings are classed as `hinweis` — see below.
+
+---
+
+## Scoring
+
+The score (0–100) answers "how much is actually broken", not "how many lines
+could we print". Three rules keep it honest:
+
+**1. Every finding has exactly one kind** (`seo_autopilot/befund_arten.py`):
+
+| Kind | Meaning | Counts in the score? | Auto-fixed? |
+|---|---|---|---|
+| `fehler` | Technically unambiguous and verifiable on the live site (404, missing title, `noindex`, bad measured value) | yes, at full weight | yes, where safe |
+| `empfehlung` | Rule of thumb, taste, or an opportunity (text length, missing social tag, keyword with potential) | yes, at one third weight, **max. 10 points total** | only after approval |
+| `hinweis` | Visible, but deliberately without consequence — see the next section | **no** | **no** |
+
+Unknown types default to `fehler`: a real defect must never disappear into the
+recommendation corner.
+
+**2. One cause per URL counts once.** Findings from the same cause family at the
+same address (for example "unreachable" and "orphan") collapse into the most
+severe one. All of them stay visible in the report; only the arithmetic changes.
+
+**3. Diminishing returns.** Findings are grouped by (type, severity) and
+normalised to the number of pages (`f = 15 / pages`). Above one normalised
+occurrence the group grows logarithmically, so one missing navigation that
+produces 17 identical findings costs roughly what five would, not seventeen.
+
+```
+score = 100 − min(50, high) − min(30, medium) − min(20, low) − min(10, recommendations / 3)
+```
+
+Scores from v1.15 and earlier are **not** comparable with current ones. The
+websites did not change; the arithmetic did.
+
+### What does NOT move the needle
+
+Google's own guidance —
+["Optimizing your website for generative AI features on Google Search"](https://developers.google.com/search/docs/fundamentals/ai-optimization-guide),
+Search Central, as of 2026-07-10 — states that the following have no effect on
+(AI) search:
+
+- `llms.txt`, `ai.txt` and comparable "AI files"
+- "content chunking"
+- rewriting text specifically for AI systems
+- manufacturing brand mentions
+- structured data as an AI lever (it earns rich results, nothing more)
+
+SEO Autopilot therefore classes these findings as `hinweis`: they remain
+**visible** in the report, but they cost **no points**, never reach the work
+list, are never fixed automatically and are never put up for approval. There is
+also no invented "GEO score" driving decisions, and no generic `WebPage`
+JSON-LD is written any more.
+
+This is a deliberate refusal to sell a lever that does not exist.
+
+---
+
+## Recommendations & auto-writing
+
+`empfehlungen.py` produces concrete, per-page suggestions in German:
+
+| Kind | When |
+|---|---|
+| `faq_ergaenzen` | Real questions with impressions that the page does not answer |
+| `abschnitt_ergaenzen` | A topic with impressions the page barely covers |
+| `ueberschrift_verbessern` | The H1 does not name the main search term |
+| `interne_links` | Position 8–20: which of your own pages to link, with which anchor |
+| `antwort_zuerst` | The first paragraph does not answer the main question |
+| `neue_seite` | Search terms with no matching page at all (project-wide) |
+| `titel_beschreibung` | Good position, weak click-through — handed to the repair module |
+
+**Only from real demand.** The input is Search Console query × page over 90
+days plus the actual page content. Without search data there is no
+recommendation, and "for AI/GEO" is never a justification.
+
+`empfehlungen_umsetzen.py` turns them into text on the site. Guard rails, all
+mandatory and each individually tested:
+
+1. Facts only from the website itself; claims are re-checked against the
+   **current** page before writing.
+2. Placeholders never go live; unanswered questions are dropped.
+3. Forbidden words, brand rules and form of address from
+   `adapter_config.seo_regeln`.
+4. Blocked pages: `seo_regeln.gesperrte_seiten` plus always the legal pages
+   (imprint, privacy policy, terms).
+5. At most **3 text changes per run** and **1 per page per week**.
+6. A separate second AI review pass ("is every statement true, is it helpful,
+   does it sound natural, is this keyword stuffing?"). Only "yes" gets written.
+7. Language and formal/informal address of the page are preserved.
+
+Every change becomes its own Git commit, lands in the change log, and is
+measured after 7/14/28/56 days. Visible text is written automatically **only**
+under `betriebsart: autopilot`; under `copilot` a recommendation is written only
+after it has been approved.
+
+The AI never produces HTML or JSON-LD — those fragments are built by code.
+
+---
+
+## Operating modes and the hard block list
+
+| Mode | Behaviour |
+|---|---|
+| `beobachter` | Analyses only, changes nothing (default for new projects) |
+| `copilot` | Prepares every change and puts it up for approval |
+| `autopilot` | Applies safe changes itself, still submits everything else |
+
+A typo in the configuration always falls to the safe side.
+
+Fourteen interventions are blocked **in code** and never run automatically — not
+in autopilot mode, and not if someone adds them to `whitelist_extra`:
+`noindex`, canonical changes, `robots.txt`, deleting pages, merging pages, URL
+migrations and redirect-chain rewrites. Each carries its reason in plain
+language.
+
+```bash
+venv/bin/python -m seo_autopilot.cli.main betrieb      # what may each project do?
+venv/bin/python -m seo_autopilot.cli.main freigabe     # open approvals
+venv/bin/python -m seo_autopilot.cli.main freigabe --ja 3f2a91c4 --notiz "checked"
+```
+
+---
+
+## Identity guard
+
+A project can declare what its own homepage must look like:
+
+```yaml
+kunde-beispiel:
+  domain: https://kunde-beispiel.de
+  erwartet: "Kunde Beispiel GmbH"     # or a list of strings
+```
+
+At least one of those strings must appear on the homepage — in the title, H1,
+`og:site_name`, a schema name or the visible text. If it does not, the audit
+aborts **before any analysis and before any auto-fix** (status `failed`, exit
+code 1). If the homepage cannot be fetched at all, identity counts as *not*
+confirmed, and nothing is changed.
+
+Without `erwartet` nothing changes. The field exists because an audit once ran
+against a completely different site that happened to answer on the configured
+address.
+
+---
+
+## Effect measurement
+
+`wirkung.py` compares, per change, the window **before** against the window
+**after** — 7, 14, 28 and 56 days of Search Console data for exactly that URL.
+Several windows, because a title often lands within a week while content work
+takes weeks.
+
+Five guard rails prefer no verdict over a bad one:
+
+1. Too little data in the "before" window → stored, but flagged
+   `zu_wenig_daten`, no verdict.
+2. Contradicting signals (better position but fewer impressions *and* fewer
+   clicks) are not a success.
+3. Foreign changes (a human editing the same page) are tracked separately in the
+   change log so their effect is never credited to the autopilot.
+4. Changes to one page on the same day are measured as one package.
+5. Projects that can never be measured (no Search Console) do not raise a
+   permanent alarm.
+
+```bash
+venv/bin/python -m seo_autopilot.cli.main wirkung --messen
+venv/bin/python -m seo_autopilot.cli.main wirkung --bilanz   # hit rate per kind of change
+```
+
+---
+
+## Weekly customer report
+
+One report per site, identical structure everywhere, delivered by mail:
+
+1. **Wo wir stehen** — headline status
+2. Notable items, pulled to the top from every section below
+3. Decisions with a button (market impulses and open approvals)
+4. Google search: week vs. previous week, queries, pages
+5. Visits by source (GA4)
+6. New in the market (radar), related to this specific site
+7. AI visibility (ChatGPT, Gemini, Claude with web search)
+8. Site check: last audit, score and trend, the points that matter
+9. Bing / IndexNow status
+10. Site-specific extras (`bericht.extras`)
+11. State of the tool itself
+
+A dead source never prevents the report; it is reported as dead.
+
+```bash
+venv/bin/python -m seo_autopilot.cli.main kundenbericht --projekt kunde-beispiel --trocken
+venv/bin/python -m seo_autopilot.cli.main kundenbericht --senden
+```
+
+---
+
+## Market radar
+
+Daily. Two paths into the same `markt_meldungen` table:
+
+- **Trade sources (RSS)**: Google Search Central, Google Ads, Google Analytics,
+  Bing Webmaster, Microsoft Ads, Search Engine Land/Journal, PPC Land, SE
+  Roundtable and others.
+- **AI scouts**: ChatGPT and Gemini research recent changes *with web search*.
+
+AI systems invent sources. The rule is therefore hard: **no reachable source
+URL, no item.** Every URL named is fetched; anything that does not answer below
+HTTP 400 is dropped, and homepages or redirect services do not count as a
+source. The source link always comes from the item, never from the AI's answer.
+
+---
+
+## 16-month Search Console archive
+
+Google hands out at most 16 months of Search Console data. A month not fetched
+today is lost forever. `historie.py` is therefore built as an **archive**, not a
+query: once imported, a month stays in the local database even when Google no
+longer knows it.
+
+Five locks:
+
+1. A query error is never stored as zero — the month stays open and is retried.
+   A partial failure stores nothing either.
+2. The current month counts as incomplete and drops out of every comparison.
+3. Completed months are not re-fetched, except inside a 5-day catch-up window
+   (Search Console lags roughly three days).
+4. Comparisons need a minimum of 30 impressions.
+5. No year-over-year comparison against a site that did not exist yet (100
+   impressions needed in the prior-year window).
+
+```bash
+venv/bin/python -m seo_autopilot.cli.main historie --importieren
+venv/bin/python -m seo_autopilot.cli.main historie --projekt kunde-beispiel
+venv/bin/python -m seo_autopilot.cli.main historie --export historie.csv
+```
+
+---
+
+## Watchdog
+
+A tool that does not notice its own failure is worthless. `selfcheck` checks the
+tool, not the websites:
+
+- Missing Pillow, Playwright, feedparser or Playwright browser → **critical**
+  (image work and JS rendering silently do nothing without them)
+- Missing PageSpeed key → warning (the shared Google quota is permanently
+  exhausted; without a key you never get Core Web Vitals)
+- Projects without a cron entry, audits that have not run, broken persistence
+- Approval queue: proposals older than 14 days, open proposals for disabled
+  projects
+- Incomplete setup package (unless the project is marked `paket: klein`)
+- Missing months in the Search Console archive
+
+```bash
+venv/bin/python -m seo_autopilot.cli.main selfcheck
+# exit 0 = healthy, 1 = warnings, 2 = critical
+```
+
+---
+
+## CLI reference
+
+| Command | Purpose |
+|---|---|
+| `run` | Run the audit pipeline (`--project-id`, `--auto-fix`); exit 1 on failure |
+| `einrichten` | Set up or verify a site's full package (`--projekt`, `--domain`, `--schreiben`, `--pruefen`) |
+| `config list` / `add` / `remove` | Manage projects in `projects.yaml` |
+| `betrieb` | Show the operating mode of every project |
+| `freigabe` | Approval queue (`--ja`, `--nein`, `--notiz`, `--alle-ablehnen`) |
+| `empfehlungen` | Per-page recommendations (`--erzeugen`, `--umsetzen`, `--trocken`, `--freigeben`, `--stand`) |
+| `chancen` | Opportunity engine: what to start with, ranked by business value |
+| `wert` | Business value per page; never estimated when the input is missing |
+| `wirkung` | Effect measurement (`--messen`, `--fenster`, `--bilanz`) |
+| `changes` | Change log — own and foreign changes, with `--diff` |
+| `historie` | 16-month Search Console archive (`--importieren`, `--export`) |
+| `kundenbericht` | Weekly customer report (`--senden`, `--trocken`, `--ohne-ki`, `--html`) |
+| `weekly` | Short cross-project weekly summary |
+| `marktradar` | Market radar (`--sammeln`, `--ohne-ki`, `--tage`) |
+| `radar` | Policy radar: new Google/AI search guidelines and what they touch |
+| `wettbewerb` | Competitor comparison with our own crawler, obeying their robots.txt |
+| `learnings` | Recurring false positives — if a type shows up across projects, the rule is broken |
+| `selfcheck` | Watchdog (`--notify`); exit 0/1/2 |
+| `api` | Start the FastAPI REST API |
+| `version` | Show version |
+
+Every command takes `--help`.
+
+### Example crontab
+
+Audits run before the archive import (11:15) and the watchdog (11:30).
+
+```cron
+# Audits, one slot per site
+ 0  7 * * * /srv/seo-autopilot/venv/bin/python3 -m seo_autopilot.cli.main run --project-id kunde-beispiel  >> /srv/seo-autopilot/logs/cron.log 2>&1
+30  7 * * * /srv/seo-autopilot/venv/bin/python3 -m seo_autopilot.cli.main run --project-id zweite-website  >> /srv/seo-autopilot/logs/cron.log 2>&1
+
+# Recommendations: create and apply
+15  9 * * * /srv/seo-autopilot/venv/bin/python3 -m seo_autopilot.cli.main empfehlungen --erzeugen --umsetzen >> /srv/seo-autopilot/logs/cron.log 2>&1
+
+# Market radar
+30  6 * * * /srv/seo-autopilot/venv/bin/python3 -m seo_autopilot.cli.main marktradar --sammeln >> /srv/seo-autopilot/logs/cron.log 2>&1
+
+# Search Console archive, then watchdog
+15 11 * * * /srv/seo-autopilot/venv/bin/python3 -m seo_autopilot.cli.main historie --importieren >> /srv/seo-autopilot/logs/cron.log 2>&1
+30 11 * * * /srv/seo-autopilot/venv/bin/python3 -m seo_autopilot.cli.main selfcheck --notify >> /srv/seo-autopilot/logs/cron.log 2>&1
+
+# Weekly customer report, Monday 07:40
+40  7 * * 1 /srv/seo-autopilot/venv/bin/python3 -m seo_autopilot.cli.main kundenbericht --senden >> /srv/seo-autopilot/logs/cron.log 2>&1
+```
+
+Cron jobs run without `cd`, so `.env` is read from an absolute path inside the
+installation directory. Set up log rotation for `logs/cron.log`.
+
+---
+
+## Configuration
+
+### Environment variables (`.env`)
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | SQLite by default; `postgresql+asyncpg://…` for PostgreSQL |
+| `CLAUDE_API_KEY` | AI access; falls back to `ANTHROPIC_API_KEY` |
+| `CLAUDE_MODEL` | Model name (default `claude-opus-5`) |
+| `GEMINI_API_KEY` | Second AI, used by the market radar |
+| `PAGESPEED_API_KEY` | **Recommended.** Without a key the shared Google quota answers HTTP 429 and you never get Core Web Vitals |
+| `GSC_CREDENTIALS_PATH` | Default service-account file for Search Console |
+| `PROJECT_CONFIG_PATH` | Path to `projects.yaml` |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Optional notifications |
+| `API_HOST`, `API_PORT`, `API_SECRET_KEY`, `CORS_ORIGINS` | REST API |
+| `LOG_LEVEL`, `LOG_FILE` | Logging |
+| `SENTRY_DSN` | Optional error tracking |
+| `SEO_MAILER_PFAD` → `MAILER_PFAD` | Path to your own mail sender (empty = mailing disabled) |
+| `SEO_INDEXNOW_SITES` → `INDEXNOW_SITES` | Path to your IndexNow site list |
+| `SEO_BING_STATE` → `BING_STATE` | Path to the Bing Webmaster state file |
+| `SEO_ENTSCHEIDUNGEN_ORDNER` → `ENTSCHEIDUNGEN_ORDNER` | Where the decision pages (report buttons) are written |
+| `SEO_CRON_ENV_DATEIEN` → `CRON_ENV_DATEIEN` | Comma-separated env files to source in generated cron lines |
+| `SEO_SECRETS_DATEI` → `SECRETS_DATEI` | Path to your secret store |
+
+The last six deliberately hold **paths into your own environment**, not values —
+this repository is public, so nothing environment-specific belongs in the code.
+An empty value disables the corresponding feature.
+
+### `projects.yaml`
 
 ```yaml
 projects:
-  my-website:
-    domain: https://example.com
-    name: Example.com
-    tenant_id: default
-    enabled_sources:
-      - gsc
-      - pagespeed
+  kunde-beispiel:
+    domain: https://kunde-beispiel.de
+    name: Kunde Beispiel
+    tenant_id: kunde-beispiel
+    enabled: true
+
+    # Identity guard: must appear on the homepage, or the audit aborts
+    erwartet: "Kunde Beispiel GmbH"
+
+    # beobachter (default) | copilot | autopilot
+    betriebsart: copilot
+    # gross (default) | klein — "klein" silences the watchdog about GA4/report
+    paket: gross
+
+    # How the site is reached for repairs
+    adapter_type: static              # static | wordpress | fastapi | generic
+    adapter_config:
+      root_path: /var/www/meine-website/dist
+      max_pages: 60
+      standard_og_bild: /bilder/og.jpg     # the ONLY image allowed for a missing og:image
+      seo_regeln:
+        verbotene_woerter: ["Marktführer", "einzigartig"]
+        gesperrte_seiten: ["/preise", "/kontakt"]   # legal pages are always blocked
+        hinweise: ["Marke immer klein schreiben"]
+
+    enabled_sources: [gsc, ga4, pagespeed]
     source_config:
       gsc:
-        property_url: sc-domain:example.com
-        credentials_path: /path/to/service-account.json
-      pagespeed:
-        api_key: ${PAGESPEED_API_KEY}  # Optional: for higher quota
-    enabled: true
-    schedule_cron: "0 7 * * 1"  # Monday 7am
-    notifications_enabled: true
-    notify_channels:
-      - telegram
-    notify_config:
-      telegram:
-        enabled: true
+        property_url: sc-domain:kunde-beispiel.de
+        credentials_path: credentials/service-account.json
+      ga4:
+        property_id: "123456789"
+        credentials_path: credentials/service-account.json
+      indexnow:
+        key: 0123456789abcdef0123456789abcdef
+      empfehlungen:
+        max_seiten: 6                 # AI calls per project and run
+
+    # Weekly customer report
+    bericht:
+      aktiv: true
+      empfaenger: reports@example.com
+      branche: "Handwerksbetrieb in Oberbayern"
+      ki_fragen: konfig/ki-fragen/kunde-beispiel.json
+      extras: /srv/seo-autopilot/lokal/kunde_extras.py   # optional, function abschnitte()
+
+    # Business value per goal (used by `wert` and `chancen`)
+    geschaeftswert:
+      anfrage: 250
+
+    schedule_cron: "0 7 * * *"
+    run_interval_days: 1
+    auto_fix_enabled: true
+    auto_fix_config:
+      whitelist_extra: []             # cannot override the hard block list
+    notifications_enabled: false
+    notify_channels: []
+    notify_config: {}
 ```
 
-### 2. Set Environment Variables
+`projects.yaml` and `.env` are git-ignored. A template lives in
+[`projects.yaml.example`](projects.yaml.example).
 
-```bash
-export CLAUDE_API_KEY="sk-ant-..."
-export TELEGRAM_BOT_TOKEN="1234567:ABCdef..."
-export TELEGRAM_CHAT_ID="123456789"
-export DATABASE_URL="sqlite:///seo.db"  # or postgres://...
-export PAGESPEED_API_KEY="AIzaSy..."     # optional
-```
-
-### 3. Run Your First Audit
-
-```bash
-# List projects
-seo-autopilot config list
-
-# Run audit
-seo-autopilot run --project-id my-website
-
-# Watch live output
-seo-autopilot run --project-id my-website --verbose
-```
-
-### 4. View Report
-
-Open `reports/latest.html` in your browser – or access via API:
-
-```bash
-seo-autopilot api    # Starts FastAPI at http://localhost:8002
-curl http://localhost:8002/api/health
-```
+Unknown fields are skipped with a warning and errors are isolated per project —
+one bad entry no longer makes every project silently disappear.
 
 ---
 
@@ -129,664 +586,155 @@ curl http://localhost:8002/api/health
 
 ```
 seo_autopilot/
-├── core/                        # Framework
-│   ├── config.py                  Pydantic Settings + .env
-│   ├── project_manager.py         Multi-project CRUD (YAML)
-│   ├── scheduler.py               APScheduler cron
-│   ├── event_bus.py               Pub/Sub (WebSocket events)
-│   └── audit_context.py           Shared state across agents
-├── sources/                     # Data collection
-│   ├── crawler.py                 httpx + BeautifulSoup (sitemap discovery)
-│   ├── renderer.py                Playwright SPA fallback (auto-detected)
-│   ├── pagespeed.py               PageSpeed Insights + CrUX (INP/LCP/CLS)
-│   ├── gsc.py                     Google Search Console (28-day)
-│   ├── intelligence.py            RSS feed monitor (algorithm updates)
-│   └── base.py                    Abstract base
-├── analyzers/                   # Rule-based analysis (v1.0)
-│   ├── canonical_engine.py        Canonical resolution + conflict detection
-│   ├── redirect_audit.py          Chains, loops, 302→301, soft-404
-│   ├── schema_validation.py       JSON-LD required fields (13 types)
-│   ├── geo_audit.py               GEO / AI Overview readiness (score 0-100)
-│   ├── topical_authority.py       Cluster detection, pillar pages, gaps
-│   ├── duplicate_content.py       SimHash near-duplicates, thin content
-│   ├── link_graph.py              PageRank, orphans, click depth, broken links
-│   ├── llms_ai_txt.py             llms.txt, ai.txt, IndexNow validation
-│   └── delta.py                   Audit-over-audit regression detection
-├── agents/                      # Pipeline agents
-│   ├── analyzer.py                Orchestrates all analyzers (50+ checks)
-│   ├── keyword.py                 GSC keyword opportunities
-│   ├── strategy.py                ROI-based prioritization
-│   ├── content.py                 Claude API fix generation
-│   └── base.py                    Agent interface
-├── db/                          # Persistence
-│   ├── models.py                  SQLAlchemy ORM
-│   ├── database.py                Async engine (SQLite/Postgres)
-│   └── persistence.py             Audit CRUD
-├── reports/
-│   ├── html.py                    Jinja2 HTML report
-│   └── templates/report.html
-├── notifications/
-│   └── telegram.py                Bot API summary
-├── api/main.py                  # FastAPI REST + WebSocket
-├── cli/main.py                  # Click CLI
-└── mcp/server.py                # Model Context Protocol
+├── core/                    Settings, project manager, scheduler, event bus, audit context
+├── sources/                 crawler, renderer (Playwright), gsc, ga4, pagespeed, intelligence
+├── analyzers/               17 rule-based analysis modules (see above)
+├── agents/                  analyzer, keyword, strategy, content (AI fixes), apply
+├── adapters/                static_files, wordpress, … — the only place that writes
+├── db/                      SQLAlchemy models, async engine, persistence
+├── reports/                 Jinja2 HTML report
+├── notifications/           mail, telegram
+├── befund_arten.py          finding kinds and cause families
+├── note.py                  the score
+├── handwerker.py            page context, plausibility check, file mapping
+├── empfehlungen.py          per-page recommendations from real search demand
+├── empfehlungen_umsetzen.py writing visible text, with guard rails
+├── ausfuehrung.py           operating modes, hard block list, approval queue
+├── einrichtung.py           the "full package" setup command
+├── identitaet.py            identity guard
+├── historie.py              16-month Search Console archive
+├── wirkung.py               effect measurement
+├── changelog_book.py        change log (own and foreign changes)
+├── kundenbericht.py         weekly customer report
+├── marktradar.py            market radar
+├── health.py                watchdog
+├── api/main.py              FastAPI REST + WebSocket
+├── cli/main.py              Click CLI
+└── mcp/server.py            MCP server (experimental, unmaintained)
 ```
-
----
-
-## Analysis Dimensions (v1.0)
-
-| Module | What it checks | Issue types |
-|--------|---------------|-------------|
-| **On-Page** | Titles, meta descriptions, H1s, viewport, lang, noindex | 12 |
-| **Canonical Engine** | Signal hierarchy, chains, conflicts with sitemap/hreflang/noindex | 7 |
-| **Redirect Audit** | Chains, loops, 302 vs 301, cross-domain, soft-404, 5xx clusters | 7 |
-| **Schema Validator** | JSON-LD required fields for 13 types, FAQ/Product/Breadcrumb validation | 4 |
-| **GEO Audit** | AI-crawler blocking, answer-first structure, fact density, entity clarity | 7 |
-| **Topical Authority** | Cluster detection, pillar pages, coverage gaps, cannibalization | 5 |
-| **Duplicate Content** | SimHash near-duplicates (canonical-aware), thin content, keyword cannibalization | 3 |
-| **Link Graph** | Orphan pages, click depth, broken links, PageRank distribution, equity sinks | 5 |
-| **Core Web Vitals** | INP, LCP, CLS via CrUX field data + Lighthouse lab data (no FID) | 6 |
-| **Security** | HTTPS, HSTS, X-Frame-Options, X-Content-Type-Options | 2 |
-| **LLMs.txt / AI.txt** | llms.txt spec validation, llms-full.txt, ai.txt, IndexNow key | 6 |
-
-**Total: 60+ documented issue types across 12 analysis dimensions.**
-
-### Additional features
-
-- **Delta Engine** — Compares audits over time, detects regressions, generates alert messages
-- **Intelligence Feed** — Polls 8 SEO RSS feeds, detects algorithm updates via 2-source confirmation
-- **GEO Score** — 0-100 per page, measures AI citation readiness (Google AI Overviews, ChatGPT, Perplexity)
-- **Topical Authority Map** — Cluster detection via URL paths + keyword overlap, pillar identification
-
----
-
-## Core Features
-
-### 1. Real Web Crawler (sources/crawler.py)
-
-Discovers pages via sitemap.xml or homepage links  
-Extracts 14+ HTML attributes (title, h1-h6, meta, OG, Twitter, schema)  
-Detects security headers, HTTPS, response times  
-- Handles 2MB+ pages gracefully  
-- Returns structured `PageData` objects  
-
-```python
-from seo_autopilot.sources.crawler import WebCrawler
-
-crawler = WebCrawler(max_pages=20)
-pages = await crawler.crawl("https://example.com")
-
-for page in pages:
-    print(f"{page.url}: {page.title} ({page.word_count} words)")
-```
-
-### 2. Google Search Console (sources/gsc.py)
-
-- 28-day analytics (clicks, impressions, CTR, position)  
-- Keyword discovery + ranking opportunities  
-- OAuth2 Service Account authentication  
-- Row limits: 25,000 queries per property  
-
-```python
-from seo_autopilot.sources.gsc import GSCDataSource
-
-gsc = GSCDataSource(
-    credentials_path="/path/to/service-account.json",
-    property_url="sc-domain:example.com"
-)
-analytics = await gsc.pull_analytics()
-print(f"28-day clicks: {analytics.total_clicks}")
-```
-
-### 3. PageSpeed Insights (sources/pagespeed.py)
-
-- Lighthouse scores (Performance, SEO, Accessibility, Best Practices)  
-- Core Web Vitals (LCP, CLS, TBT, FCP, TTI, Speed Index)  
-- Free tier (limited quota) or paid tier with API key  
-- Mobile + Desktop metrics  
-
-```python
-from seo_autopilot.sources.pagespeed import PageSpeedSource
-
-psi = PageSpeedSource(api_key="AIzaSy...")
-metrics = await psi.get_pagespeed("https://example.com")
-print(f"Performance: {metrics['performance_score']}/100")
-```
-
-### 4. Analyzer Agent (agents/analyzer.py)
-
-14 detectors + Core Web Vitals:
-
-| Issue | Severity | Effort | Impact |
-|-------|----------|--------|--------|
-| Missing title | High | 0.25h | 80 |
-| Short title (<20) | Medium | 0.25h | 70 |
-| Missing h1 | High | 0.5h | 40 |
-| Slow response (>2.5s) | High | 8h | 70 |
-| Poor LCP (>2.5s) | High | 4h | 80 |
-| Poor CLS (>0.1) | Medium | 2h | 60 |
-| Missing security headers | Medium | 1h | 35 |
-| ... (8 more) |
-
-```python
-analyzer = AnalyzerAgent(project_id="my-website", context=audit_context)
-result = await analyzer.run()
-
-for issue in result.issues:
-    print(f"[{issue['severity']}] {issue['title']}")
-```
-
-### 5. Keyword Agent (agents/keyword.py)
-
-- Identifies low-CTR keywords (high volume, <5% CTR)  
-- Finds "striking distance" (pos 11-30, fixable to top 10)  
-- Ranks by traffic potential  
-
-### 6. Strategy Agent (agents/strategy.py)
-
-ROI-based prioritization:
-
-- **Quick-wins**: Effort ≤ 0.5h AND Impact ≥ 40
-- **This week**: Effort ≤ 4h, sorted by ROI
-- **Backlog**: Everything else
-
-```python
-strategy = StrategyAgent(project_id="my-website", context=audit_context)
-result = await strategy.run()
-
-print(f"Quick wins: {result.metrics['quick_wins']}")
-print(f"This week: {result.metrics['this_week']}")
-print(f"Total effort: {result.metrics['total_effort_hours']}h")
-```
-
-### 7. Content Agent (agents/content.py)
-
-Uses Claude API to generate:
-
-- Meta description improvements  
-- Title optimization suggestions  
-- H1 content recommendations  
-- Code snippets for fixes (JSON-LD, security headers, etc.)  
-
-### 8. HTML Reports (reports/html.py)
-
-Jinja2 template with:
-
-- SEO score (0-100)  
-- Top 15 actions (prioritized)  
-- Issue categories breakdown  
-- GSC metrics (clicks, impressions, CTR, position)  
-- PageSpeed scores (desktop + mobile)  
-- Core Web Vitals visualization  
-- Concrete fix suggestions  
-
-Auto-published to `reports/latest.html` symlink + served via API.
-
-### 9. Telegram Notifications (notifications/telegram.py)
-
-```
-🚀 SEO Audit Complete: my-website
-
-📊 Score: 77/100 (was 75.5)
-Issues: 3 (0 high, 1 medium, 2 low)
-Quick-wins: 2 (fix in 30min)
-
-📈 GSC (28 days)
-Clicks: 15 | Impressions: 420 | CTR: 3.6% | Pos: 12.3
-
-🔧 Top Actions
-1. [HIGH] Missing h1 on /products
-2. [MEDIUM] Slow response (2.8s)
-3. [LOW] Noindex on legal pages
-```
-
-### 10. Scheduler (core/scheduler.py)
-
-APScheduler integration with cron syntax:
-
-```yaml
-schedule_cron: "0 7 * * 1"  # Monday 7am
-run_interval_days: 7         # Weekly
-```
-
-Multi-tenant isolation, event-driven callbacks.
-
----
-
-## Multi-Tenant Usage
-
-SEO Autopilot is **built for managing SEO across multiple client websites**:
-
-```yaml
-projects:
-  client-1:
-    domain: https://client1.com
-    tenant_id: client-1
-    # ...
-  client-2:
-    domain: https://client2.com
-    tenant_id: client-2
-    # ...
-```
-
-Each project has isolated:
-
-- Crawl data  
-- GSC credentials  
-- Database records  
-- API keys  
-- Notifications  
-- Reports  
 
 ---
 
 ## REST API
 
-### Health Check
-
 ```bash
-curl http://localhost:8002/api/health
-# { "status": "ok", "version": "1.2.0" }
-```
-
-### List Projects
-
-```bash
+curl http://localhost:8002/api/health      # { "status": "ok", "version": "1.16.0" }
 curl http://localhost:8002/api/projects
-# [ { "id": "my-website", "name": "Example.com", "domain": "..." } ]
+curl -X POST http://localhost:8002/api/audits/run/kunde-beispiel
+curl http://localhost:8002/api/audits/<audit_id>/results
+wscat -c ws://localhost:8002/api/ws/events/kunde-beispiel
 ```
 
-### Run Audit
-
-```bash
-curl -X POST http://localhost:8002/api/audits/run/my-website
-
-# Response (long-running):
-# {
-#   "audit_id": "a1b2c3...",
-#   "status": "running",
-#   "project_id": "my-website"
-# }
-```
-
-### Get Audit Results
-
-```bash
-curl http://localhost:8002/api/audits/a1b2c3/results
-# { "score": 77, "issues": [...], "quick_wins": [...] }
-```
-
-### WebSocket Events (Real-time)
-
-```bash
-wscat -c ws://localhost:8002/api/ws/events/my-website
-
-# Live events:
-# { "type": "crawler_started", "pages_found": 6 }
-# { "type": "analyzer_running", "issues_found": 12 }
-# { "type": "strategy_complete", "quick_wins": 3 }
-# { "type": "audit_complete", "score": 77 }
-```
-
-Full API docs: `http://localhost:8002/docs` (auto-generated Swagger)
+Swagger UI: `http://localhost:8002/docs`.
 
 ---
 
-## Claude Integration (MCP Server)
+## MCP server (experimental, currently unmaintained)
 
-Use SEO Autopilot as a Claude tool via Model Context Protocol:
+`seo_autopilot/mcp/server.py` was written to expose the audit pipeline to Claude
+via the Model Context Protocol. It is **not** a supported feature today:
 
-```python
-from seo_autopilot.mcp.server import SEOAutopilotMCPServer
+- the `mcp` package is not installed and not in `requirements.txt`
+- the wrapper no longer matches the current agent signatures
 
-server = SEOAutopilotMCPServer()
+Treat it as a starting point for a contribution, not as something that runs.
 
-# Claude can now call:
-# - list_projects() → get available projects
-# - run_audit(project_id="my-website") → start full audit pipeline
-```
+---
 
-Example Claude conversation:
+## Limits
 
-> **You:** Audit my website and tell me the top 3 fixes.
->
-> **Claude:** I'll run a full SEO audit for you.
->
-> [Claude calls: run_audit("my-website")]
->
-> **Claude:** Your site scores 77/100. Here are the top 3 quick-wins (< 30min each):
-> 1. Add missing h1 on /products (40 impact, 30min effort)
-> 2. Improve meta description length (70 impact, 15min effort)
-> 3. Add security headers (35 impact, 1h effort)
+Deliberately not covered:
+
+- **No backlink index.** Building one means crawling half the web.
+- **No third-party rankings.** Scraping Google's result pages violates their
+  terms of service. Your own positions come from Search Console, which is more
+  accurate than any estimate.
+- **No Google Business Profile / local pack data.**
+- **DataForSEO is built but switched off.** `sources/dataforseo.py` works and the
+  setup guide is in [docs/dataforseo-setup.md](docs/dataforseo-setup.md), but it
+  is not enabled in any project and is not part of the standard setup.
+- **JavaScript rendering only with Playwright** installed, including its browser.
+- Conversion and revenue attribution needs values you enter yourself
+  (`geschaeftswert`); nothing is estimated.
 
 ---
 
 ## Testing
 
 ```bash
-# Unit tests
-pytest tests/ -v
-
-# With coverage
-pytest --cov=seo_autopilot tests/
-
-# Integration tests (requires DB)
-pytest tests/ -m integration
-
-# Type checking
-mypy seo_autopilot/
+venv/bin/python -m pytest tests/ -v
+venv/bin/python -m pytest --cov=seo_autopilot tests/
+bash scripts/check-sync.sh      # version, changelog, module count, test count, black
 ```
 
-Example test:
+`check-sync.sh` runs in the pre-commit hook and in CI. It fails when the numbers
+in this README drift away from the code.
 
-```python
-import pytest
-from seo_autopilot.agents.analyzer import AnalyzerAgent
-
-@pytest.mark.asyncio
-async def test_analyzer_detects_missing_title():
-    context = AuditContext(project_id="test", tenant_id="test")
-    analyzer = AnalyzerAgent(project_id="test", audit_id=context.audit_id, context=context)
-    result = await analyzer.run()
-    
-    missing_titles = [i for i in result.issues if i['type'] == 'missing_title']
-    assert len(missing_titles) > 0
-```
+The test suite follows one rule: every guard rail is first proven **red** against
+the old code before the fix is written. A test that was green from the start
+proves nothing about the bug it claims to cover.
 
 ---
 
 ## Security
 
-- **API Key rotation** – Use API secrets or JWT tokens (configurable)  
-- **Tenant isolation** – All queries filtered by `tenant_id`  
-- **Credentials management** – Service accounts in `/credentials/`, never in code  
-- **Rate limiting** – Built-in throttling on PageSpeed / GSC APIs  
-- **HTTPS only** – Production deployments must use TLS  
+- Secrets live in `.env` or a secret store, never in code. `projects.yaml`,
+  `.env` and `credentials/` are git-ignored.
+- `httpx` request logging is pinned to WARNING — it logs full URLs at INFO, and
+  bot tokens live in URLs.
+- Service accounts get read-only roles ("Restricted" in Search Console,
+  "Viewer" in GA4).
+- Tenant isolation: all queries filtered by `tenant_id`.
+- Foreign `robots.txt` is read and obeyed by the competitor crawler.
 
 ---
 
-## Performance
+## Documentation
 
-| Operation | Time |
-|-----------|------|
-| Crawl 20 pages (static) | 2-5 seconds |
-| Analyze 20 pages | 3-8 seconds |
-| GSC fetch (28 days) | 1-2 seconds |
-| PageSpeed (mobile + desktop) | 5-10 seconds |
-| Full audit pipeline | 15-30 seconds |
-| Report generation | 0.5 seconds |
-
-Bottleneck: PageSpeed API rate limiting (200/day free tier).
-
----
-
-## Deployment
-
-### Local Development
-
-```bash
-python -m seo_autopilot.api.main
-# Runs on http://localhost:8002
-```
-
-### Docker (Recommended)
-
-```bash
-docker build -t seo-autopilot:1.1.0 .
-docker run -d \
-  --name seo-autopilot \
-  -p 8002:8002 \
-  -v /opt/seo-autopilot/reports:/app/reports \
-  -v /opt/seo-autopilot/credentials:/app/credentials \
-  -e DATABASE_URL="postgres://user:pass@db:5432/seo" \
-  -e CLAUDE_API_KEY="sk-..." \
-  -e TELEGRAM_BOT_TOKEN="..." \
-  seo-autopilot:1.1.0
-```
-
-### Kubernetes
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: seo-autopilot
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: seo-autopilot
-  template:
-    metadata:
-      labels:
-        app: seo-autopilot
-    spec:
-      containers:
-      - name: seo-autopilot
-        image: seo-autopilot:1.1.0
-        ports:
-        - containerPort: 8002
-        env:
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: seo-autopilot-secrets
-              key: database-url
-        volumeMounts:
-        - name: reports
-          mountPath: /app/reports
-      volumes:
-      - name: reports
-        emptyDir: {}
-```
-
----
-
-## Examples
-
-### Example 1: Audit via CLI
-
-```bash
-# Install
-pip install seo-autopilot
-
-# Create projects.yaml
-cat > projects.yaml << EOF
-projects:
-  mysite:
-    domain: https://mysite.com
-    name: My Site
-    enabled_sources: [gsc]
-    source_config:
-      gsc:
-        property_url: sc-domain:mysite.com
-        credentials_path: ./service-account.json
-EOF
-
-# Run
-seo-autopilot run --project-id mysite
-
-# View report
-open reports/latest.html
-```
-
-### Example 2: Audit via API
-
-```bash
-# Start API
-seo-autopilot api &
-
-# List projects
-curl http://localhost:8002/api/projects
-
-# Run audit
-curl -X POST http://localhost:8002/api/audits/run/mysite
-
-# Monitor WebSocket
-wscat -c ws://localhost:8002/api/ws/events/mysite
-```
-
-### Example 3: Python Library
-
-```python
-import asyncio
-from seo_autopilot.core.audit_context import AuditContext
-from seo_autopilot.agents.analyzer import AnalyzerAgent
-from seo_autopilot.agents.strategy import StrategyAgent
-
-async def audit_website():
-    context = AuditContext(project_id="mysite", tenant_id="default")
-    
-    # Analyze
-    analyzer = AnalyzerAgent(
-        project_id="mysite",
-        audit_id=context.audit_id,
-        context=context
-    )
-    await analyzer.run()
-    
-    # Prioritize
-    strategy = StrategyAgent(
-        project_id="mysite",
-        audit_id=context.audit_id,
-        context=context
-    )
-    await strategy.run()
-    
-    print(f"Score: {context.score}")
-    print(f"Quick-wins: {context.quick_wins_count}")
-
-asyncio.run(audit_website())
-```
-
----
-
-## Troubleshooting
-
-### PageSpeed Returns 429 (Rate Limited)
-
-**Problem:** `[analyzer] Rate limited (429). Set pagespeed.api_key...`
-
-**Solution:** Get a free Google API Key:
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Create a project
-3. Enable "PageSpeed Insights API"
-4. Create an API key
-5. Set `PAGESPEED_API_KEY=AIzaSy...` in `.env`
-
-### GSC Credentials Error
-
-**Problem:** `[gsc] Error loading credentials: FileNotFoundError`
-
-**Solution:**
-1. Create a Service Account in Google Cloud
-2. Download JSON key
-3. Set in `projects.yaml`: `credentials_path: /path/to/key.json`
-
-### Database Connection Refused
-
-**Problem:** `psycopg2.OperationalError: could not connect to server`
-
-**Solution:**
-- Check PostgreSQL is running: `psql -U postgres`
-- Or use SQLite: `DATABASE_URL=sqlite:///seo.db`
-
----
-
-## Roadmap
-
-### v1.0 (Current)
-- Real crawler (httpx + BeautifulSoup)
-- 11 analyzer modules (60+ documented issue types)
-- GEO audit, topical authority, duplicate detection, link graph
-- PageSpeed CrUX field data (INP, LCP, CLS)
-- Delta/regression engine
-- Intelligence feed (algorithm monitoring)
-- Intent/GEO keyword analysis (Claude API)
-- E-E-A-T signal detection
-- Google Search Console + PageSpeed Insights
-- HTML reports + Telegram notifications
-- Multi-tenant database (SQLAlchemy + Alembic)
-- FastAPI REST API + WebSocket
-- MCP Server (Claude integration)
-- APScheduler cron jobs
-- 229 tests, 0 failures
-
-### v1.1 (Planned)
-- [ ] Hreflang / Internationalization audit
-- [ ] Optional: DataForSEO backlinks
-- [ ] Optional: Playwright JS rendering
-- [ ] CI/CD with GitHub Actions
+| Document | Content |
+|---|---|
+| [docs/handbuch.md](docs/handbuch.md) | Operator manual (German) — commands, reports, scores, errors, rollback, costs, limits |
+| [docs/einrichtung.md](docs/einrichtung.md) | Setting up a site, step by step (German) |
+| [docs/ga4-setup.md](docs/ga4-setup.md) | Connecting Google Analytics 4 (German) |
+| [docs/konzept.md](docs/konzept.md) | The product concept and what is built vs. open (German) |
+| [docs/dataforseo-setup.md](docs/dataforseo-setup.md) | Optional DataForSEO connection — off by default (German) |
+| [CHANGELOG.md](CHANGELOG.md) | Full history |
 
 ---
 
 ## Contributing
 
-Contributions are welcome! This is an open-source project.
-
 1. Fork the repo
-2. Create a feature branch (`git checkout -b feature/my-feature`)
-3. Make your changes + tests
-4. Run tests: `pytest tests/`
-5. Submit a pull request
-
-**Development setup:**
+2. Create a feature branch
+3. Make your changes **plus tests** — prove the test red first
+4. `venv/bin/python -m pytest tests/` and `bash scripts/check-sync.sh`
+5. Open a pull request
 
 ```bash
-git clone https://github.com/tentacl-ai/seo-autopilot.git
-cd seo-autopilot
-pip install -e ".[dev]"
-
-# Code quality
 black seo_autopilot/
 flake8 seo_autopilot/
 mypy seo_autopilot/
-
-# Tests
-pytest tests/ -v --cov=seo_autopilot
 ```
 
 ---
 
 ## License
 
-MIT License – see [LICENSE](LICENSE) file.
-
-Use freely in commercial and personal projects.
+MIT License – see [LICENSE](LICENSE).
 
 ---
 
 ## Support
 
-- **Issues:** GitHub Issues on this repo
-- **Discussions:** GitHub Discussions (Q&A, ideas, feedback)
+- **Issues / Discussions:** on this repo
 - **Email:** hello@tentacl.ai
 
 ---
 
 ## Why Open Source?
 
-This tool powers production SEO audits at [Tentacl.ai](https://tentacl.ai). We open-sourced it to:
+This tool runs production SEO work at [tentacl.ai](https://tentacl.ai). We opened
+it up so the method is inspectable: what is measured, what is deliberately *not*
+measured, and how a claimed improvement is proven.
 
-1. **Help the community** – Free, reliable SEO automation tool
-2. **Build trust** – Transparency in how we analyze websites
-3. **Invite contributions** – Improve the tool together
-4. **Integrate with Claude** – Use AI agents for even better analysis
-
----
-
-## Links
-
-- **GitHub:** https://github.com/tentacl-ai/seo-autopilot
-- **Tentacl.ai:** https://tentacl.ai
-
----
-
-<div align="center">
-
-Built with ❤️ by [Tentacl.ai](https://tentacl.ai)
-
-**Star ⭐ if you find this useful**
-
-</div>
+Built by [tentacl.ai](https://tentacl.ai).

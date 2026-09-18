@@ -36,8 +36,11 @@ class Settings(BaseSettings):
     DB_ECHO: bool = DEBUG
 
     # AI APIs
-    CLAUDE_API_KEY: Optional[str] = os.getenv("CLAUDE_API_KEY")
-    CLAUDE_MODEL: str = "claude-sonnet-4-20250514"
+    # CLAUDE_API_KEY hat Vorrang; sonst der zentrale ANTHROPIC_API_KEY aus <eigene Zugangsdaten-Datei>
+    CLAUDE_API_KEY: Optional[str] = os.getenv("CLAUDE_API_KEY") or os.getenv(
+        "ANTHROPIC_API_KEY"
+    )
+    CLAUDE_MODEL: str = os.getenv("CLAUDE_MODEL", "claude-opus-5")
     GEMINI_API_KEY: Optional[str] = os.getenv("GEMINI_API_KEY")
 
     # Telegram Notifications
@@ -60,6 +63,15 @@ class Settings(BaseSettings):
     # https://developers.google.com/speed/docs/insights/v5/get-started
     PAGESPEED_API_KEY: Optional[str] = os.getenv("PAGESPEED_API_KEY")
 
+    # Einbindung in die eigene Umgebung (Werte gehoeren in die .env, nicht in den
+    # Code — der Ordner ist oeffentlich auf GitHub). Leer = Funktion inaktiv.
+    MAILER_PFAD: Optional[str] = os.getenv("SEO_MAILER_PFAD")
+    INDEXNOW_SITES: Optional[str] = os.getenv("SEO_INDEXNOW_SITES")
+    BING_STATE: Optional[str] = os.getenv("SEO_BING_STATE")
+    ENTSCHEIDUNGEN_ORDNER: Optional[str] = os.getenv("SEO_ENTSCHEIDUNGEN_ORDNER")
+    CRON_ENV_DATEIEN: Optional[str] = os.getenv("SEO_CRON_ENV_DATEIEN")
+    SECRETS_DATEI: Optional[str] = os.getenv("SEO_SECRETS_DATEI")
+
     # Logging
     LOG_LEVEL: str = "INFO"
     LOG_FILE: Optional[str] = os.getenv("LOG_FILE")
@@ -77,7 +89,10 @@ class Settings(BaseSettings):
     )
 
     class Config:
-        env_file = ".env"
+        # Absolut: die Audit-Cronzeilen laufen ohne cd in den Projektordner —
+        # mit ".env" relativ wurde die Datei dort nie gelesen (PageSpeed-Schluessel
+        # fehlte deshalb in jedem Cronlauf, 18.09.2026).
+        env_file = str(_PROJECT_ROOT / ".env")
         env_file_encoding = "utf-8"
         case_sensitive = True
 

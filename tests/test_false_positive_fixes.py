@@ -1,6 +1,6 @@
 """Regression tests for the false-positive fixes of 2026-08-17.
 
-All four findings below were reported as "high" on joseph-hehenwarter.de
+All four findings below were reported as "high" on beratung-beispiel.de
 although the site was correct. Each test pins the corrected behaviour.
 """
 
@@ -140,3 +140,78 @@ class TestImageAltCounting:
 def test_bs4_available():
     """Guard: the alt-counting tests rely on the same parser as production."""
     assert BeautifulSoup("<img>", "html.parser").find("img") is not None
+
+
+# --- 5. Fehlalarme vom 16.09.2026 (beratung-beispiel.de) ------------------
+
+
+class TestUeberMichSeite:
+    """„Über mich" ist bei Einzelberatern die Über-Seite."""
+
+    def _befunde(self, pfade):
+        pages = [
+            {"url": f"https://example.com{p}", "html": "", "schema": []} for p in pfade
+        ]
+        return {
+            i["type"]
+            for i in EEATAnalyzer().analyze(pages, "https://example.com")["issues"]
+        }
+
+    def test_ueber_mich_zaehlt_als_ueber_seite(self):
+        assert "missing_about_page" not in self._befunde(["/", "/ueber-mich"])
+
+    def test_ohne_ueber_seite_bleibt_der_befund(self):
+        assert "missing_about_page" in self._befunde(["/", "/leistungen"])
+
+
+class TestDoppelseiteNurMitWortvergleich:
+    """SimHash allein meldete zwei sehr unterschiedliche Seiten als Doppelung."""
+
+    def _seiten(self, text_a, text_b):
+        return [
+            {
+                "url": "https://example.com/a",
+                "text_content": text_a,
+                "word_count": len(text_a.split()),
+                "h1": ["A"],
+            },
+            {
+                "url": "https://example.com/b",
+                "text_content": text_b,
+                "word_count": len(text_b.split()),
+                "h1": ["B"],
+            },
+        ]
+
+    def _befunde(self, seiten):
+        from seo_autopilot.analyzers.duplicate_content import DuplicateContentDetector
+
+        return {i["type"] for i in DuplicateContentDetector().detect_issues(seiten)}
+
+    def test_gleicher_text_bleibt_doppelseite(self):
+        text = (
+            "Factoring verschafft Unternehmen Liquiditaet aus offenen Rechnungen binnen 48 Stunden. "
+            * 8
+        )
+        assert "near_duplicate_content" in self._befunde(
+            self._seiten(text, text + " Kleiner Zusatz.")
+        )
+
+    def test_wenig_gemeinsame_woerter_ist_keine_doppelseite(self):
+        from seo_autopilot.analyzers.duplicate_content import wortueberschneidung
+
+        a = (
+            "Factoring Forderungsverkauf Liquiditaet Rechnungen Debitoren Bonitaet Auszahlung Ausfallschutz "
+            * 12
+        )
+        b = (
+            "Vorsorgevollmacht Patientenverfuegung Notfallordner Geschaeftsfuehrer Handlungsfaehigkeit Notar Betreuung "
+            * 12
+        )
+        assert wortueberschneidung(a, b) < 0.4
+        assert "near_duplicate_content" not in self._befunde(self._seiten(a, b))
+
+    def test_ohne_text_bleibt_der_simhash_befund_unangetastet(self):
+        from seo_autopilot.analyzers.duplicate_content import wortueberschneidung
+
+        assert wortueberschneidung("", "irgendwas") == 1.0

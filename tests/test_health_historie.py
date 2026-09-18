@@ -22,14 +22,12 @@ from seo_autopilot.health import run_selfcheck
 from seo_autopilot.historie import _verbinde, TABELLE
 
 CRON_GESUND = (
-    "15 11 * * * /opt/.../venv/bin/python3 "
+    "15 11 * * * /srv/seo-autopilot/venv/bin/python3 "
     "-m seo_autopilot.cli.main historie --importieren\n"
-    "0 10 * * * /opt/.../python3 -m seo_autopilot.cli.main run --project-id joseph\n"
+    "0 10 * * * /srv/seo-autopilot/venv/bin/python3 -m seo_autopilot.cli.main run --project-id beratung-beispiel\n"
 )
 
-CRON_OHNE_HISTORIE = (
-    "0 10 * * * /opt/.../python3 -m seo_autopilot.cli.main run --project-id joseph\n"
-)
+CRON_OHNE_HISTORIE = "0 10 * * * /srv/seo-autopilot/venv/bin/python3 -m seo_autopilot.cli.main run --project-id beratung-beispiel\n"
 
 
 @pytest.fixture
@@ -51,7 +49,7 @@ def umgebung(tmp_path):
         "insert into seo_audits "
         "(id, project_id, started_at, status, score, issues_found, total_pages) "
         "values (?, ?, ?, ?, ?, ?, ?)",
-        ("a1", "joseph", jetzt.isoformat(), "completed", 70.0, 12, 17),
+        ("a1", "beratung-beispiel", jetzt.isoformat(), "completed", 70.0, 12, 17),
     )
     con.commit()
     con.close()
@@ -59,7 +57,7 @@ def umgebung(tmp_path):
     projekte = tmp_path / "projects.yaml"
     projekte.write_text(
         "projects:\n"
-        "  joseph:\n"
+        "  beratung-beispiel:\n"
         "    domain: https://example.com\n"
         "    enabled: true\n"
         "    schedule_cron: '0 10 * * *'\n"
@@ -78,7 +76,7 @@ def _befunde_zur_historie(report):
     return [b for b in report.befunde if "istorie" in b.titel]
 
 
-def _archiviere(db, monat, project_id="joseph"):
+def _archiviere(db, monat, project_id="beratung-beispiel"):
     with _verbinde(str(db)) as conn:
         conn.execute(
             f"insert or replace into {TABELLE} (project_id, property_url, monat, "
@@ -135,12 +133,12 @@ def test_fehlender_vormonat_wird_gemeldet(umgebung):
 
 
 def test_projekt_ohne_search_console_wird_nicht_bemaengelt(umgebung, tmp_path):
-    """topal hat kein GSC — das ist eine bekannte Tatsache, kein Ausfall."""
+    """handel-beispiel hat kein GSC — das ist eine bekannte Tatsache, kein Ausfall."""
     db, _ = umgebung
     projekte = tmp_path / "ohne_gsc.yaml"
     projekte.write_text(
         "projects:\n"
-        "  joseph:\n"
+        "  beratung-beispiel:\n"
         "    domain: https://example.com\n"
         "    enabled: true\n"
         "    schedule_cron: '0 10 * * *'\n"

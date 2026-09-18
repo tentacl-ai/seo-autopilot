@@ -23,7 +23,7 @@ Konfiguration je Projekt (projects.yaml):
     source_config:
       ga4:
         property_id: "123456789"      # NICHT die Mess-ID G-XXXXXXX
-        credentials_path: /opt/odoo/credentials/tentacl-seo-service-account.json
+        credentials_path: <Ordner mit dem Dienstkonto>/tentacl-seo-service-account.json
 """
 
 from __future__ import annotations

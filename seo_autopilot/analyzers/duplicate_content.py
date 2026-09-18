@@ -29,6 +29,25 @@ MIN_SIMHASH_WORDS = (
 )
 
 
+# Wortueberschneidung (Jaccard), ab der zwei Seiten wirklich als Doppelung
+# durchgehen. SimHash ist ein Fingerabdruck und schlaegt bei Seiten derselben
+# Website schon wegen gemeinsamer Bausteine an.
+MIN_WORTUEBERSCHNEIDUNG = 0.4
+
+
+def wortueberschneidung(a: str, b: str) -> float:
+    """Anteil gemeinsamer Woerter an allen Woertern beider Texte (0..1).
+
+    Ohne Text auf einer der Seiten gibt es nichts zu widerlegen -> 1.0,
+    damit der SimHash-Befund unveraendert stehen bleibt (im Zweifel behalten).
+    """
+    wa = {w for w in a.lower().split() if len(w) > 3}
+    wb = {w for w in b.lower().split() if len(w) > 3}
+    if not wa or not wb:
+        return 1.0
+    return len(wa & wb) / len(wa | wb)
+
+
 class DuplicateContentDetector:
     """Detects duplicate content, canonical-aware."""
 
@@ -103,10 +122,24 @@ class DuplicateContentDetector:
             simhashes.append((page.get("url", ""), sh))
 
         # Pairwise comparison (O(n^2) but n is typically < 50)
+        texte = {
+            page.get("url", ""): page.get("text_content", "") or "" for page in pages
+        }
         for i, (url_a, hash_a) in enumerate(simhashes):
             for url_b, hash_b in simhashes[i + 1 :]:
                 dist = hamming_distance(hash_a, hash_b)
                 if dist <= HAMMING_THRESHOLD:
+                    # Gegenprobe mit echtem Wortvergleich (16.09.2026):
+                    # SimHash allein meldete /finanzierung/factoring und
+                    # /absicherung/vollmacht als Doppelseite (Abstand genau 10),
+                    # obwohl sich die Texte nur zu 8 % ueberschneiden. Zwei
+                    # Seiten derselben Website teilen Marke, Ansprache und
+                    # Bausteine — das reicht dem Fingerabdruck schon.
+                    if (
+                        wortueberschneidung(texte.get(url_a, ""), texte.get(url_b, ""))
+                        < MIN_WORTUEBERSCHNEIDUNG
+                    ):
+                        continue
                     # Canonical pair? -> Skip
                     if self._is_canonical_pair(url_a, url_b):
                         continue

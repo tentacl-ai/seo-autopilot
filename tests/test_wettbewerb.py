@@ -36,8 +36,9 @@ def _seite(worte=100, schema=None, meta="Eine Beschreibung", titel="Ein Titel"):
     )
 
 
-def _profil(domain, worte=500, seiten=5, schema_anteil=0.0, meta_anteil=1.0,
-            typen=None):
+def _profil(
+    domain, worte=500, seiten=5, schema_anteil=0.0, meta_anteil=1.0, typen=None
+):
     return Profil(
         domain=domain,
         seiten=seiten,

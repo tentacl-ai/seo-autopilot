@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from ..befund_arten import art_von
+from ..note import REFERENZ_SEITEN, berechne_note
 from .project_manager import ProjectConfig
 
 
@@ -32,6 +34,8 @@ class AuditContext:
 
     # Overall metrics
     score: Optional[float] = None
+    # Aufschluesselung der Note (Abzuege je Topf) — fuer Berichte und Nachweis
+    score_details: Dict[str, Any] = field(default_factory=dict)
     status: str = "running"  # running | completed | failed
     error: Optional[str] = None
 
@@ -55,11 +59,14 @@ class AuditContext:
         if agent_name == "strategy":
             ranked = getattr(result, "issues", []) or []
             if ranked:
-                self.all_issues = [dict(i) for i in ranked]
+                self.all_issues = [
+                    {**i, "art": i.get("art") or art_von(i.get("type"))} for i in ranked
+                ]
         else:
             for issue in getattr(result, "issues", []) or []:
                 annotated = dict(issue)
                 annotated.setdefault("source_agent", agent_name)
+                annotated.setdefault("art", art_von(annotated.get("type")))
                 self.all_issues.append(annotated)
 
         for fix in getattr(result, "fixes", []) or []:
@@ -97,38 +104,29 @@ class AuditContext:
         return None
 
     # Bezugsgröße der Normierung: eine Website dieser Größe gilt als "typisch".
-    # Bei genau so vielen Seiten verhält sich der Score exakt wie früher.
-    REFERENZ_SEITEN = 15
+    REFERENZ_SEITEN = REFERENZ_SEITEN
 
     def calculate_score(self) -> float:
-        """Gewichteter Score mit gedeckelten Abzügen, normiert auf die Seitenzahl.
+        """Note nach Ursache statt Menge (seit v1.16) — Formel in ``seo_autopilot/note.py``.
 
-        Früher waren die Abzüge absolut: Wer 40 Seiten prüfen ließ, sammelte
-        zwangsläufig mehr Befunde als bei 15 Seiten und bekam eine schlechtere
-        Note — obwohl die Prüfung gründlicher und die Website unverändert war.
-        Genau das ist am 2026-08-17 passiert, als die Crawl-Limits an die echte
-        Seitenzahl angepasst wurden (tentacl.ai 8,9 -> 3,2 ohne jede Änderung
-        an der Website, lovebianca 45,7 -> 14,0).
+        Kurzfassung::
 
-        Jetzt zählt die Befunddichte: Befunde pro Seite, hochgerechnet auf eine
-        Referenzgröße von 15 Seiten. Damit sind Läufe über die Zeit und über
-        verschieden große Websites hinweg vergleichbar. Bei genau 15 geprüften
-        Seiten ist das Ergebnis identisch mit der bisherigen Berechnung.
+            note = 100 - min(50; H) - min(30; M) - min(20; L) - min(10; E / 3)
 
-        Seitenunabhängige Befunde (robots.txt, Sitemap, Domain-weite
-        Vertrauenssignale) werden dadurch leicht abgeschwächt — das ist
-        gewollt: Ein einzelner Domain-Befund darf eine 40-Seiten-Website nicht
-        genauso hart treffen wie eine mit 4 Seiten.
+        H/M/L: technische Fehler je Schwere, E: Empfehlungen (Faustregeln).
+        Je (Befundtyp, Schwere) zaehlt die Menge x = n * 15/Seitenzahl nur
+        linear bis 1, danach als 1 + log2(x); Befunde derselben Ursache an
+        derselben Adresse zaehlen einmal. Die Normierung auf die Seitenzahl
+        (2026-08-17 eingefuehrt, damit gruendlicheres Pruefen nicht bestraft
+        wird) bleibt erhalten; ohne bekannte Seitenzahl wird nicht normiert.
         """
-        sev = self.issues_by_severity()
-        seiten = self.crawled_pages()
-        # Ohne bekannte Seitenzahl bleibt es bei der ursprünglichen Rechnung.
-        faktor = self.REFERENZ_SEITEN / seiten if seiten else 1.0
-
-        high_pen = min(50.0, 3.0 * sev["high"] * faktor)
-        med_pen = min(30.0, 1.0 * sev["medium"] * faktor)
-        low_pen = min(20.0, 0.3 * sev["low"] * faktor)
-        self.score = max(0.0, round(100.0 - high_pen - med_pen - low_pen, 1))
+        ergebnis = berechne_note(self.all_issues, self.crawled_pages())
+        self.score = ergebnis.note
+        self.score_details = {
+            "abzuege": ergebnis.abzuege,
+            "gezaehlt": ergebnis.gezaehlt,
+            "zusammengefasst": ergebnis.zusammengefasst,
+        }
         return self.score
 
     def summary(self) -> Dict[str, Any]:

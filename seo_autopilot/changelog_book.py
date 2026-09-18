@@ -24,7 +24,7 @@ Benutzung:
     from seo_autopilot.changelog_book import notiere_aenderung, aenderungen, als_text
 
     notiere_aenderung(
-        "seo_autopilot.db", "joseph", AKTION_META_TITLE,
+        "seo_autopilot.db", "beratung-beispiel", AKTION_META_TITLE,
         ziel_url="https://example.com/", vorher="Alt", nachher="Neu",
     )
     print(als_text(aenderungen("seo_autopilot.db", tage=30)))

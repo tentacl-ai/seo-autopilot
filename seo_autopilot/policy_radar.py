@@ -217,6 +217,48 @@ THEMEN: Tuple[Thema, ...] = (
         gewicht=RELEVANZ_MITTEL,
         hinweis="Nach dem Ausrollen Scores und Sichtbarkeit der Projekte vergleichen.",
     ),
+    # Seit v1.14.0: der Marktbeobachter schaut auch auf bezahlte Suche und Messung,
+    # weil Robert "SEO, SEA, alles was mit dem Thema zu tun hat" beobachtet haben will.
+    Thema(
+        schluessel="sea_werbung",
+        bezeichnung="Bezahlte Suche (Google Ads / Microsoft Ads)",
+        begriffe=(
+            "google ads",
+            "microsoft ads",
+            "microsoft advertising",
+            "performance max",
+            "pmax",
+            "smart bidding",
+            "search ads",
+            "ads in ai overviews",
+            "ai max",
+            "broad match",
+            "quality score",
+            "cpc",
+            "suchmaschinenwerbung",
+        ),
+        pruefbereiche=("werbung",),
+        gewicht=RELEVANZ_MITTEL,
+        hinweis="Anzeigen-Einstellungen und Budgets der Projekte gegen die Neuerung prüfen.",
+    ),
+    Thema(
+        schluessel="messung",
+        bezeichnung="Messung / Analytics / Einwilligung",
+        begriffe=(
+            "google analytics",
+            "ga4",
+            "consent mode",
+            "search console",
+            "bing webmaster",
+            "conversion tracking",
+            "enhanced conversions",
+            "server-side tagging",
+            "cookieless",
+        ),
+        pruefbereiche=("gsc", "ga4"),
+        gewicht=RELEVANZ_MITTEL,
+        hinweis="Datenquellen des Autopiloten (Search Console, GA4, Bing) auf Änderungen prüfen.",
+    ),
 )
 
 THEMEN_NACH_SCHLUESSEL: Dict[str, Thema] = {t.schluessel: t for t in THEMEN}
@@ -226,6 +268,8 @@ THEMEN_NACH_SCHLUESSEL: Dict[str, Thema] = {t.schluessel: t for t in THEMEN}
 # ausdrücklich NICHT dazu — das ist nur ein Aggregator fremder Artikel.
 GOOGLE_QUELLEN = {
     "google_search_central",
+    "google_ads_blog",
+    "google_analytics_blog",
     "google_status",
     "google_webmaster_central",
     "google_developers",

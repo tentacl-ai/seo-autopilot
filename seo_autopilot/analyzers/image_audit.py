@@ -71,6 +71,8 @@ from urllib.parse import parse_qs, unquote, urljoin, urlparse
 import httpx
 from bs4 import BeautifulSoup
 
+from .bild_variante import ladeadresse as _ladeadresse
+
 logger = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------------
@@ -97,6 +99,14 @@ GROSSES_BILD_BYTES = 150 * 1024
 # Unter dieser deklarierten Kantenlänge ist ein Bild ein Logo/Icon und kommt
 # als LCP-Element nicht in Frage.
 KLEINBILD_KANTE = 200
+
+# So viele Zeichen sichtbaren Textes passen etwa auf den ersten Bildschirm.
+# Steht vor einem Bild deutlich mehr Text, sieht der Besucher es erst nach dem
+# Scrollen — dann ist "lazy" richtig (Fehlalarm 16.09.2026 auf
+# beratung-beispiel.de/finanzierung/factoring: Das Heldenbild ist dort ein
+# CSS-Hintergrund, das erste <img> eine Prozessgrafik weit unten; Google
+# bewertete dieselbe Seite mit 95/100 und 2,7 s LCP).
+VORTEXT_ERSTER_BILDSCHIRM = 900
 
 # HEAD-Abrufe: begrenzt, parallel, kurzer Timeout — die Prüfung darf einen
 # Audit nie ausbremsen.
@@ -135,7 +145,7 @@ _PROXY_PARAMETER = ("url", "src", "image", "img", "file", "path", "source")
 # So fragt ein moderner Browser Bilder an. Der Header ist NICHT kosmetisch:
 # Bilddienste liefern abhängig davon WebP statt PNG aus. Ohne ihn misst der
 # Autopilot eine Datei, die kein echter Besucher je bekommt — bei
-# joseph-hehenwarter.de waren das 3062 KB (PNG) statt 912 KB (WebP), und
+# beratung-beispiel.de waren das 3062 KB (PNG) statt 912 KB (WebP), und
 # jedes Bild wäre fälschlich als "veraltetes Format" gemeldet worden.
 BROWSER_ACCEPT = "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
 
@@ -151,6 +161,8 @@ class BildInfo:
 
     src: str = ""
     position: int = 0  # 0 = erstes Bild im Dokument
+    vortext: int = 0  # Zeichen sichtbaren Textes vor dem Bild
+    fuellt_container: bool = False  # Next.js `fill` o. Ä.: Maße kommen aus dem CSS
     alt: Optional[str] = None  # None = Attribut fehlt, "" = bewusst leer
     title: Optional[str] = None
     breite: Optional[int] = None
@@ -160,6 +172,9 @@ class BildInfo:
     fetchpriority: str = ""
     srcset: str = ""
     sizes: str = ""
+    # Datei, die ein Handy laut srcset/sizes/<picture> tatsaechlich laedt
+    # (leer = src). Gemessen wird DIESE Datei, nicht die groesste Variante.
+    ladeadresse: str = ""
     dekorativ: bool = False
     in_figure: bool = False
     hat_figcaption: bool = False
@@ -290,6 +305,30 @@ def _als_zahl(wert: Any) -> Optional[int]:
         return None
 
 
+_ABSOLUT_FUELLEND = re.compile(r"position\s*:\s*absolute", re.I)
+
+
+def _vortext_laenge(img) -> int:
+    """Wie viele Zeichen sichtbaren Textes stehen vor diesem Bild?
+
+    Zaehlt nur echten Textinhalt; Skripte und Stylesheets bleiben aussen vor.
+    """
+    laenge = 0
+    for text in img.find_all_previous(string=True):
+        eltern = getattr(text, "parent", None)
+        if eltern is not None and eltern.name in (
+            "script",
+            "style",
+            "noscript",
+            "template",
+        ):
+            continue
+        laenge += len(str(text).strip())
+        if laenge > 5000:  # mehr muss nicht gezaehlt werden
+            break
+    return laenge
+
+
 def _ist_dekorativ(img) -> bool:
     """Ist das Bild ausdrücklich als schmückendes Beiwerk markiert?
 
@@ -341,8 +380,20 @@ def extract_images(html: str, base_url: str = "") -> List[BildInfo]:
         stil = (img.get("style") or "").strip()
         breite = _als_zahl(img.get("width"))
         hoehe = _als_zahl(img.get("height"))
+        # Ein Bild, das seinen Container per position:absolute vollständig
+        # ausfüllt (Next.js `fill`, data-nimg="fill"), kann das Layout nicht
+        # verschieben: Der Platz steht durch den Container fest. width/height
+        # wären dort sogar falsch (Fehlalarm 16.09.2026, beratung-beispiel.de).
+        fuellt_container = bool(
+            (img.get("data-nimg") or "").strip().lower() == "fill"
+            or (
+                _ABSOLUT_FUELLEND.search(stil) and "width:100%" in stil.replace(" ", "")
+            )
+        )
         hat_masse = bool(
-            (breite is not None and hoehe is not None) or _ASPECT_RATIO.search(stil)
+            (breite is not None and hoehe is not None)
+            or _ASPECT_RATIO.search(stil)
+            or fuellt_container
         )
 
         figure = img.find_parent("figure")
@@ -350,6 +401,8 @@ def extract_images(html: str, base_url: str = "") -> List[BildInfo]:
             BildInfo(
                 src=src,
                 position=position,
+                vortext=_vortext_laenge(img),
+                fuellt_container=fuellt_container,
                 alt=img.get("alt"),
                 title=img.get("title"),
                 breite=breite,
@@ -359,6 +412,7 @@ def extract_images(html: str, base_url: str = "") -> List[BildInfo]:
                 fetchpriority=(img.get("fetchpriority") or "").strip().lower(),
                 srcset=(img.get("srcset") or "").strip(),
                 sizes=(img.get("sizes") or "").strip(),
+                ladeadresse=_ladeadresse(img, base_url) or "",
                 dekorativ=_ist_dekorativ(img),
                 in_figure=figure is not None,
                 hat_figcaption=(
@@ -604,7 +658,7 @@ class ImageAuditor:
 
         Wichtige Einschränkung (2026-08-18): Ein grosses Bild ist nur dann ein
         LCP-Kandidat, wenn es auch weit genug oben steht. Auf
-        joseph-hehenwarter.de/finanzierung/factoring lag das erste grosse Bild
+        beratung-beispiel.de/finanzierung/factoring lag das erste grosse Bild
         an Bildposition 4, weit unterhalb mehrerer Textabschnitte — gemeldet
         wurde trotzdem "LCP verzögert geladen", während Google dieselbe Seite
         mit 98/100 und 2,4 s LCP bewertete. Ein Bild, das der Besucher erst
@@ -620,8 +674,11 @@ class ImageAuditor:
             if klein:
                 continue
             # Steht das Bild so weit unten, dass es den ersten Bildschirm gar
-            # nicht mehr erreicht, ist es kein LCP-Element.
+            # nicht mehr erreicht, ist es kein LCP-Element. Zwei Anhaltspunkte:
+            # die Bildposition UND der Text, der davor steht.
             if b.position >= ERSTER_BILDSCHIRM:
+                return None
+            if b.vortext > VORTEXT_ERSTER_BILDSCHIRM:
                 return None
             return b
         return None
@@ -632,6 +689,16 @@ class ImageAuditor:
         issues: List[Dict[str, Any]] = []
 
         lcp = self._lcp_kandidat(bilder)
+        issues.extend(self._lcp_befunde(url, lcp))
+
+        # Bilder weiter unten SOLLEN verzögert laden.
+        issues.extend(self._lazy_befunde(url, bilder))
+        return issues
+
+    def _lcp_befunde(self, url: str, lcp: Optional[BildInfo]) -> List[Dict[str, Any]]:
+        """Vermuteter LCP-Bildbefund. ``bild_src`` erlaubt den Abgleich mit der
+        echten Messung (analyzers/lcp_abgleich.py)."""
+        issues: List[Dict[str, Any]] = []
         if lcp is not None and lcp.loading == "lazy":
             issues.append(
                 _issue(
@@ -664,7 +731,12 @@ class ImageAuditor:
                 )
             )
 
-        # Bilder weiter unten SOLLEN verzögert laden.
+        for issue in issues:
+            issue["bild_src"] = lcp.src if lcp is not None else ""
+        return issues
+
+    def _lazy_befunde(self, url: str, bilder: List[BildInfo]) -> List[Dict[str, Any]]:
+        issues: List[Dict[str, Any]] = []
         ohne_lazy = [
             b
             for b in bilder
@@ -747,7 +819,7 @@ class ImageAuditor:
                     # Aufrufer darf einen eigenen Client übergeben, und ohne
                     # diesen Header messen wir das falsche Format.
                     resp = await client.head(
-                        bild.src,
+                        bild.ladeadresse or bild.src,
                         timeout=HEAD_TIMEOUT,
                         headers={"Accept": BROWSER_ACCEPT},
                     )
@@ -790,7 +862,9 @@ class ImageAuditor:
                     url,
                     f"{len(zu_gross)} zu grosse Bilddateien "
                     f"(grösstes: {schwerste / 1024:.0f} KB)",
-                    f"Gemessen per HEAD-Abruf. Ab {GROESSE_HINWEIS // 1024} KB ist "
+                    "Gemessen per HEAD-Abruf an der Variante, die ein Handy "
+                    "(412 px, Pixeldichte 2,6) laut srcset/sizes laedt. "
+                    f"Ab {GROESSE_HINWEIS // 1024} KB ist "
                     f"ein Bild auffällig, ab {GROESSE_BEFUND // 1024} KB bremst es "
                     f"die Seite spürbar. Grösste Dateien: {liste}",
                     "Bilder auf die tatsächlich angezeigte Grösse herunterrechnen, "

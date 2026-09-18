@@ -33,7 +33,9 @@ class ProjectConfig:
 
     # Adapter type (how to access the site)
     adapter_type: str = "static"  # static | wordpress | fastapi | generic
-    adapter_config: Dict[str, Any] = None  # e.g. {"root_path": "/opt/apps/..."}
+    adapter_config: Dict[str, Any] = (
+        None  # e.g. {"root_path": "/var/www/meine-website/dist"}
+    )
 
     # Data sources (which data we pull)
     enabled_sources: List[str] = None  # e.g. ["gsc", "lighthouse"]
@@ -54,6 +56,9 @@ class ProjectConfig:
     # Betriebsart: beobachter | copilot | autopilot (siehe ausfuehrung.py).
     # Kein Pflichtfeld — fehlt sie, gilt der sicherste Modus.
     betriebsart: Optional[str] = None
+    # Paket (Stufe 4): fehlt = "gross" (Search Console + GA4 + Bericht, Standard).
+    # "klein" = bewusst ohne GA4/Bericht, der Waechter mahnt dann nicht.
+    paket: Optional[str] = None
     auto_fix_enabled: bool = False
     auto_fix_config: Dict[str, Any] = (
         None  # {whitelist_extra: [...], push_to_remote, ...}
@@ -61,6 +66,16 @@ class ProjectConfig:
 
     # Intelligence-Feed (Welle 3): Google Trends per Project
     intel_config: Dict[str, Any] = None  # {intel_keywords, geo, timeframe}
+
+    # Kunden-Wochenbericht (v1.14.0): {aktiv, empfaenger, branche, ki_fragen, extras}.
+    # Muss hier stehen - unbekannte Felder verwirft _save_config() beim naechsten Lauf still.
+    bericht: Optional[Dict[str, Any]] = None
+    # Geschaeftswert je Ziel (geschaeftswert.py) - aus demselben Grund als Feld gefuehrt.
+    geschaeftswert: Optional[Dict[str, Any]] = None
+    # Identitaetsschutz (v1.16, identitaet.py): Text oder Liste von Texten, die
+    # auf der Startseite vorkommen muessen — sonst bricht der Audit vor jeder
+    # Analyse und jedem Auto-Fix ab. Fehlt das Feld, aendert sich nichts.
+    erwartet: Optional[Any] = None
 
     # Metadata
     created_at: datetime = None

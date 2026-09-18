@@ -172,6 +172,46 @@ class TestLayoutStabilitaet:
 
 
 @pytest.mark.asyncio
+class TestFehlalarmeNextJs:
+    """16.09.2026 an beratung-beispiel.de/finanzierung/factoring widerlegt."""
+
+    async def test_fill_bild_braucht_kein_width_height(self):
+        """Next.js `fill`: Der Container gibt den Platz vor, das Layout springt nicht."""
+        html = (
+            "<img data-nimg='fill' src='/a.webp' alt='A' "
+            "style='position:absolute;height:100%;width:100%;left:0;top:0'>"
+            "<img data-nimg='fill' src='/b.webp' alt='B' "
+            "style='position:absolute;height:100%;width:100%;left:0;top:0'>"
+            "<img data-nimg='fill' src='/c.webp' alt='C' "
+            "style='position:absolute;height:100%;width:100%;left:0;top:0'>"
+        )
+        befunde = await _befunde(html)
+        assert "image_missing_dimensions" not in _typen(befunde)
+
+    async def test_bild_ohne_masse_bleibt_ein_befund(self):
+        html = "<img src='/a.webp' alt='A'><img src='/b.webp' alt='B'><img src='/c.webp' alt='C'>"
+        assert "image_missing_dimensions" in _typen(await _befunde(html))
+
+    async def test_bild_nach_viel_text_darf_lazy_sein(self):
+        """Heldenbild als CSS-Hintergrund, erstes <img> weit unten: lazy ist richtig."""
+        html = (
+            "<p>"
+            + ("Fließtext über dem Bild. " * 60)
+            + "</p>"
+            + (
+                "<img src='/prozess.png' alt='Prozess' width='1600' height='900' loading='lazy'>"
+            )
+        )
+        befunde = await _befunde(html)
+        assert "image_lcp_lazy_loaded" not in _typen(befunde)
+        assert "image_lcp_no_priority" not in _typen(befunde)
+
+    async def test_heldenbild_ganz_oben_bleibt_ein_befund(self):
+        html = "<p>Kurze Einleitung.</p><img src='/hero.webp' alt='Hero' width='1600' height='900' loading='lazy'>"
+        assert "image_lcp_lazy_loaded" in _typen(await _befunde(html))
+
+
+@pytest.mark.asyncio
 class TestLadeverhalten:
     async def test_erstes_grosses_bild_darf_nicht_lazy_sein(self):
         html = (
@@ -455,7 +495,7 @@ class TestExtraktion:
 
 # ---------------------------------------------------------------------------
 # 10. Regressionen aus dem echten Lauf vom 2026-08-17
-#     (joseph-hehenwarter.de, Next.js — beide Fehlalarme sind hier festgenagelt)
+#     (beratung-beispiel.de, Next.js — beide Fehlalarme sind hier festgenagelt)
 # ---------------------------------------------------------------------------
 
 
@@ -505,7 +545,7 @@ class TestBilddienstFehlalarme:
 async def test_head_abruf_gibt_sich_als_browser_aus():
     """Ohne Browser-Accept liefern Bilddienste das alte Format.
 
-    Bei joseph-hehenwarter.de waren das 3062 KB PNG statt 912 KB WebP — die
+    Bei beratung-beispiel.de waren das 3062 KB PNG statt 912 KB WebP — die
     Messung hätte eine Datei bewertet, die kein Besucher je bekommt.
     """
     gesehen = []
@@ -542,7 +582,7 @@ def test_schwellenwert_ist_dokumentiert():
 class TestLcpNurObenErkannt:
     """Ein grosses Bild weit unten ist KEIN LCP-Element.
 
-    Anlass: joseph-hehenwarter.de/finanzierung/factoring wurde als
+    Anlass: beratung-beispiel.de/finanzierung/factoring wurde als
     "LCP verzögert geladen" gemeldet, während Google dieselbe Seite mit
     98/100 und 2,4 s LCP bewertete. Das Bild stand an vierter Bildposition,
     unterhalb mehrerer Textabschnitte — dort ist "lazy" korrekt.

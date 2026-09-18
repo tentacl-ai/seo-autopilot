@@ -152,8 +152,10 @@ class TestBetriebsartenImAgenten:
         assert "Beobachter" in ergebnis.log_output
 
     def test_geringe_schwere_bleibt_unangetastet(self, db):
+        # Seit v1.13 duerfen SICHERE Meta-Eingriffe (z. B. short_title) auch bei
+        # geringer Schwere laufen; fuer alles andere gilt weiter: low = liegen lassen.
         projekt = _projekt(betriebsart="copilot")
-        fix = _fix("short_title")
+        fix = _fix("org_schema_no_sameas")
         fix["priority"] = "low"
         _lauf(projekt, [fix], db)
         assert freigaben(db) == []

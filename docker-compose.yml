@@ -18,11 +18,11 @@ services:
       - ./logs:/app/logs
       - ./credentials/service-account.json:/app/secrets/service-account.json:ro
       # Apply-Adapter targets (Welle 2: Auto-Fix-Loop)
-      - /opt/apps/skinmatch:/opt/apps/skinmatch:rw
+      - /var/www/meine-website:/var/www/meine-website:rw
     extra_hosts:
       - "tentacl.ai:172.21.0.8"
       - "www.tentacl.ai:172.21.0.8"
-      - "skin.tentacl.de:172.21.0.8"
+      - "shop-beispiel.de:172.21.0.8"
     networks:
       - default
       - odoo_internal

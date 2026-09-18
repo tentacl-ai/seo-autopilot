@@ -5,15 +5,18 @@
 >
 > **Beobachten → Potenzial erkennen → Änderung ausführen → Wirkung messen → daraus lernen**
 
-Festgehalten am 2026-08-18 nach der Produktvorgabe von Robert Bückel.
-Die Umsetzungsreihenfolge steht in der Roadmap, nicht hier — dieses Dokument
-beschreibt das **Ziel**, damit es nicht in einem Chatverlauf verloren geht.
+Festgehalten am 2026-08-18. Die Umsetzungsreihenfolge steht in der Roadmap,
+nicht hier — dieses Dokument beschreibt das **Ziel** und den Abstand dorthin.
 
 Stand-Markierungen: ✅ gebaut · 🟡 teilweise · ⬜ offen
-*Zuletzt abgeglichen: 2026-08-18, Version 1.9.1.*
+*Zuletzt abgeglichen: 2026-09-18, Version 1.16.0.*
 
-Verfügbare Befehle: `selfcheck` · `changes` · `wirkung` · `wert` · `chancen` ·
-`betrieb` · `freigabe` · `weekly` · `radar` · `learnings`
+Verfügbare Befehle: `run` · `einrichten` · `empfehlungen` · `selfcheck` ·
+`changes` · `wirkung` · `wert` · `chancen` · `betrieb` · `freigabe` ·
+`historie` · `kundenbericht` · `weekly` · `marktradar` · `radar` ·
+`wettbewerb` · `learnings` · `config` · `api`
+
+Für den laufenden Betrieb: [Handbuch](handbuch.md).
 
 ---
 
@@ -31,11 +34,11 @@ dass am Ende ein Nachweis steht.
 
 | Quelle | Stand |
 |---|---|
-| Google Search Console | ✅ |
-| Google Analytics 4 | ✅ (nur joseph scharf) |
+| Google Search Console | ✅ (28 Tage + 16 Monate Archiv) |
+| Google Analytics 4 | ✅ (gehört seit Stufe 4 zur Standard-Einrichtung) |
 | PageSpeed Insights / CrUX | ✅ |
-| DataForSEO (SERP, Volumen, Backlinks) | 🟡 gebaut, kein Konto |
-| Bing Webmaster Tools | ⬜ |
+| DataForSEO (SERP, Volumen, Backlinks) | 🟡 gebaut, bewusst abgeschaltet (Kosten) |
+| Bing Webmaster Tools / IndexNow | ✅ |
 | CMS: WordPress, Shopify, Webflow, Odoo | ⬜ |
 | GitHub / GitLab für Änderungen per Pull Request | ⬜ |
 | Serverlogs (echte Crawler-Zugriffe) | ⬜ |
@@ -45,8 +48,8 @@ dass am Ende ein Nachweis steht.
 | Search-Console-Rohdaten nach BigQuery | ⬜ (nur für große Projekte nötig) |
 
 **Der entscheidende Unterschied zu normalen SEO-Tools:** Es bewertet nicht
-Traffic, sondern **Geschäftswert**. Für den Campingplatz ist
-„Campingplatz Bodensee buchen" plus tatsächliche Buchung mehr wert als
+Traffic, sondern **Geschäftswert**. Für einen Campingplatz ist
+„Campingplatz am See buchen" plus tatsächliche Buchung mehr wert als
 5.000 Besucher auf einem allgemeinen Ratgeberartikel.
 
 Belege: [Search Console API](https://developers.google.com/webmaster-tools/v1/api_reference_index) ·
@@ -54,7 +57,13 @@ Belege: [Search Console API](https://developers.google.com/webmaster-tools/v1/ap
 
 ---
 
-## 2. Die Website vollständig verstehen (Onboarding) ⬜
+## 2. Die Website vollständig verstehen (Onboarding) 🟡
+
+`einrichten` (Stufe 4) nimmt eine Website heute vollständig auf: kanonische
+Adresse, Weiterleitungen, Sitemap und Seitenzahl, Search Console, GA4,
+IndexNow/Bing, PageSpeed, Projekt-Eintrag, Cron und 16 Monate Historie — samt
+Erkennungsmerkmal `erwartet` gegen die falsche Website. Was weiterhin fehlt,
+ist das inhaltliche Verständnis:
 
 Der Agent soll beim Einrichten selbstständig erkennen:
 
@@ -133,7 +142,7 @@ Geschäftswert × realistisches Potenzial × Konfidenz ÷ Aufwand
 
 ---
 
-## 5. Konkrete Änderungen durchführen 🟡 (Freigabe-Weg steht)
+## 5. Konkrete Änderungen durchführen ✅ (Meta + Text, CMS offen)
 
 Nicht bei Empfehlungen stehen bleiben, sondern Änderungspakete erzeugen:
 Title und Meta Description · H1 und Seitenstruktur · Inhalte aktualisieren ·
@@ -142,12 +151,22 @@ Daten · Bilder · Alt-Texte · Redirects · Canonicals · Sitemaps ·
 Landingpages · Content-Briefings · Seiten konsolidieren · veraltete Inhalte
 kennzeichnen.
 
-**Heute umgesetzt:** nur Title und Meta Description, nur in statischen Dateien.
+**Heute umgesetzt** (nur in statischen Dateien, Adapter mit Dateizugriff):
+
+- Meta-Ebene und Auszeichnung: Title, Meta Description, H1, `og:`/`twitter:`,
+  Alt-Texte per Bild-KI, `width`/`height`, JSON-LD-Datumsangaben.
+- Sichtbarer Text ab Stufe 3 (`empfehlungen_umsetzen.py`): FAQ-Block, fehlender
+  Abschnitt, Überschrift, erster Absatz, interner Link — **nur** bei
+  `betriebsart: autopilot`, sonst nach Freigabe. Sieben Schutzgeländer, max. 3
+  Änderungen je Lauf und 1 je Seite und Woche.
 
 Jede Änderung braucht: Begründung · verwendete Daten · erwartete Wirkung ·
-Risikoeinstufung · Vorher-Nachher-Diff · Vorschau · Rollback.
+Risikoeinstufung · Vorher-Nachher-Diff · Vorschau · Rollback. Rollback läuft
+heute über den Git-Commit, den jede Änderung erzeugt.
 
-Wahl zwischen **CMS-Draft**, **direkter Änderung** oder **Pull Request**.
+**Offen:** Wahl zwischen **CMS-Draft** und **Pull Request** — geschrieben wird
+bisher nur direkt in die Dateien. Redirects, Canonicals und Konsolidierungen
+sind bewusst gesperrt (Abschnitt 10).
 
 ---
 
@@ -189,7 +208,7 @@ allgemeine Ratgeber bringen dagegen kaum Buchungen."
 
 ---
 
-## 8. SEO für KI-Suchen ⬜
+## 8. SEO für KI-Suchen 🟡
 
 Für Google AI Overviews, AI Mode, ChatGPT Search, Bing Copilot:
 
@@ -201,17 +220,32 @@ Für Google AI Overviews, AI Mode, ChatGPT Search, Bing Copilot:
 - Autoren, Quellen und Aktualisierungsdatum sichtbar machen
 - Erreichbarkeit für die relevanten Bots prüfen
 
+Gebaut ist heute die **Beobachtung**: Der Wochenbericht fragt ChatGPT, Gemini
+und Claude mit Websuche nach der Website und hält fest, ob und wie sie zitiert
+wird.
+
 **Kein erfundener „GEO-Score".** Google sagt selbst, dass für AI Overviews
 keine speziellen Zusatzmaßnahmen nötig sind — die SEO-Grundlagen bleiben
-entscheidend. [AI Features](https://developers.google.com/search/docs/appearance/ai-features)
+entscheidend. Seit dem KI-Leitfaden von Google (Stand 10.07.2026) gilt im
+Autopiloten härter: `llms.txt`/KI-Dateien, „Chunking", Schreiben speziell für
+KI und strukturierte Daten als KI-Hebel sind Befunde der Art `hinweis` —
+sichtbar, aber ohne Punktabzug und ohne automatische Umsetzung.
+[AI Features](https://developers.google.com/search/docs/appearance/ai-features) ·
+[KI-Leitfaden](https://developers.google.com/search/docs/fundamentals/ai-optimization-guide)
 
 ---
 
-## 9. Link- und Autoritätsmodul ⬜
+## 9. Link- und Autoritätsmodul ⬜ (extern) / ✅ (intern)
 
-Verlorene Backlinks · kaputte externe Links · unverlinkte Markenerwähnungen ·
-Linklücken gegenüber Wettbewerbern · relevante Partner und Branchenverzeichnisse ·
-interne Linkautorität visualisieren · Outreach-Texte vorbereiten.
+**Intern** steht das Modul: Der Linkgraph erkennt verwaiste Seiten, Klicktiefe,
+kaputte interne Links (auch Ziele außerhalb des Crawls) und Autoritäts-Senken;
+`interne_links` schlägt konkrete Verlinkungen mit Ankertext vor.
+
+**Extern offen:** Verlorene Backlinks · kaputte externe Links · unverlinkte
+Markenerwähnungen · Linklücken gegenüber Wettbewerbern · relevante Partner und
+Branchenverzeichnisse · Outreach-Texte vorbereiten. Ein Backlink-Index ist mit
+eigenen Mitteln nicht seriös herstellbar — dafür bräuchte es einen
+Datenanbieter.
 
 **Outreach wird niemals vollständig autonom versendet.** Sonst baut man sehr
 schnell eine Spammaschine.
@@ -227,12 +261,15 @@ schnell eine Spammaschine.
 | **Autopilot** | Führt erlaubte Maßnahmen selbst aus und überwacht sie |
 
 **Automatisch erlaubt:** Monitoring, Crawls, Reports, Sitemaps, IndexNow,
-eindeutig technische Reparaturen.
+eindeutig technische Reparaturen, Meta-Ebene und Auszeichnung. Sichtbarer Text
+nur bei `betriebsart: autopilot` und nur mit den Schutzgeländern aus
+Abschnitt 5.
 
-**Freigabepflichtig:** Content-Änderungen, interne Links, Titles,
-strukturierte Daten, Redirects.
+**Freigabepflichtig:** alles andere — Content-Änderungen unter `copilot`,
+Vorschläge aus Vorlagen ohne Seitenkontext, Redirects.
 
-**Niemals ungeprüft autonom:**
+**Niemals ungeprüft autonom** (14 Einträge, im Code gesperrt — ein Eintrag in
+`whitelist_extra` hebelt sie nicht aus):
 
 - `noindex`, Canonicals oder `robots.txt` verändern
 - Seiten löschen
@@ -253,12 +290,12 @@ darf offiziell **nur** für Jobanzeigen und Livestream-Seiten verwendet werden.
 
 Zuerst nur diese sechs Dinge perfekt bauen:
 
-1. ✅ GSC, GA4, CMS und PageSpeed anbinden — *CMS fehlt noch*
+1. ✅ GSC, GA4, PageSpeed anbinden — *CMS fehlt weiterhin*
 2. ✅ Website crawlen und Seiteninventar erstellen
-3. ✅ die zehn wertvollsten Chancen pro Woche priorisieren
-4. 🟡 fertige Änderungen mit Vorschau und Diff erzeugen
-5. ⬜ nach Freigabe direkt veröffentlichen
-6. ✅ Wirkung messen — *Geschäftswert jetzt erfassbar (`wert`)*
+3. ✅ die zehn wertvollsten Chancen pro Woche priorisieren (`chancen`)
+4. ✅ fertige Änderungen mit Vorschau und Diff erzeugen (`changes --diff`)
+5. ✅ nach Freigabe direkt veröffentlichen (statische Dateien, Git-Commit je Änderung)
+6. ✅ Wirkung messen — *Geschäftswert erfassbar (`wert`), Anbindung an CRM/Shop offen*
 
 ---
 

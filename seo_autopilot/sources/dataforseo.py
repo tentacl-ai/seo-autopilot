@@ -37,7 +37,7 @@ Eintrag in ``projects.yaml``::
       - dataforseo
     source_config:
       dataforseo:
-        credentials_path: /opt/odoo/credentials/dataforseo.json  # optional
+        credentials_path: <Ordner mit dem Dienstkonto>/dataforseo.json  # optional
         max_abfragen_pro_lauf: 25      # Kostenbremse
         location_code: 2276            # 2276 = Deutschland
         language_code: de

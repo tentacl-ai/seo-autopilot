@@ -14,6 +14,7 @@ from typing import Any, Dict
 
 from sqlalchemy import select
 
+from ..befund_arten import art_von
 from ..core.audit_context import AuditContext
 from .database import db
 from .models import SEOAudit, SEOIntel, SEOIssue, SEOKeyword, SEOProject
@@ -84,6 +85,9 @@ async def persist_audit(ctx: AuditContext) -> str:
                 {
                     "top_queries": kw_metrics.get("top_queries", []),
                     "top_pages": kw_metrics.get("top_pages", []),
+                    # GA4 wurde bis 18.09.2026 berechnet, aber nie gespeichert
+                    **{k: v for k, v in kw_metrics.items() if k.startswith("ga4_")},
+                    "pagespeed_status": analyzer_metrics.get("pagespeed_status"),
                 }
             ),
             log_output="\n".join(
@@ -95,6 +99,7 @@ async def persist_audit(ctx: AuditContext) -> str:
                     for name, r in ctx.agent_results.items()
                     if getattr(r, "errors", [])
                 ]
+                + ([{"agent": "audit", "errors": [ctx.error]}] if ctx.error else [])
             ),
         )
         session.add(audit_row)
@@ -150,6 +155,8 @@ async def persist_audit(ctx: AuditContext) -> str:
                         {
                             "url": issue.get("affected_url"),
                             "keyword": issue.get("keyword"),
+                            # fehler | empfehlung (befund_arten.py) — ohne neue Spalte
+                            "art": issue.get("art") or art_von(issue.get("type")),
                         }
                     ),
                     count=1,
@@ -175,7 +182,7 @@ async def persist_audit(ctx: AuditContext) -> str:
                     clicks=kw.get("clicks"),
                     impressions=kw.get("impressions"),
                     position=kw.get("position"),
-                    ctr=(kw.get("clicks", 0) / max(kw.get("impressions", 1), 1)),
+                    ctr=((kw.get("clicks") or 0) / max(kw.get("impressions") or 1, 1)),
                     status="active",
                 )
             )

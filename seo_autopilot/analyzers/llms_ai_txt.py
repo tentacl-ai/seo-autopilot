@@ -21,8 +21,11 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-# Markdown link pattern: - [Label](URL)
-LINK_PATTERN = re.compile(r"^-\s+\[([^\]]+)\]\(([^)]+)\)\s*$")
+# Markdown link pattern: - [Label](URL) bzw. - [Label](URL): Notizen
+# Die Notiz nach dem Doppelpunkt ist laut llmstxt.org ausdruecklich erlaubt.
+# Ohne sie meldete der Autopilot bei tentacl.ai (28 Links), beratung-beispiel (11) und
+# natur-beispiel (3) faelschlich "keine Links" (Fehlalarm 18.09.2026).
+LINK_PATTERN = re.compile(r"^-\s+\[([^\]]+)\]\(([^)]+)\)(?:\s*:.*)?\s*$")
 
 # H1/H2 header patterns
 H1_PATTERN = re.compile(r"^#\s+(.+)$", re.MULTILINE)
@@ -147,9 +150,17 @@ class LlmsAiTxtAuditor:
         return result
 
     async def check_indexnow(
-        self, domain: str, client: Optional[httpx.AsyncClient] = None
+        self,
+        domain: str,
+        client: Optional[httpx.AsyncClient] = None,
+        key: Optional[str] = None,
     ) -> IndexNowResult:
-        """Check for IndexNow key at common locations."""
+        """Check for IndexNow key at common locations.
+
+        Den Schluessel kann man nicht erraten. Ist er bekannt (projects.yaml
+        `source_config.indexnow.key`), wird die uebliche Datei /<key>.txt geprueft,
+        deren Inhalt der Schluessel selbst sein muss.
+        """
         result = IndexNowResult()
         own_client = client is None
 
@@ -157,10 +168,24 @@ class LlmsAiTxtAuditor:
             client = httpx.AsyncClient(timeout=self.timeout, follow_redirects=True)
 
         try:
+            if key:
+                url = f"{domain.rstrip('/')}/{key}.txt"
+                resp = await client.get(url)
+                if resp.status_code == 200 and resp.text.strip() == key:
+                    result.exists = True
+                    result.key_url = url
+                    result.status_code = 200
+                    return result
+
             # Check /.well-known/indexnow
             url = f"{domain.rstrip('/')}/.well-known/indexnow"
             resp = await client.get(url)
-            if resp.status_code == 200 and resp.text.strip():
+            # HTML-Antwort = Einzelseiten-App liefert fuer jede Adresse 200 -> kein Schluessel
+            if (
+                resp.status_code == 200
+                and resp.text.strip()
+                and not resp.text.lstrip().startswith("<")
+            ):
                 result.exists = True
                 result.key_url = url
                 result.status_code = 200

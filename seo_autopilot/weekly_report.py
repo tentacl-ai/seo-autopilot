@@ -83,6 +83,46 @@ BEFUND_TEXTE: Dict[str, tuple] = {
         "Seiten sind praktisch leer, melden dem Besucher aber 'alles in Ordnung'",
         "Entweder Inhalt liefern oder die Seite sauber als 'nicht gefunden' melden.",
     ),
+    # --- v1.16 (Rundumschlag 18.09.2026) ---
+    "broken_internal_link": (
+        "Links innerhalb der Website führen ins Leere",
+        "Den Link auf eine existierende Seite ändern oder entfernen; bei "
+        "Platzhaltern (z. B. 'home_url') die Vorlage reparieren.",
+    ),
+    "soft_404_catchall": (
+        "Jede falsch eingetippte Adresse zeigt eine normale Seite statt 'nicht gefunden'",
+        "Unbekannte Adressen mit einer echten 404-Antwort beantworten, sonst "
+        "fallen kaputte Links niemandem auf und Google sieht Kopien.",
+    ),
+    "hreflang_language_mismatch": (
+        "Eine Sprachfassung ist in Wahrheit in einer anderen Sprache",
+        "Seite wirklich übersetzen oder den Sprachverweis (hreflang) entfernen.",
+    ),
+    "hreflang_broken_target": (
+        "Ein Sprachverweis zeigt auf eine Seite, die es nicht gibt",
+        "Sprachverweis (hreflang) korrigieren oder die Seite wiederherstellen.",
+    ),
+    "hreflang_missing_return_link": (
+        "Sprachfassungen verweisen nicht gegenseitig aufeinander",
+        "Auf jeder Sprachfassung alle Fassungen aufführen, auch sich selbst.",
+    ),
+    "utility_page_indexable": (
+        "Werkzeug- oder Kontoseiten (Anmeldung, Dashboard, Suche) stehen im Google-Index",
+        "Diese Seiten für Google sperren (noindex) und aus der Sitemap nehmen.",
+    ),
+    "missing_local_business_schema": (
+        "Adresse und Telefon stehen auf der Seite, aber Google erfährt die Branche nicht",
+        "Im Firmen-Datenblock (Schema) den passenden Betriebstyp ergänzen, z. B. "
+        "Finanzdienstleister oder Campingplatz.",
+    ),
+    "mixed_content": (
+        "Teile der Seite werden unverschlüsselt geladen",
+        "Alle Bilder, Skripte und Stylesheets über https einbinden.",
+    ),
+    "sitemap_foreign_host": (
+        "Die Sitemap enthält Adressen einer anderen Domain",
+        "Fremde Adressen aus der Sitemap entfernen.",
+    ),
     "ai_crawler_blocked": (
         "KI-Suchdienste werden ausgesperrt",
         "In der Datei robots.txt (Zutrittsregeln für Suchmaschinen) die "
@@ -111,6 +151,31 @@ BEFUND_TEXTE: Dict[str, tuple] = {
     "long_title": (
         "Seitentitel zu lang (wird bei Google abgeschnitten)",
         "Auf etwa 60 Zeichen kürzen, das Wichtigste nach vorne.",
+    ),
+    # v1.14.0: Befunde aus Bild-Audit und GEO, die im Kunden-Wochenbericht als Knopf erscheinen
+    "image_missing_dimensions": (
+        "Bilder ohne Breite/Höhe",
+        "Breite und Höhe am Bild angeben, damit die Seite beim Laden nicht springt.",
+    ),
+    "image_lcp_lazy_loaded": (
+        "Erstes großes Bild lädt verzögert",
+        "Beim obersten Bild das verzögerte Laden abschalten, damit die Seite schneller sichtbar ist.",
+    ),
+    "image_lcp_no_priority": (
+        "Erstes großes Bild ohne Vorrang",
+        "Dem obersten Bild Vorrang beim Laden geben (fetchpriority=high).",
+    ),
+    "image_oversized": (
+        "Zu große Bilddateien",
+        "Bilder verkleinern und als WebP ausliefern.",
+    ),
+    "geo_freshness_signals": (
+        "Kein Änderungsdatum für KI-Suchen",
+        "Veröffentlichungs- und Änderungsdatum in den Seitendaten angeben.",
+    ),
+    "org_schema_no_sameas": (
+        "Firmenangaben ohne Profil-Links",
+        "In den Firmenangaben für Google die Profile (LinkedIn, Instagram usw.) verknüpfen.",
     ),
     "missing_h1": (
         "Seiten ohne sichtbare Hauptüberschrift",
@@ -252,6 +317,175 @@ BEFUND_TEXTE: Dict[str, tuple] = {
         "Kontaktseite mit Adresse und Erreichbarkeit anlegen.",
     ),
 }
+
+# v1.16 (18.09.2026): Deutsche Texte fuer Befundtypen, deren englischer
+# fix_suggestion bisher 1:1 im Kundenbericht landete ("Add lists, tables, or
+# FAQ sections."). Die Analyzer bleiben unveraendert — uebersetzt wird nur in
+# der Darstellung. Vorhandene Eintraege oben werden nicht ueberschrieben.
+# Wortlaut nach Googles Leitfaden "Optimizing your website for generative AI
+# features on Google Search" (10.07.2026): llms.txt, Chunking, Schema als
+# KI-Hebel wirken laut Google nicht — solche Punkte heissen hier "Hinweis".
+_BEFUND_TEXTE_ERGAENZUNG: Dict[str, tuple] = {
+    "striking_distance": (
+        "Suchbegriffe knapp hinter Seite 1 (Platz 11–20)",
+        "Die Seite zu diesem Begriff von passenden eigenen Seiten aus verlinken "
+        "und das Thema auf der Seite ausführlicher behandeln.",
+    ),
+    "schema_rich_result_opportunity": (
+        "Hinweis: erweiterte Google-Treffer möglich (z. B. Brotkrumen-Pfad)",
+        "Optional. Laut Google kein Hebel für KI-Suche; nur sinnvoll, wo Google die "
+        "Darstellung tatsächlich anzeigt.",
+    ),
+    "orphan_cluster_page": (
+        "Seiten, die keinem Themenbereich zugeordnet sind",
+        "Einem passenden Themenbereich zuordnen und von dort verlinken.",
+    ),
+    "multiple_h1": (
+        "Mehrere Hauptüberschriften auf einer Seite",
+        "Genau eine Hauptüberschrift je Seite, Unterpunkte als Zwischenüberschriften.",
+    ),
+    "geo_paragraph_length": (
+        "Hinweis: sehr lange Absätze",
+        "Nur kürzen, wo es dem Leser hilft. Texte für KI in kleine Stücke zu zerlegen "
+        "bringt laut Google nichts.",
+    ),
+    "no_jsonld": (
+        "Hinweis: Seiten ohne maschinenlesbare Angaben",
+        "Optional. Strukturierte Daten sind laut Google kein Hebel für KI-Antworten.",
+    ),
+    "short_meta_description": (
+        "Kurzbeschreibung für Google zu kurz",
+        "Auf ein bis zwei vollständige Sätze ausbauen (etwa 120–155 Zeichen).",
+    ),
+    "long_meta_description": (
+        "Kurzbeschreibung für Google zu lang (wird abgeschnitten)",
+        "Auf etwa 155 Zeichen kürzen, das Wichtigste nach vorne.",
+    ),
+    "image_missing_srcset": (
+        "Bilder ohne Größenvarianten für Handys",
+        "Bilder in mehreren Größen ausliefern, damit Handys kleinere Dateien laden.",
+    ),
+    "image_figure_without_caption": (
+        "Bildrahmen ohne Bildunterschrift",
+        "Bildunterschrift ergänzen oder den Rahmen weglassen.",
+    ),
+    "image_no_lazy_loading": (
+        "Bilder weiter unten laden sofort mit",
+        "Bilder ab dem zweiten Bildschirm erst beim Hinscrollen laden lassen.",
+    ),
+    "image_page_weight": (
+        "Seiten mit sehr vielen Bild-Daten",
+        "Bilder verkleinern und moderne Formate (WebP) nutzen.",
+    ),
+    "image_legacy_format": (
+        "Bilder in alten, großen Dateiformaten",
+        "Als WebP oder AVIF speichern — gleiche Qualität, deutlich kleiner.",
+    ),
+    "image_generic_filename": (
+        "Bilddateien ohne sprechenden Namen",
+        "Dateinamen beschreibend wählen (z. B. stellplatz-am-see.webp).",
+    ),
+    "near_duplicate_content": (
+        "Seiten mit sehr ähnlichem Text",
+        "Inhalte klar unterscheiden oder zusammenlegen.",
+    ),
+    "missing_twitter_card": (
+        "Keine Vorschau beim Teilen auf X/Twitter",
+        "Vorschau-Angaben für X ergänzen (Titel, Bild).",
+    ),
+    "missing_og_title": (
+        "Kein Titel für die Vorschau beim Teilen",
+        "Eigenen Vorschau-Titel für soziale Netze hinterlegen.",
+    ),
+    "og_image_too_small": (
+        "Vorschaubild beim Teilen zu klein",
+        "Vorschaubild mit mindestens 1200 × 630 Pixeln hinterlegen.",
+    ),
+    "og_image_unreachable": (
+        "Vorschaubild beim Teilen nicht erreichbar",
+        "Bildadresse prüfen — sonst erscheint beim Teilen kein Bild.",
+    ),
+    "missing_about_page": (
+        "Keine Über-uns-Seite gefunden",
+        "Seite über Person oder Firma anlegen — Google und KI-Dienste werten das "
+        "als Vertrauenszeichen.",
+    ),
+    "missing_indexnow": (
+        "Suchmaschinen werden über Änderungen nicht sofort informiert (IndexNow)",
+        "IndexNow einrichten, damit Bing & Co. neue Inhalte schneller aufnehmen.",
+    ),
+    "no_https": (
+        "Seiten ohne verschlüsselte Verbindung",
+        "Alle Seiten nur über https ausliefern.",
+    ),
+    "missing_llms_full_txt": (
+        "Hinweis: keine llms-full.txt",
+        "Laut Google ohne Wirkung auf die Google-Suche — kein Handlungsbedarf.",
+    ),
+    "missing_ai_txt": (
+        "Hinweis: keine ai.txt",
+        "Laut Google ohne Wirkung auf die Google-Suche — kein Handlungsbedarf.",
+    ),
+    "keyword_cannibalization": (
+        "Mehrere eigene Seiten konkurrieren um denselben Suchbegriff",
+        "Eine Seite als Hauptseite für den Begriff festlegen, die anderen darauf verlinken.",
+    ),
+    "missing_canonical": (
+        "Kein Hinweis auf die Originaladresse der Seite",
+        "Je Seite die Originaladresse angeben.",
+    ),
+    "link_equity_sink": (
+        "Seiten, die Links empfangen, aber nicht weiterverlinken",
+        "Von diesen Seiten aus auf passende andere Seiten verlinken.",
+    ),
+    "sitemap_stale_lastmod": (
+        "Veraltete Änderungsdaten in der Seitenübersicht",
+        "Änderungsdaten in der sitemap.xml aktuell halten.",
+    ),
+    "poor_lcp": (
+        "Hauptinhalt erscheint zu langsam",
+        "Oberstes Bild bzw. Text schneller laden (Bild verkleinern, vorladen).",
+    ),
+    "poor_tbt": (
+        "Seite reagiert beim Laden träge",
+        "Skripte verkleinern oder später laden.",
+    ),
+    "moderate_lighthouse_performance": (
+        "Ladezeit mittelmäßig",
+        "Bilder und Skripte verkleinern.",
+    ),
+    "poor_lighthouse_performance": (
+        "Ladezeit schlecht",
+        "Bilder und Skripte verkleinern, Server-Antwortzeit prüfen.",
+    ),
+    "high_bounce_page": (
+        "Besucher verlassen die Seite sofort wieder",
+        "Prüfen, ob die Seite hält, was das Suchergebnis verspricht: Einstieg, "
+        "Ladezeit, klarer nächster Schritt.",
+    ),
+    "articles_missing_date_modified": (
+        "Artikel ohne Änderungsdatum",
+        "Datum der letzten Aktualisierung angeben.",
+    ),
+    "content_gaps_detected": (
+        "Themen, nach denen gesucht wird, fehlen auf der Seite",
+        "Fehlende Themen als eigenen Abschnitt ergänzen.",
+    ),
+    "poor_intent_match": (
+        "Seite passt nicht zur Suchabsicht",
+        "Inhalt auf das ausrichten, was Suchende bei diesem Begriff erwarten.",
+    ),
+    "moderate_intent_match": (
+        "Seite passt nur teilweise zur Suchabsicht",
+        "Die Frage hinter dem Suchbegriff früher und direkter beantworten.",
+    ),
+    "poor_geo_readiness": (
+        "Hinweis: Seite beantwortet die Suchanfrage wenig direkt",
+        "Inhalte für Menschen verbessern — nicht speziell für KI umschreiben.",
+    ),
+}
+for _typ, _text in _BEFUND_TEXTE_ERGAENZUNG.items():
+    BEFUND_TEXTE.setdefault(_typ, _text)
 
 
 # ---------------------------------------------------------------------------

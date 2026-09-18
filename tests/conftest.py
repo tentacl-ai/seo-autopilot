@@ -50,3 +50,13 @@ def sample_page_data():
         https=True,
         fetch_ms=300,
     )
+
+
+@pytest.fixture(autouse=True)
+def _keine_umgebungspruefung_im_waechter(monkeypatch):
+    """run_selfcheck soll in Tests nicht von der Maschine abhaengen (Pillow,
+    Playwright, PageSpeed-Schluessel). Die Werkzeugpruefung selbst wird in
+    test_betrieb_ehrlich.py direkt und mit Attrappen getestet."""
+    import seo_autopilot.health as health
+
+    monkeypatch.setattr(health, "UMGEBUNG_PRUEFEN", False)

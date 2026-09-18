@@ -454,6 +454,36 @@ def entscheiden(
         con.close()
 
 
+def erledigte_schliessen(
+    db_pfad: str,
+    project_id: str,
+    aktuelle_typen: Optional[set],
+    von: str = "autopilot",
+) -> int:
+    """Schliesst offene Freigaben, deren Befundtyp im juengsten Audit fehlt.
+
+    Frueher tat das nur der Kundenbericht — und nur fuer Websites mit Bericht.
+    Projekte ohne Bericht (shop-beispiel, coaching-beispiel, handel-beispiel) sammelten so bis zu
+    31 Tage alte Vorschlaege fuer Dinge, die es laengst nicht mehr gab.
+    ``aktuelle_typen=None`` heisst "unbekannt" -> nichts schliessen.
+    """
+    if aktuelle_typen is None:
+        return 0
+    n = 0
+    for f in freigaben(db_pfad, project_id=project_id):
+        if f.ist_gesperrt or f.issue_type in aktuelle_typen:
+            continue
+        if entscheiden(
+            db_pfad,
+            f.id,
+            STATUS_ABGELEHNT,
+            von=von,
+            notiz="Befund im letzten Audit nicht mehr vorhanden - automatisch geschlossen",
+        ):
+            n += 1
+    return n
+
+
 def veraltete(
     db_pfad: str,
     tage: int = VERFALL_TAGE,

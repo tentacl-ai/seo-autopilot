@@ -35,6 +35,8 @@ from ..analyzers.robots_sitemap import RobotsSitemapAuditor
 from ..analyzers.llms_ai_txt import LlmsAiTxtAuditor
 from ..analyzers.eeat import EEATAnalyzer
 from ..analyzers.image_audit import ImageAuditor
+from ..analyzers.lcp_abgleich import lcp_befunde_abgleichen
+from ..analyzers import hreflang_audit, link_check, seiten_checks
 from .intent_geo_agent import analyze_keywords as intent_geo_analyze
 from .base import Agent, AgentResult, AgentStatus
 
@@ -91,6 +93,8 @@ class AnalyzerAgent(Agent):
                 urls = await crawler.discover_pages(domain, limit=max_pages)
                 logger.info(f"[analyzer] discovered {len(urls)} URLs on {domain}")
                 pages = await crawler.crawl(urls)
+                fremde_urls = list(crawler.fremde_urls)
+                nicht_gecrawlt = list(crawler.nicht_gecrawlt)
 
             good_pages = [p for p in pages if p.status_code == 200]
 
@@ -311,10 +315,22 @@ class AnalyzerAgent(Agent):
                     ],
                     domain,
                 )
+                # Kaputte Links meldet seit v1.16 link_check.py — vollstaendig
+                # (auch Ziele ausserhalb des Crawls) und je Ziel gebuendelt.
+                link_issues = [
+                    i for i in link_issues if i.get("type") != "broken_internal_link"
+                ]
                 issues.extend(link_issues)
                 logger.info(f"[analyzer] Link graph: {len(link_issues)} issues")
             except Exception as exc:
                 logger.warning(f"[analyzer] Link graph failed (non-fatal): {exc}")
+
+            # --- v1.16: Links, Catch-all, hreflang, Seitenpruefungen ---------
+            stufe2, stufe2_metriken = await self._stufe2_pruefungen(
+                pages, good_pages, urls, domain, fremde_urls, nicht_gecrawlt
+            )
+            issues.extend(stufe2)
+            result.metrics.update(stufe2_metriken)
 
             # --- v0.9 Analyzer: Robots.txt + Sitemap Audit ---
             try:
@@ -379,7 +395,12 @@ class AnalyzerAgent(Agent):
                         domain, client=_llms_client
                     )
                     indexnow_result = await llms_auditor.check_indexnow(
-                        domain, client=_llms_client
+                        domain,
+                        client=_llms_client,
+                        key=(
+                            (self.project_config.source_config or {}).get("indexnow")
+                            or {}
+                        ).get("key"),
                     )
 
                     llms_issues = llms_auditor.detect_issues(
@@ -478,8 +499,11 @@ class AnalyzerAgent(Agent):
                     nach = await self._run_pagespeed(domain, nachzumessen)
                     psi_results = list(psi_results or []) + list(nach or [])
 
+                # Ohne LCP-Element aus PageSpeed: Element selbst im Browser
+                # bestimmen (Fehlalarm natur-beispiel /einblicke, 18.09.2026).
+                lcp_elemente = await self._lcp_elemente_messen(bild_issues, psi_results)
                 bild_issues = self._ohne_widerlegte_lcp_befunde(
-                    bild_issues, psi_results
+                    bild_issues, list(psi_results or []) + lcp_elemente
                 )
                 issues.extend(bild_issues)
                 gemessene_bytes = sum(e.gemessene_bytes for e in bild_ergebnisse)
@@ -533,7 +557,7 @@ class AnalyzerAgent(Agent):
 
             # --- Gegenprobe: schwere Befunde gegen die Realität pruefen -------
             # Ein Befund, der sich per HTTP-Abruf widerlegen laesst, gehoert
-            # nicht in den Bericht. Am 2026-08-17 waren bei joseph-hehenwarter.de
+            # nicht in den Bericht. Am 2026-08-17 waren bei beratung-beispiel.de
             # 5 von 5 High-Findings falsch; diese Stufe faengt so etwas selbst ab.
             try:
                 from ..verification import verify_issues
@@ -691,39 +715,92 @@ class AnalyzerAgent(Agent):
     def _ohne_widerlegte_lcp_befunde(
         bild_issues: List[Dict[str, Any]], psi_results: Optional[List[Any]]
     ) -> List[Dict[str, Any]]:
-        """Entfernt LCP-Bildbefunde fuer Seiten mit nachweislich gutem LCP.
+        """LCP-Bildbefunde gegen die echte Messung abgleichen.
 
-        Der Bildpruefer arbeitet auf dem Quelltext und kann nicht wissen, wo
-        ein Bild tatsaechlich im Layout landet. Liegt fuer dieselbe Adresse
-        eine echte Messung unter dem Zielwert vor, gewinnt die Messung.
-        Ohne Messwerte bleibt der Befund stehen — im Zweifel lieber melden.
+        Messung schlaegt Vermutung: guter LCP oder ein anderes LCP-Element
+        (Text, anderes Bild) widerlegt den Befund; ohne Messung bleibt er,
+        aber nur als "medium" — Regeln in ``analyzers/lcp_abgleich.py``.
         """
-        if not psi_results:
-            return bild_issues
+        return lcp_befunde_abgleichen(bild_issues, psi_results)
 
-        gut_gemessen = set()
-        for r in psi_results:
-            if getattr(r, "error", None):
+    @staticmethod
+    async def _lcp_elemente_messen(bild_issues, psi_results) -> List[Any]:
+        """LCP-Element per Playwright fuer Verdachtsseiten ohne PageSpeed-Element.
+
+        Liefert Messobjekte fuer ``lcp_befunde_abgleichen``; eine vorhandene
+        PageSpeed-Zeit (lcp_ms) wird uebernommen. Hoechstens
+        LCP_NACHMESSUNG_MAX Seiten, jede Messung non-fatal.
+        """
+        from types import SimpleNamespace
+
+        from ..sources.renderer import lcp_element_messen
+
+        psi = {
+            (getattr(r, "url", "") or "").rstrip("/"): r
+            for r in (psi_results or [])
+            if not getattr(r, "error", None)
+        }
+        verdacht = dict.fromkeys(
+            (i.get("affected_url") or "").rstrip("/")
+            for i in bild_issues
+            if i.get("type") in LCP_BILDBEFUNDE and i.get("affected_url")
+        )
+        messungen = []
+        for url in list(verdacht)[:LCP_NACHMESSUNG_MAX]:
+            vorhanden = psi.get(url)
+            lcp_ms = getattr(vorhanden, "lcp_ms", None)
+            if getattr(vorhanden, "lcp_element_snippet", None) or (
+                lcp_ms is not None and lcp_ms <= LCP_ZIELWERT_MS
+            ):
                 continue
-            lcp = getattr(r, "lcp_ms", None)
-            if lcp is not None and lcp <= LCP_ZIELWERT_MS:
-                gut_gemessen.add((getattr(r, "url", "") or "").rstrip("/"))
-
-        if not gut_gemessen:
-            return bild_issues
-
-        behalten = []
-        for i in bild_issues:
-            if i.get("type") in LCP_BILDBEFUNDE:
-                url = (i.get("affected_url") or "").rstrip("/")
-                if url in gut_gemessen:
-                    logger.info(
-                        f"[analyzer] LCP-Bildbefund verworfen — gemessener LCP "
-                        f"liegt im gruenen Bereich: {url}"
+            snippet = await lcp_element_messen(url)
+            if snippet:
+                logger.info(f"[analyzer] LCP-Element (Browser) {url}: {snippet[:80]}")
+                messungen.append(
+                    SimpleNamespace(
+                        url=url, error=None, lcp_ms=lcp_ms, lcp_element_snippet=snippet
                     )
-                    continue
-            behalten.append(i)
-        return behalten
+                )
+        return messungen
+
+    async def _stufe2_pruefungen(
+        self, pages, good_pages, urls, domain, fremde_urls, nicht_gecrawlt=()
+    ) -> tuple:
+        """Pruefungen aus dem Rundumschlag 18.09.2026 — jede einzeln non-fatal."""
+        seiten = [_roh_seite(p) for p in good_pages]
+        issues: List[Dict[str, Any]] = []
+        metriken: Dict[str, Any] = {}
+        if fremde_urls:
+            issues.append(_fremde_hosts_befund(fremde_urls, domain))
+
+        import httpx as _httpx
+
+        async with _httpx.AsyncClient(
+            follow_redirects=True,
+            timeout=link_check.TIMEOUT,
+            headers={"User-Agent": "SEOAutopilotBot/1.16 (+links)"},
+        ) as client:
+            fp = None
+            try:
+                befunde, metriken, fp = await _linkpruefung(
+                    client, pages, seiten, domain, list(nicht_gecrawlt)
+                )
+                issues.extend(befunde)
+            except Exception as exc:
+                logger.warning(
+                    f"[analyzer] Linkpruefung fehlgeschlagen (non-fatal): {exc}"
+                )
+            try:
+                issues.extend(
+                    await hreflang_audit.pruefe_hreflang(
+                        seiten, client=client, fingerabdruck=fp
+                    )
+                )
+            except Exception as exc:
+                logger.warning(f"[analyzer] hreflang fehlgeschlagen (non-fatal): {exc}")
+
+        issues.extend(_seitenpruefungen(seiten, urls, domain))
+        return issues, metriken
 
     def _check_fetch_errors(self, pages: List[PageData]) -> List[Dict[str, Any]]:
         issues = []
@@ -889,6 +966,9 @@ class AnalyzerAgent(Agent):
         issues = []
         for p in pages:
             if len(p.h1) == 0:
+                # Haeufige Ursache (tentacl.ai /hotel-software/): Die sichtbare
+                # Hauptueberschrift ist nur per class="h1" gestylt.
+                optisch = seiten_checks.h1_nur_optisch(p.html)
                 issues.append(
                     _issue(
                         "content",
@@ -896,8 +976,19 @@ class AnalyzerAgent(Agent):
                         "medium",
                         p.url,
                         "Missing H1 heading",
-                        "Page has no H1 element",
-                        "Add exactly one descriptive H1 tag.",
+                        "Page has no H1 element"
+                        + (
+                            f". Die sichtbare Hauptueberschrift ist nur optisch "
+                            f"eine H1: {optisch}"
+                            if optisch
+                            else ""
+                        ),
+                        "Add exactly one descriptive H1 tag."
+                        + (
+                            ' Das Element mit class="h1" in ein <h1> aendern.'
+                            if optisch
+                            else ""
+                        ),
                     )
                 )
             elif len(p.h1) > 1:
@@ -1311,6 +1402,80 @@ def _issue(
         "description": description,
         "fix_suggestion": fix,
         "estimated_impact": impact or "",
+    }
+
+
+def _seitenpruefungen(seiten, urls, domain) -> List[Dict[str, Any]]:
+    """Netzlose Pruefungen aus seiten_checks.py — jede einzeln non-fatal."""
+    issues: List[Dict[str, Any]] = []
+    for name, pruefung in (
+        ("Werkzeugseiten", lambda: seiten_checks.pruefe_werkzeugseiten(seiten, urls)),
+        ("LocalBusiness", lambda: seiten_checks.pruefe_lokales_schema(seiten, domain)),
+        ("Ueberschriften", lambda: seiten_checks.pruefe_ueberschriften(seiten)),
+        ("Doppelte Titel", lambda: seiten_checks.pruefe_doppelte_titel(seiten)),
+        ("Mixed Content", lambda: seiten_checks.pruefe_mixed_content(seiten)),
+    ):
+        try:
+            issues.extend(pruefung())
+        except Exception as exc:
+            logger.warning(f"[analyzer] {name} fehlgeschlagen (non-fatal): {exc}")
+    return issues
+
+
+async def _linkpruefung(client, pages, seiten, domain, nicht_gecrawlt):
+    """Catch-all-Probe + alle internen Links. Rueckgabe: (Befunde, Metriken, Fingerabdruck)."""
+    befunde: List[Dict[str, Any]] = []
+    catchall, fp = await link_check.pruefe_catchall(domain, client)
+    if catchall:
+        befunde.append(catchall)
+    fp = link_check.fingerabdruck_trennscharf(fp, seiten, domain)
+    bekannt = {}
+    for p in pages:
+        if p.status_code and not p.error:
+            bekannt[p.url] = p.status_code
+            bekannt.setdefault(p.final_url or p.url, p.status_code)
+    # Seiten hinter dem Crawl-Limit nur als Linkquelle lesen
+    zusatz = await link_check.hole_linkquellen(nicht_gecrawlt, client)
+    for z in zusatz:
+        bekannt.setdefault(z["url"], 200)
+    link_befunde, statistik = await link_check.pruefe_interne_links(
+        seiten + zusatz, domain, bekannt, fingerabdruck=fp, client=client
+    )
+    befunde.extend(link_befunde)
+    statistik["link_quellen_zusaetzlich"] = len(zusatz)
+    logger.info(
+        f"[analyzer] Links: {statistik.get('link_ziele')} Ziele "
+        f"(+{len(zusatz)} Zusatzquellen), {len(link_befunde)} kaputt, "
+        f"Catch-all={'ja' if catchall else 'nein'}"
+    )
+    return befunde, statistik, fp
+
+
+def _roh_seite(p: PageData) -> Dict[str, Any]:
+    """Snapshot plus Roh-HTML und X-Robots-Tag — nur fuer Pruefungen im Lauf."""
+    seite = _page_snapshot(p)
+    seite["html"] = p.html
+    seite["x_robots_tag"] = p.x_robots_tag
+    return seite
+
+
+def _fremde_hosts_befund(fremde_urls: List[str], domain: str) -> Dict[str, Any]:
+    from urllib.parse import urlparse
+
+    hosts = sorted({urlparse(u).netloc for u in fremde_urls})
+    return {
+        "category": "sitemap",
+        "type": "sitemap_foreign_host",
+        "severity": "medium",
+        "title": f"Sitemap enthaelt {len(fremde_urls)} Adresse(n) fremder Hosts",
+        "affected_url": domain.rstrip("/") + "/sitemap.xml",
+        "description": (
+            f"Fremde Hosts: {', '.join(hosts[:5])}. Beispiel: {fremde_urls[0]}. "
+            "Eine Sitemap darf nur Adressen der eigenen Domain enthalten; Google "
+            "ignoriert die fremden Eintraege. Sie wurden nicht mitgeprueft."
+        ),
+        "fix_suggestion": "Fremde Adressen aus der Sitemap entfernen.",
+        "estimated_impact": "",
     }
 
 

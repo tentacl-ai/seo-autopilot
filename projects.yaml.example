@@ -23,7 +23,7 @@ projects:
       dataforseo:
         # Zugangsdaten kommen aus DATAFORSEO_LOGIN / DATAFORSEO_PASSWORD.
         # Alternativ eine Datei angeben (siehe docs/dataforseo-setup.md):
-        # credentials_path: /opt/odoo/credentials/dataforseo.json
+        # credentials_path: <Ordner mit dem Dienstkonto>/dataforseo.json
         max_abfragen_pro_lauf: 25      # Kostenbremse — bricht ab statt weiterzuzahlen
         location_code: 2276            # 2276 = Deutschland
         language_code: de

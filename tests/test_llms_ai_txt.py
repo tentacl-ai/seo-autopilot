@@ -161,6 +161,39 @@ class TestIndexNowIssues:
         assert "missing_indexnow" not in types
 
 
+class TestIndexNowKeyFile:
+    """Schluessel liegt ueblicherweise als /<key>.txt im Wurzelverzeichnis (natur-beispiel.at, tentacl.ai)."""
+
+    @pytest.mark.asyncio
+    async def test_key_file_counts_as_indexnow(self, auditor):
+        import httpx
+
+        def antwort(request):
+            if request.url.path == "/abc123.txt":
+                return httpx.Response(200, text="abc123")
+            return httpx.Response(404)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(antwort)) as client:
+            result = await auditor.check_indexnow(
+                "https://example.com", client=client, key="abc123"
+            )
+        assert result.exists and result.key_url == "https://example.com/abc123.txt"
+
+    @pytest.mark.asyncio
+    async def test_wrong_key_file_content_is_not_indexnow(self, auditor):
+        import httpx
+
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(
+                lambda r: httpx.Response(200, text="<html>404</html>")
+            )
+        ) as client:
+            result = await auditor.check_indexnow(
+                "https://example.com", client=client, key="abc123"
+            )
+        assert not result.exists
+
+
 # ---------------------------------------------------------------------------
 # Parsing tests
 # ---------------------------------------------------------------------------

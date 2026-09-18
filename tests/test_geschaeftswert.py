@@ -110,7 +110,9 @@ class TestZielZuordnung:
 
     def test_seitenliste_grenzt_ein(self):
         ziel = Ziel(
-            name="A", wert_pro_abschluss=100, abschlussquote=0.5,
+            name="A",
+            wert_pro_abschluss=100,
+            abschlussquote=0.5,
             seiten=["/finanzierung"],
         )
         assert ziel.gilt_fuer("/finanzierung/factoring")
@@ -118,10 +120,21 @@ class TestZielZuordnung:
 
     def test_zuordnung_arbeitet_auf_pfaden_nicht_auf_ganzen_adressen(self):
         bewertet = bewerte_seiten(
-            [{"url": "https://joseph.de/finanzierung/factoring",
-              "besucher": 100, "anfragen": 2}],
-            [Ziel(name="Finanzierung", wert_pro_abschluss=2000,
-                  abschlussquote=0.1, seiten=["/finanzierung"])],
+            [
+                {
+                    "url": "https://beratung-beispiel.de/finanzierung/factoring",
+                    "besucher": 100,
+                    "anfragen": 2,
+                }
+            ],
+            [
+                Ziel(
+                    name="Finanzierung",
+                    wert_pro_abschluss=2000,
+                    abschlussquote=0.1,
+                    seiten=["/finanzierung"],
+                )
+            ],
         )
         assert bewertet[0].bezifferbar
         assert bewertet[0].ziel_name == "Finanzierung"
@@ -170,19 +183,23 @@ class TestUnterschaetzteSeiten:
 
 class TestFehlendeAngaben:
     def test_projekt_ohne_abschnitt_wird_gemeldet(self):
-        offen = fehlende_angaben({"joseph": _projekt()})
+        offen = fehlende_angaben({"beratung-beispiel": _projekt()})
         assert len(offen) == 1
         assert "kein Abschnitt" in offen[0]["grund"]
 
     def test_unvollstaendiges_ziel_wird_benannt(self):
         offen = fehlende_angaben(
-            {"joseph": _projekt([{"name": "Anfrage", "wert_pro_abschluss": 1000}])}
+            {
+                "beratung-beispiel": _projekt(
+                    [{"name": "Anfrage", "wert_pro_abschluss": 1000}]
+                )
+            }
         )
         assert len(offen) == 1
         assert "Abschlussquote" in offen[0]["fehlt"]
 
     def test_vollstaendiges_projekt_taucht_nicht_auf(self):
-        offen = fehlende_angaben({"joseph": _projekt([VOLLES_ZIEL])})
+        offen = fehlende_angaben({"beratung-beispiel": _projekt([VOLLES_ZIEL])})
         assert offen == []
 
     def test_abgeschaltete_projekte_werden_uebersprungen(self):
@@ -192,10 +209,10 @@ class TestFehlendeAngaben:
 
 class TestDarstellung:
     def test_ohne_zahlen_erklaert_der_bericht_was_fehlt(self):
-        text = als_text([], fehlende_angaben({"joseph": _projekt()}))
+        text = als_text([], fehlende_angaben({"beratung-beispiel": _projekt()}))
         assert "für keine Seite bezifferbar" in text
         assert "nicht geschätzt" in text
-        assert "joseph" in text
+        assert "beratung-beispiel" in text
 
     def test_bericht_nennt_summe_und_seiten(self):
         bewertet = bewerte_seiten(
@@ -245,8 +262,14 @@ class TestDarstellung:
                 {"url": "/kontakt", "besucher": 200, "anfragen": 4},
                 {"url": "/blog", "besucher": 90, "anfragen": 0},
             ],
-            [Ziel(name="A", wert_pro_abschluss=2500, abschlussquote=0.15,
-                  seiten=["/kontakt"])],
+            [
+                Ziel(
+                    name="A",
+                    wert_pro_abschluss=2500,
+                    abschlussquote=0.15,
+                    seiten=["/kontakt"],
+                )
+            ],
         )
         text = als_text(bewertet)
         assert "nicht bewertet (nicht: bewertet mit null)" in text

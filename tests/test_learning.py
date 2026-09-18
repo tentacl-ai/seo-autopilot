@@ -69,7 +69,7 @@ class TestTabelle:
         assert TABELLE in _tabellen(db)
 
     def test_anlegen_zerstoert_bestehende_daten_nicht(self, db):
-        record_refuted(db, "joseph", "a1", [befund("missing_impressum")])
+        record_refuted(db, "beratung-beispiel", "a1", [befund("missing_impressum")])
         tabelle_anlegen(db)
         con = sqlite3.connect(db)
         try:
@@ -82,12 +82,12 @@ class TestTabelle:
         con = sqlite3.connect(db)
         con.executescript(
             "create table seo_audits (id text, project_id text);"
-            "insert into seo_audits values ('a1','joseph');"
+            "insert into seo_audits values ('a1','beratung-beispiel');"
         )
         con.commit()
         con.close()
 
-        record_refuted(db, "joseph", "a1", [befund("missing_impressum")])
+        record_refuted(db, "beratung-beispiel", "a1", [befund("missing_impressum")])
 
         con = sqlite3.connect(db)
         try:
@@ -101,13 +101,13 @@ class TestSpeichern:
     def test_speichern_zaehlt_und_schreibt_felder(self, db):
         n = record_refuted(
             db,
-            "joseph",
+            "beratung-beispiel",
             "audit-7",
             [
                 befund(
                     "missing_impressum",
                     "Impressum ist unter /impressum erreichbar (HTTP 200)",
-                    affected_url="https://joseph-hehenwarter.de/impressum",
+                    affected_url="https://beratung-beispiel.de/impressum",
                 )
             ],
             zeitpunkt=JETZT,
@@ -121,37 +121,37 @@ class TestSpeichern:
         finally:
             con.close()
 
-        assert r["project_id"] == "joseph"
+        assert r["project_id"] == "beratung-beispiel"
         assert r["audit_id"] == "audit-7"
         assert r["issue_type"] == "missing_impressum"
         assert r["category"] == "compliance"
         assert "erreichbar" in r["refuted_reason"]
-        assert r["affected_url"] == "https://joseph-hehenwarter.de/impressum"
+        assert r["affected_url"] == "https://beratung-beispiel.de/impressum"
         assert r["detected_at"].startswith("2026-08-17")
 
     def test_mehrere_befunde_auf_einmal(self, db):
         n = record_refuted(
             db,
-            "joseph",
+            "beratung-beispiel",
             "audit-7",
             [befund("missing_impressum"), befund("missing_datenschutz")],
         )
         assert n == 2
 
     def test_leere_liste_schreibt_nichts_legt_aber_tabelle_an(self, db):
-        assert record_refuted(db, "joseph", "audit-7", []) == 0
+        assert record_refuted(db, "beratung-beispiel", "audit-7", []) == 0
         assert TABELLE in _tabellen(db)
 
     def test_affected_url_aus_affected_items(self, db):
         """Viele Analyzer legen die Adresse nur als JSON in affected_items ab."""
         record_refuted(
             db,
-            "topal",
+            "handel-beispiel",
             "a1",
             [
                 befund(
                     "orphan_page",
-                    affected_items='[{"url": "https://topal.de/kontakt"}]',
+                    affected_items='[{"url": "https://handel-beispiel.de/kontakt"}]',
                 )
             ],
         )
@@ -160,19 +160,27 @@ class TestSpeichern:
             url = con.execute(f"select affected_url from {TABELLE}").fetchone()[0]
         finally:
             con.close()
-        assert url == "https://topal.de/kontakt"
+        assert url == "https://handel-beispiel.de/kontakt"
 
     def test_muell_im_befund_bricht_nichts(self, db):
-        n = record_refuted(db, "joseph", "a1", [None, "kaputt", befund("noindex")])
+        n = record_refuted(
+            db, "beratung-beispiel", "a1", [None, "kaputt", befund("noindex")]
+        )
         assert n == 1
 
 
 class TestMusterBericht:
     def test_muster_ueber_mehrere_projekte_taucht_auf(self, db):
         """3 Widerlegungen bei 2 Projekten = Analyzer-Bug, muss sichtbar sein."""
-        record_refuted(db, "joseph", "a1", [befund("missing_impressum")], JETZT)
-        record_refuted(db, "joseph", "a2", [befund("missing_impressum")], JETZT)
-        record_refuted(db, "topal", "b1", [befund("missing_impressum")], JETZT)
+        record_refuted(
+            db, "beratung-beispiel", "a1", [befund("missing_impressum")], JETZT
+        )
+        record_refuted(
+            db, "beratung-beispiel", "a2", [befund("missing_impressum")], JETZT
+        )
+        record_refuted(
+            db, "handel-beispiel", "b1", [befund("missing_impressum")], JETZT
+        )
 
         muster = muster_bericht(db, jetzt=JETZT)
 
@@ -181,25 +189,29 @@ class TestMusterBericht:
         assert m.issue_type == "missing_impressum"
         assert m.treffer == 3
         assert m.projekte == 2
-        assert m.projekt_namen == ["joseph", "topal"]
+        assert sorted(m.projekt_namen) == ["beratung-beispiel", "handel-beispiel"]
         assert m.systematisch is True
         assert m.urteil == "Analyzer-Bug"
 
     def test_einzelfall_taucht_nicht_auf(self, db):
-        record_refuted(db, "joseph", "a1", [befund("missing_org_schema")], JETZT)
+        record_refuted(
+            db, "beratung-beispiel", "a1", [befund("missing_org_schema")], JETZT
+        )
         assert muster_bericht(db, jetzt=JETZT) == []
 
     def test_zwei_treffer_reichen_nicht(self, db):
         """Schwelle ist 3 — zwei Zufaelle sind noch kein Muster."""
-        record_refuted(db, "joseph", "a1", [befund("noindex")], JETZT)
-        record_refuted(db, "topal", "b1", [befund("noindex")], JETZT)
+        record_refuted(db, "beratung-beispiel", "a1", [befund("noindex")], JETZT)
+        record_refuted(db, "handel-beispiel", "b1", [befund("noindex")], JETZT)
         assert muster_bericht(db, jetzt=JETZT) == []
         # Mit abgesenkter Schwelle wird derselbe Datenstand sichtbar:
         assert len(muster_bericht(db, min_treffer=2, jetzt=JETZT)) == 1
 
     def test_ein_projekt_gilt_als_beobachten_nicht_als_bug(self, db):
         for i in range(4):
-            record_refuted(db, "joseph", f"a{i}", [befund("images_without_alt")], JETZT)
+            record_refuted(
+                db, "beratung-beispiel", f"a{i}", [befund("images_without_alt")], JETZT
+            )
         m = muster_bericht(db, jetzt=JETZT)[0]
         assert m.treffer == 4
         assert m.projekte == 1
@@ -209,17 +221,23 @@ class TestMusterBericht:
     def test_zeitfenster_wird_respektiert(self, db):
         alt = JETZT - timedelta(days=45)
         for i in range(3):
-            record_refuted(db, "joseph", f"alt{i}", [befund("missing_impressum")], alt)
+            record_refuted(
+                db, "beratung-beispiel", f"alt{i}", [befund("missing_impressum")], alt
+            )
         assert muster_bericht(db, jetzt=JETZT) == []
         # Fenster weit genug aufmachen -> derselbe Datenstand erscheint.
         assert len(muster_bericht(db, tage=90, jetzt=JETZT)) == 1
 
     def test_alte_treffer_zaehlen_nicht_zur_schwelle(self, db):
         record_refuted(
-            db, "joseph", "alt", [befund("noindex")], JETZT - timedelta(days=45)
+            db,
+            "beratung-beispiel",
+            "alt",
+            [befund("noindex")],
+            JETZT - timedelta(days=45),
         )
-        record_refuted(db, "joseph", "neu1", [befund("noindex")], JETZT)
-        record_refuted(db, "topal", "neu2", [befund("noindex")], JETZT)
+        record_refuted(db, "beratung-beispiel", "neu1", [befund("noindex")], JETZT)
+        record_refuted(db, "handel-beispiel", "neu2", [befund("noindex")], JETZT)
         # Nur 2 Treffer im Fenster -> kein Muster.
         assert muster_bericht(db, jetzt=JETZT) == []
 
@@ -247,7 +265,10 @@ class TestRobustheit:
         kaputt = tmp_path / "kaputt.db"
         kaputt.write_bytes(b"das ist keine sqlite-datei, sondern muell" * 20)
 
-        assert record_refuted(str(kaputt), "joseph", "a1", [befund("noindex")]) == 0
+        assert (
+            record_refuted(str(kaputt), "beratung-beispiel", "a1", [befund("noindex")])
+            == 0
+        )
 
     def test_kaputte_db_bricht_bericht_nicht_ab(self, tmp_path):
         kaputt = tmp_path / "kaputt.db"
@@ -258,7 +279,7 @@ class TestRobustheit:
     def test_unbeschreibbarer_pfad_bricht_nichts_ab(self, tmp_path):
         pfad = str(tmp_path / "gibt" / "es" / "nicht" / "x.db")
         assert tabelle_anlegen(pfad) is False
-        assert record_refuted(pfad, "joseph", "a1", [befund("noindex")]) == 0
+        assert record_refuted(pfad, "beratung-beispiel", "a1", [befund("noindex")]) == 0
         assert muster_bericht(pfad) == []
 
     def test_bericht_ohne_tabelle_ist_leer(self, tmp_path):
@@ -280,7 +301,7 @@ class TestTextausgabe:
                     issue_type="missing_impressum",
                     treffer=5,
                     projekte=3,
-                    projekt_namen=["joseph", "topal", "bh"],
+                    projekt_namen=["beratung-beispiel", "handel-beispiel", "bh"],
                     beispiel_begruendung="Impressum ist unter /impressum erreichbar",
                 )
             ]
@@ -288,7 +309,7 @@ class TestTextausgabe:
         assert "missing_impressum" in text
         assert "5" in text
         assert "Analyzer-Bug" in text
-        assert "joseph" in text
+        assert "beratung-beispiel" in text
         assert "/impressum erreichbar" in text
 
 
@@ -298,7 +319,7 @@ class TestCli:
 
         from seo_autopilot.cli.main import cli
 
-        for p in ("joseph", "topal", "bh"):
+        for p in ("beratung-beispiel", "handel-beispiel", "bh"):
             record_refuted(db, p, "a1", [befund("missing_impressum")])
 
         res = CliRunner().invoke(cli, ["learnings", "--db", db])

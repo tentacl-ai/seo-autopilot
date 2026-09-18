@@ -2,8 +2,8 @@
 Selbstüberwachung des SEO-Autopilot ("Wächter").
 
 Der Autopilot lief monatelang scheinbar normal, während einzelne Projekte
-still ausfielen: `joseph` war nie gelaufen (Domain zeigte auf eine tote
-Adresse), `topal` hatte gar keinen Cron, und die DB-Persistenz war wochenlang
+still ausfielen: `beratung-beispiel` war nie gelaufen (Domain zeigte auf eine tote
+Adresse), `handel-beispiel` hatte gar keinen Cron, und die DB-Persistenz war wochenlang
 kaputt, ohne dass es jemandem auffiel. Ein Audit-Tool, das seinen eigenen
 Ausfall nicht bemerkt, ist wertlos.
 
@@ -225,11 +225,160 @@ def run_selfcheck(
         report.geprueft = len(aktive)
         for name, cfg in aktive.items():
             _pruefe_projekt(con, name, cfg, crontab, jetzt, report)
-        _pruefe_wirkungsmessung(con, crontab, jetzt, report, db_pfad)
+        _pruefe_wirkungsmessung(con, crontab, jetzt, report, db_pfad, projekte)
         _pruefe_historie(con, aktive, crontab, jetzt, report)
+        _pruefe_freigaben(con, projekte, jetzt, report)
+        _pruefe_paket(aktive, report)
     finally:
         con.close()
+    if UMGEBUNG_PRUEFEN:
+        _pruefe_werkzeug(report)
     return report
+
+
+# Bausteine, deren Fehlen den Autopiloten STILL entwertet (18.09.2026: Pillow und
+# Playwright fehlten seit Monaten, Reparaturen und JS-Rendering liefen ins Leere).
+WERKZEUGE = {
+    "PIL": ("Pillow", "Bildmasse und Bild-KI (Alt-Texte) koennen nicht arbeiten."),
+    "playwright": (
+        "Playwright",
+        "JavaScript-Seiten (React/Vite) werden nur als leeres HTML bewertet.",
+    ),
+    "feedparser": (
+        "feedparser",
+        "Richtlinien-Radar und Marktbeobachter lesen keine Fachquellen.",
+    ),
+}
+FREIGABE_ALARM_TAGE = 14
+# Tests schalten das ab (conftest), sonst haengt ihr Ergebnis davon ab, ob auf der
+# Maschine Pillow/Playwright/der PageSpeed-Schluessel da sind.
+UMGEBUNG_PRUEFEN = True
+
+
+def _modul_da(name: str) -> bool:
+    import importlib.util
+
+    return importlib.util.find_spec(name) is not None
+
+
+def _pruefe_werkzeug(
+    report: HealthReport, modul_da=_modul_da, browser_ordner=None
+) -> None:
+    """Sind die Bausteine installiert, ohne die Pruefungen still ausfallen?"""
+    for modul, (paket, folge) in WERKZEUGE.items():
+        if not modul_da(modul):
+            report.befunde.append(
+                Befund(
+                    "kritisch",
+                    "werkzeug",
+                    f"{paket} fehlt",
+                    folge,
+                    f"venv/bin/pip install -r requirements.txt",
+                )
+            )
+    if modul_da("playwright"):
+        if browser_ordner is None:
+            from .sources.renderer import BROWSER_ORDNER as browser_ordner
+        if not any(Path(browser_ordner).glob("chromium*")):
+            report.befunde.append(
+                Befund(
+                    "kritisch",
+                    "werkzeug",
+                    "Browser fuer JavaScript-Seiten fehlt",
+                    f"Kein Chromium unter {browser_ordner}.",
+                    "PLAYWRIGHT_BROWSERS_PATH=<ordner> venv/bin/python -m playwright "
+                    "install chromium-headless-shell",
+                )
+            )
+    if not _globaler_pagespeed_schluessel():
+        report.befunde.append(
+            Befund(
+                "warnung",
+                "werkzeug",
+                "PageSpeed-Schluessel fehlt",
+                "Ohne Schluessel gibt es keine Ladezeit-Messung (Core Web Vitals).",
+                "PAGESPEED_API_KEY in .env des Autopiloten eintragen.",
+            )
+        )
+
+
+def _pruefe_paket(projekte: Dict[str, Dict[str, Any]], report: HealthReport) -> None:
+    """Große Packung: jedes aktive Projekt hat Search Console, GA4 und Bericht.
+
+    Robert (18.09.2026): Der Autopilot soll die Daten auch auswerten — ohne
+    Search Console und Analytics bleibt er blind, ohne Bericht sieht es niemand.
+    Projekte mit `paket: klein` in projects.yaml sind bewusst ausgenommen.
+    """
+    for name, cfg in projekte.items():
+        cfg = cfg or {}
+        if not cfg.get("enabled", True):
+            continue
+        if str(cfg.get("paket") or "").strip().lower() == "klein":
+            continue
+        quellen = cfg.get("enabled_sources") or []
+        quell_cfg = cfg.get("source_config") or {}
+        fehlt = []
+        if "gsc" not in quellen or not (quell_cfg.get("gsc") or {}).get("property_url"):
+            fehlt.append("Search Console")
+        if "ga4" not in quellen or not (quell_cfg.get("ga4") or {}).get("property_id"):
+            fehlt.append("Google Analytics 4")
+        if not (cfg.get("bericht") or {}).get("aktiv"):
+            fehlt.append("Wochenbericht")
+        if fehlt:
+            report.befunde.append(
+                Befund(
+                    "warnung",
+                    name,
+                    "Paket unvollständig: " + ", ".join(fehlt),
+                    "Standard ist die große Packung (Search Console + Analytics + "
+                    "Wochenbericht) — ohne sie wertet der Autopilot die Daten "
+                    "dieser Website nicht aus.",
+                    f"seo-autopilot einrichten --projekt {name} (zeigt, was fehlt, "
+                    "und wer es freigeben muss). Bewusst klein? `paket: klein` "
+                    "in projects.yaml eintragen.",
+                )
+            )
+
+
+def _pruefe_freigaben(
+    con: sqlite3.Connection,
+    projekte: Dict[str, Dict[str, Any]],
+    jetzt: datetime,
+    report: HealthReport,
+) -> None:
+    """Liegen Vorschlaege zu lange oder fuer abgeschaltete Projekte herum?"""
+    try:
+        zeilen = con.execute(
+            "select project_id, count(*), min(erstellt_am) from freigaben "
+            "where status = 'offen' group by project_id"
+        ).fetchall()
+    except sqlite3.Error:
+        return  # Tabelle gibt es erst nach der ersten Freigabe
+    for projekt, anzahl, aeltester in zeilen:
+        cfg = projekte.get(projekt) or {}
+        if not cfg.get("enabled", True):
+            report.befunde.append(
+                Befund(
+                    "warnung",
+                    projekt,
+                    f"{anzahl} offene Vorschlaege fuer ein abgeschaltetes Projekt",
+                    "Das Projekt laeuft nicht mehr, die Vorschlaege verstopfen die Liste.",
+                    f"seo-autopilot freigabe --projekt {projekt} --alle-ablehnen",
+                )
+            )
+            continue
+        alt = _als_datum(aeltester)
+        if alt and (jetzt - alt).days > FREIGABE_ALARM_TAGE:
+            report.befunde.append(
+                Befund(
+                    "warnung",
+                    projekt,
+                    f"{anzahl} Vorschlaege warten, der aelteste seit {(jetzt - alt).days} Tagen",
+                    "Niemand entscheidet — die Vorschlaege veralten.",
+                    "Im Kundenbericht entscheiden oder seo-autopilot freigabe --projekt "
+                    f"{projekt} ansehen.",
+                )
+            )
 
 
 def _pruefe_wirkungsmessung(
@@ -238,6 +387,7 @@ def _pruefe_wirkungsmessung(
     jetzt: datetime,
     report: HealthReport,
     db_pfad: str,
+    projekte: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> None:
     """Läuft die Wirkungsmessung überhaupt noch?
 
@@ -300,7 +450,7 @@ def _pruefe_wirkungsmessung(
                 "Projektliste absolut aufgelöst, der Lauf funktioniert also "
                 "trotzdem — bei relativen Angaben (--projects, --db) läuft er "
                 "aber ins Leere.",
-                "'cd /opt/odoo/docs/seo-autopilot &&' vor den Befehl setzen.",
+                "'cd <Installationsordner> &&' vor den Befehl setzen.",
             )
         )
 
@@ -312,6 +462,13 @@ def _pruefe_wirkungsmessung(
     except Exception as exc:  # pragma: no cover - defensiv
         logger.debug(f"[health] Fälligkeit nicht prüfbar: {exc}")
         return
+
+    # Nie messbare Änderungen dürfen keinen Dauer-Alarm auslösen (16.09.2026):
+    # Projekte, die es nicht mehr gibt (Testreste wie 't'), und Projekte mit
+    # eingeschalteter, aber nicht eingerichteter Search Console (handel-beispiel) - Letzteres
+    # meldet _pruefe_projekt bereits als eigene Warnung mit der richtigen Abhilfe.
+    if projekte is not None:
+        offen = [(a, f) for a, f in offen if _messbar(projekte.get(a.project_id))]
 
     if not offen:
         return
@@ -439,6 +596,16 @@ def _pruefe_historie(
         )
 
 
+def _messbar(cfg: Optional[Dict[str, Any]]) -> bool:
+    """Kann die Wirkungsmessung dieses Projekt überhaupt je auswerten?"""
+    if not cfg or not cfg.get("enabled", True):
+        return False
+    if "gsc" in (cfg.get("enabled_sources") or []):
+        gsc = (cfg.get("source_config") or {}).get("gsc") or {}
+        return bool(gsc.get("property_url"))
+    return True
+
+
 def _pruefe_schema(con: sqlite3.Connection, report: HealthReport) -> None:
     """Die Migrationsmarke muss stehen — fehlt sie, schlagen Speicherungen fehl."""
     tabellen = {
@@ -530,7 +697,7 @@ def _pruefe_projekt(
                 name,
                 "Seit über %d Stunden kein Lauf" % MAX_ALTER_STUNDEN,
                 f"Letzter Lauf vor {alter} Stunden ({gestartet:%Y-%m-%d %H:%M} UTC).",
-                "Cron-Log prüfen: /opt/odoo/docs/seo-autopilot/logs/cron.log",
+                "Cron-Log prüfen: <Installationsordner>/logs/cron.log",
             )
         )
 

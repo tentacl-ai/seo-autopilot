@@ -9,11 +9,19 @@ Commands:
 - seo-autopilot api
 """
 
+import sys
+
 import click
 from ..core.config import settings
 import logging
 
-logging.basicConfig(level=settings.LOG_LEVEL)
+# Mit Zeitstempel: cron.log hatte keinen — wann ein Lauf war, liess sich nur
+# ueber die Datenbank belegen (Betriebspruefung 18.09.2026).
+logging.basicConfig(
+    level=settings.LOG_LEVEL,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 logger = logging.getLogger(__name__)
 
 
@@ -78,8 +86,8 @@ def add(id, domain, name, adapter_type, root_path, cron):
         click.echo(f"Error: {e}", err=True)
 
 
-@config.command()
-def list():
+@config.command(name="list")
+def projekte_auflisten():
     """List all projects"""
     from ..core.project_manager import ProjectManager
 
@@ -145,17 +153,28 @@ def run(project_id, auto_fix):
         f"Starting {len(projects)} audit(s){' WITH --auto-fix' if auto_fix else ''}..."
     )
 
+    from ..api.main import LAUF_STATUS
+
+    fehler = []
+
     async def _run_all():
         await db.initialize()
         try:
             for project in projects:
                 click.echo(f"  Auditing {project.id}...")
                 audit_id = await run_audit_for_project(project.id, force_apply=auto_fix)
-                click.echo(f"  -> done: {audit_id}")
+                status = LAUF_STATUS.get(audit_id, "failed")
+                click.echo(f"  -> {status}: {audit_id}")
+                if status != "completed":
+                    fehler.append(f"{project.id} ({status})")
         finally:
             await db.close()
 
     asyncio.run(_run_all())
+    if fehler:
+        # Exit 1, damit Cron-Log und Waechter einen Absturz nicht als Erfolg lesen
+        click.echo(f"FEHLER: {', '.join(fehler)}", err=True)
+        sys.exit(1)
     click.echo("All audits completed.")
 
 
@@ -193,13 +212,19 @@ def selfcheck(db, projects, notify):
     text = report.as_text()
     click.echo(text)
 
-    if notify and report.befunde:
+    if notify:
         try:
-            from ..notifications.telegram import send_plain_message
+            from ..notifications.mail import an_robert
 
-            send_plain_message(f"SEO-Autopilot Selbstpruefung\n\n{text}")
+            # Nur bei Aenderung - auch "wieder alles gesund" wird einmal gemeldet.
+            betreff = (
+                f"SEO-Autopilot: {len(report.kritisch)} kritisch, {len(report.warnungen)} Warnung(en)"
+                if report.befunde
+                else "SEO-Autopilot: wieder alles in Ordnung"
+            )
+            an_robert(betreff, text, schluessel="selbstpruefung")
         except Exception as exc:  # pragma: no cover - Netzwerk
-            logger.warning(f"Telegram-Meldung fehlgeschlagen: {exc}")
+            logger.warning(f"Selbstpruefungs-Meldung fehlgeschlagen: {exc}")
 
     raise SystemExit(report.exit_code)
 
@@ -284,6 +309,115 @@ def radar(tage):
 
 @cli.command()
 @click.option("--db", default="seo_autopilot.db", help="Pfad zur Audit-Datenbank")
+@click.option(
+    "--sammeln/--nur-zeigen",
+    default=False,
+    help="Quellen abrufen und neue Meldungen ablegen",
+)
+@click.option(
+    "--ohne-ki", is_flag=True, help="Nur Fachquellen, keine KI-Späher (kostet nichts)"
+)
+@click.option("--tage", default=7, help="Anzeige: Meldungen der letzten N Tage")
+def marktradar(db, sammeln, ohne_ki, tage):
+    """Marktbeobachter: taeglich Neuerungen zu SEO, SEA, KI-Suche und Messung.
+
+    Fachquellen (RSS) plus ChatGPT/Gemini mit Websuche. Jede KI-Meldung braucht
+    eine erreichbare Quelle, sonst wird sie verworfen.
+    """
+    from .. import marktradar as mr
+
+    if sammeln:
+        click.echo(mr.sammeln(db, mit_ki=not ohne_ki).als_text())
+        click.echo("")
+    for m in mr.neueste(db, tage=tage):
+        click.echo(
+            f"[{m['relevanz']:7}] {m['datum'] or '          '} {m['titel'][:90]}"
+        )
+        click.echo(f"          {m['via']} · {m['url']}")
+
+
+@cli.command()
+@click.option("--db", default="seo_autopilot.db", help="Pfad zur Audit-Datenbank")
+@click.option("--projects", default="projects.yaml", help="Pfad zur Projektliste")
+@click.option(
+    "--projekt", default=None, help="Nur dieses Projekt (sonst alle mit bericht.aktiv)"
+)
+@click.option(
+    "--senden/--trocken", default=False, help="Mail verschicken oder nur erzeugen"
+)
+@click.option(
+    "--ohne-ki",
+    is_flag=True,
+    help="Ohne KI-Sichtbarkeit und Markt-Impulse (kostet nichts)",
+)
+@click.option(
+    "--ohne-knoepfe",
+    is_flag=True,
+    help="Keine Entscheidungen anlegen (fuer Probelaeufe)",
+)
+@click.option(
+    "--html",
+    "html_pfad",
+    default=None,
+    help="HTML zusaetzlich in diese Datei schreiben",
+)
+def kundenbericht(db, projects, projekt, senden, ohne_ki, ohne_knoepfe, html_pfad):
+    """Wochenbericht je Website - fuer alle Kunden gleich aufgebaut.
+
+    Google-Suche, Analytics, Bing, KI-Sichtbarkeit, Website-Pruefung,
+    Neuerungen aus dem Markt, Zustand des Werkzeugs und Entscheidungen mit Knopf.
+    """
+    from pathlib import Path
+
+    from .. import kundenbericht as kb
+
+    alle = kb.lade_projekte(projects)
+    namen = [projekt] if projekt else kb.berichtsprojekte(alle)
+    fehler = 0
+    for name in namen:
+        cfg = alle.get(name)
+        if not cfg:
+            click.echo(f"{name}: unbekanntes Projekt")
+            fehler += 1
+            continue
+        an = (cfg.get("bericht") or {}).get("empfaenger") if senden else None
+        try:
+            b = kb.erstellen(
+                name,
+                db,
+                projects,
+                senden_an=an,
+                mit_ki=not ohne_ki,
+                knoepfe=not ohne_knoepfe,
+            )
+        except (
+            Exception
+        ) as exc:  # noqa: BLE001 - ein Projekt darf die anderen nicht aufhalten
+            logger.exception(f"[Kundenbericht] {name} fehlgeschlagen")
+            click.echo(f"{name}: FEHLER {type(exc).__name__}: {exc}")
+            fehler += 1
+            continue
+        if html_pfad:
+            ziel = Path(html_pfad.replace("{projekt}", name))
+            ziel.write_text(kb.als_html(b), encoding="utf-8")
+        versand = b.get("versand", {})
+        click.echo(
+            f"{name}: {len(b['hinweise'])} Hinweise, {len(b.get('entscheidungen', []))} Entscheidungen"
+            + (
+                f", Versand {'ok' if versand.get('ok') else 'FEHLER'}: {versand.get('meldung')}"
+                if versand
+                else ""
+            )
+        )
+        for h in b["hinweise"]:
+            click.echo(f"   - {h}")
+        if versand and not versand.get("ok"):
+            fehler += 1
+    raise SystemExit(1 if fehler else 0)
+
+
+@cli.command()
+@click.option("--db", default="seo_autopilot.db", help="Pfad zur Audit-Datenbank")
 @click.option("--projects", default="projects.yaml", help="Pfad zur Projektliste")
 @click.option("--tage", default=7, type=int, help="Zeitraum in Tagen (Standard 7)")
 @click.option(
@@ -346,7 +480,7 @@ def changes(db, projekt, tage, mit_diff, nur_offene):
     zugerechnet werden.
 
     Beispiel:
-      seo-autopilot changes --projekt joseph --tage 14 --diff
+      seo-autopilot changes --projekt beratung-beispiel --tage 14 --diff
     """
     from ..changelog_book import aenderungen, als_text, standard_db_pfad
 
@@ -392,7 +526,7 @@ def wirkung(db, projects, projekt, messen, fenster, zeige_bilanz, nur_belastbar)
     Beispiele:
       seo-autopilot wirkung --messen          # faellige Messungen nachholen
       seo-autopilot wirkung --bilanz          # was wirkt ueberhaupt
-      seo-autopilot wirkung --projekt joseph --fenster 28
+      seo-autopilot wirkung --projekt beratung-beispiel --fenster 28
     """
     import asyncio
     from pathlib import Path
@@ -422,7 +556,7 @@ def wirkung(db, projects, projekt, messen, fenster, zeige_bilanz, nur_belastbar)
             # Monate gekostet.
             raise click.ClickException(
                 f"Keine Projekte gefunden ({projects}). "
-                "Im Cron 'cd /opt/odoo/docs/seo-autopilot &&' voranstellen."
+                "Im Cron 'cd <Installationsordner> &&' voranstellen."
             )
         neue = asyncio.run(miss_faellige(db_pfad, projekt_liste, project_id=projekt))
         click.echo(f"{len(neue)} Messung(en) durchgefuehrt.\n")
@@ -459,7 +593,7 @@ def wert(projects, projekt, tage):
     Zahlen beim Kunden noch fehlen.
 
     Beispiel:
-      seo-autopilot wert --projekt joseph
+      seo-autopilot wert --projekt beratung-beispiel
     """
     import asyncio
     from pathlib import Path
@@ -546,7 +680,7 @@ def chancen(db, projects, projekt, anzahl):
     Besuchern gewichtet — und das im Bericht ausdruecklich gesagt.
 
     Beispiel:
-      seo-autopilot chancen --projekt joseph --anzahl 5
+      seo-autopilot chancen --projekt beratung-beispiel --anzahl 5
     """
     import sqlite3
     from pathlib import Path
@@ -719,7 +853,15 @@ def _letzte_befunde(con, project_id):
     help="Auch bereits entschiedene gesperrte Vorschlaege zeigen",
 )
 @click.option("--notify/--no-notify", default=False, help="Offene per Telegram melden")
-def freigabe(db, projekt, freigeben, ablehnen, notiz, alle_gesperrten, notify):
+@click.option(
+    "--alle-ablehnen",
+    is_flag=True,
+    default=False,
+    help="Alle offenen Vorschlaege EINES Projekts ablehnen (z. B. abgeschaltetes Projekt)",
+)
+def freigabe(
+    db, projekt, freigeben, ablehnen, notiz, alle_gesperrten, notify, alle_ablehnen
+):
     """Freigaben: was der Autopilot vorgelegt hat und noch nicht tun darf.
 
     Ohne Argumente zeigt der Befehl die offenen Vorschlaege. Mit --ja/--nein
@@ -740,6 +882,21 @@ def freigabe(db, projekt, freigeben, ablehnen, notiz, alle_gesperrten, notify):
     )
 
     db_pfad = db or standard_db_pfad()
+
+    if alle_ablehnen:
+        if not projekt:
+            raise click.ClickException("--alle-ablehnen nur zusammen mit --projekt.")
+        offen = freigaben(db_pfad, project_id=projekt)
+        for f in offen:
+            entscheiden(
+                db_pfad,
+                f.id,
+                STATUS_ABGELEHNT,
+                von="robert",
+                notiz=notiz or "Sammel-Ablehnung",
+            )
+        click.echo(f"{len(offen)} Vorschlaege fuer {projekt} abgelehnt.")
+        return
 
     if freigeben or ablehnen:
         kennung = freigeben or ablehnen
@@ -847,8 +1004,8 @@ def wettbewerb(projects, projekt, gegen, seiten):
     einen Datenanbieter wie DataForSEO.
 
     Beispiel:
-      seo-autopilot wettbewerb --projekt joseph
-      seo-autopilot wettbewerb --projekt joseph --gegen https://a.de,https://b.de
+      seo-autopilot wettbewerb --projekt beratung-beispiel
+      seo-autopilot wettbewerb --projekt beratung-beispiel --gegen https://a.de,https://b.de
     """
     import asyncio
     from pathlib import Path
@@ -947,7 +1104,7 @@ def historie(db, projects, projekt, importieren, monate, alles_neu, top, export_
         # "erfolgreich" nichts tun.
         raise click.ClickException(
             f"Keine Projekte gefunden ({projects}). "
-            "Im Cron 'cd /opt/odoo/docs/seo-autopilot &&' voranstellen."
+            "Im Cron 'cd <Installationsordner> &&' voranstellen."
         )
 
     ziele = {projekt: projekt_liste[projekt]} if projekt else projekt_liste
@@ -989,6 +1146,239 @@ def historie(db, projects, projekt, importieren, monate, alles_neu, top, export_
             continue
         click.echo(bericht_text(db_pfad, pid, top=top))
         click.echo("")
+
+
+@cli.command()
+@click.option("--projekt", default=None, help="Projekt-ID (neu oder bestehend)")
+@click.option("--domain", default=None, help="z. B. https://kunde.de")
+@click.option("--name", default=None, help="Anzeigename")
+@click.option("--gsc-property", default=None, help="sc-domain:… oder https://…/")
+@click.option("--ga4-property", default=None, help="GA4-Property-ID (nur Ziffern)")
+@click.option("--bericht-an", default=None, help="Empfaenger des Wochenberichts")
+@click.option(
+    "--adapter",
+    type=click.Choice(["generic", "static"]),
+    default="generic",
+    help="generic = nur lesen, static = Dateien auf diesem Server",
+)
+@click.option("--root-path", default=None, help="Webroot (nur --adapter static)")
+@click.option(
+    "--schreiben",
+    is_flag=True,
+    default=False,
+    help="projects.yaml schreiben (mit Sicherung) + Suchhistorie importieren",
+)
+@click.option(
+    "--pruefen",
+    is_flag=True,
+    default=False,
+    help="Paket bestehender Projekte pruefen (ohne --projekt: alle)",
+)
+@click.option("--projects", default=None, help="Pfad zur Projektliste")
+@click.option("--db", default=None, help="Pfad zur Audit-Datenbank (Historie)")
+def einrichten(
+    projekt,
+    domain,
+    name,
+    gsc_property,
+    ga4_property,
+    bericht_an,
+    adapter,
+    root_path,
+    schreiben,
+    pruefen,
+    projects,
+    db,
+):
+    """Website mit der „grossen Packung" einrichten oder pruefen.
+
+    Grosse Packung = Search Console + Google Analytics 4 + Wochenbericht +
+    Bing/IndexNow + PageSpeed + Cron + 16 Monate Suchhistorie. Alles Live-Pruefen
+    ist nur lesend; die Cron-Zeile wird nur ausgegeben.
+
+    Beispiele:
+      seo-autopilot einrichten --projekt kunde --domain https://kunde.de
+      seo-autopilot einrichten --projekt kunde --domain https://kunde.de --schreiben
+      seo-autopilot einrichten --pruefen                  # alle bestehenden Kunden
+      seo-autopilot einrichten --pruefen --projekt beratung-beispiel
+    """
+    from ..einrichtung import Auftrag, als_text
+    from ..einrichtung import einrichten as einrichten_ablauf
+    from ..einrichtung import pruef_text, pruefe_alle
+
+    pfad = _projektliste_pfad(projects)
+    if pruefen:
+        if schreiben:
+            raise click.UsageError("--pruefen schreibt nie; --schreiben weglassen.")
+        stati = pruefe_alle(pfad, nur=projekt)
+        if projekt and not stati:
+            raise click.ClickException(f"Projekt '{projekt}' steht nicht in {pfad}.")
+        click.echo(pruef_text(stati))
+        sys.exit(1 if any(ps.todos for ps in stati) else 0)
+    if not projekt:
+        raise click.UsageError("--projekt fehlt (oder --pruefen fuer alle).")
+    if adapter == "static" and not root_path:
+        click.echo(
+            "Hinweis: --adapter static ohne --root-path — bestehender Pfad oder keiner."
+        )
+    auftrag = Auftrag(
+        projekt=projekt,
+        domain=domain,
+        name=name,
+        gsc_property=gsc_property,
+        ga4_property=ga4_property,
+        bericht_an=bericht_an,
+        adapter=adapter,
+        root_path=root_path,
+        schreiben=schreiben,
+    )
+    ergebnis = einrichten_ablauf(auftrag, pfad, db_pfad=db)
+    click.echo(als_text(ergebnis))
+    sys.exit(0 if ergebnis.vollstaendig else 1)
+
+
+@cli.command()
+@click.option("--db", default=None, help="Pfad zur Audit-Datenbank")
+@click.option("--projects", default=None, help="Pfad zur Projektliste")
+@click.option(
+    "--projekt",
+    default=None,
+    help="Nur dieses Projekt (sonst alle aktiven mit Search Console oder Bericht)",
+)
+@click.option(
+    "--erzeugen", is_flag=True, help="Neue Empfehlungen erzeugen (Search Console + KI)"
+)
+@click.option(
+    "--umsetzen",
+    is_flag=True,
+    help="Arbeitsliste abarbeiten: Autopilot setzt um, Copilot nur Freigegebenes",
+)
+@click.option(
+    "--trocken", is_flag=True, help="Mit --umsetzen: pruefen, aber nichts schreiben"
+)
+@click.option("--max-seiten", default=None, type=int, help="KI-Deckel je Projekt")
+@click.option("--seite", "seiten", multiple=True, help="Nur diese Seite(n) erzeugen")
+@click.option("--alle", "alle_status", is_flag=True, help="Auch erledigte anzeigen")
+@click.option("--freigeben", default=None, help="Empfehlung (ID-Anfang) freigeben")
+@click.option("--ablehnen", default=None, help="Empfehlung (ID-Anfang) ablehnen")
+@click.option("--stand", "als_stand", is_flag=True, help="Stand als JSON ausgeben")
+def empfehlungen(
+    db,
+    projects,
+    projekt,
+    erzeugen,
+    umsetzen,
+    trocken,
+    max_seiten,
+    seiten,
+    alle_status,
+    freigeben,
+    ablehnen,
+    als_stand,
+):
+    """Konkrete On-Page-Empfehlungen je Seite (FAQ, Abschnitte, Ueberschrift,
+    interne Links, erster Absatz, neue Seiten).
+
+    Beispiele:
+      seo-autopilot empfehlungen --projekt tentacl-ai              # Liste mit Status
+      seo-autopilot empfehlungen --projekt beratung-beispiel --erzeugen        # neu berechnen
+      seo-autopilot empfehlungen --erzeugen --umsetzen              # taeglicher Lauf
+      seo-autopilot empfehlungen --freigeben 3f2a1b                 # Knopf per Hand
+    """
+    import json as _json
+    from pathlib import Path
+
+    from .. import empfehlungen as em
+    from .. import empfehlungen_umsetzen as eu
+    from ..health import _lade_projekte
+    from ..learning import standard_db_pfad
+
+    db_pfad = db or standard_db_pfad()
+    alle = _lade_projekte(Path(_projektliste_pfad(projects))) or {}
+    if not alle:
+        raise click.ClickException(
+            "Keine Projekte gefunden. Im Cron 'cd <Installationsordner> &&' voranstellen."
+        )
+    em.tabelle_anlegen(db_pfad)
+
+    for eid, status in (
+        (freigeben, em.STATUS_FREIGEGEBEN),
+        (ablehnen, em.STATUS_ABGELEHNT),
+    ):
+        if not eid:
+            continue
+        treffer = [e for e in em.laden(db_pfad, projekt) if e.id.startswith(eid)]
+        if len(treffer) != 1:
+            raise click.ClickException(
+                f"{len(treffer)} Treffer fuer {eid} - eindeutiger angeben"
+            )
+        em.status_setzen(db_pfad, treffer[0].id, status)
+        click.echo(f"{treffer[0].titel}: {status}")
+        return
+
+    if projekt:
+        if projekt not in alle:
+            raise click.ClickException(f"unbekanntes Projekt: {projekt}")
+        ziele = [projekt]
+    else:
+        ziele = [
+            k
+            for k, v in alle.items()
+            if v.get("enabled", True)
+            and (em.gsc_zugang(v) or (v.get("bericht") or {}).get("aktiv"))
+        ]
+
+    fehler = 0
+    for pid in ziele:
+        cfg = alle[pid]
+        if erzeugen:
+            try:
+                b = em.erzeugen(
+                    pid,
+                    cfg,
+                    db_pfad,
+                    max_seiten=max_seiten,
+                    nur_seiten=list(seiten) or None,
+                )
+                click.echo(
+                    f"{pid}: {len(b['seiten'])} Seite(n) geprueft, {b['neu']} neue Empfehlung(en), "
+                    f"{len(b['verworfen'])} verworfen, {b['ki_aufrufe']} KI-Aufruf(e)"
+                    + (" – ohne Suchdaten" if b["ohne_suchdaten"] else "")
+                )
+                for v in b["verworfen"][:10]:
+                    click.echo(f"   verworfen: {v}")
+            except (
+                Exception
+            ) as exc:  # noqa: BLE001 - ein Projekt haelt die anderen nicht auf
+                logger.exception(f"[Empfehlungen] {pid} fehlgeschlagen")
+                click.echo(f"{pid}: FEHLER {type(exc).__name__}: {exc}")
+                fehler += 1
+        if umsetzen:
+            try:
+                click.echo(eu.als_text(eu.umsetzen(pid, cfg, db_pfad, trocken=trocken)))
+            except Exception as exc:  # noqa: BLE001
+                logger.exception(f"[Empfehlungen] Umsetzen {pid} fehlgeschlagen")
+                click.echo(f"{pid}: FEHLER beim Umsetzen {type(exc).__name__}: {exc}")
+                fehler += 1
+        if als_stand:
+            click.echo(
+                _json.dumps(em.stand(db_pfad, pid), ensure_ascii=False, indent=1)
+            )
+        elif not (erzeugen or umsetzen) or projekt:
+            status = (
+                None
+                if alle_status
+                else (
+                    em.STATUS_OFFEN,
+                    em.STATUS_FREIGEGEBEN,
+                    em.STATUS_UMGESETZT,
+                    em.STATUS_NICHT_BEHEBBAR,
+                    em.STATUS_PRUEFUNG_NEIN,
+                )
+            )
+            click.echo(f"\n== {cfg.get('name') or pid} ==")
+            click.echo(em.als_text(em.laden(db_pfad, pid, status=status), db=db_pfad))
+    raise SystemExit(1 if fehler else 0)
 
 
 if __name__ == "__main__":

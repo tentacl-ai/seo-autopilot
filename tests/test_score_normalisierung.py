@@ -1,7 +1,7 @@
 """Tests für die Normierung des Scores auf die Seitenzahl.
 
 Anlass (2026-08-17): Als die Crawl-Limits an die echte Seitenzahl angepasst
-wurden, fiel tentacl.ai von 8,9 auf 3,2 und lovebianca von 45,7 auf 14,0 —
+wurden, fiel tentacl.ai von 8,9 auf 3,2 und coaching-beispiel von 45,7 auf 14,0 —
 ohne dass sich an den Websites irgendetwas geändert hatte. Die Note bestrafte
 gründlicheres Prüfen. Diese Tests halten die Korrektur fest.
 """

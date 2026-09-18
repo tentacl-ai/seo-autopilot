@@ -22,6 +22,7 @@ jinja2>=3.1.0
 
 # JS rendering fallback for SPAs
 playwright>=1.40.0
+Pillow>=10.0.0  # Bildmasse + Bild-KI (Handwerker); fehlte bis 18.09.2026 -> Reparaturen liefen still ins Leere
 
 # Welle 3: Google Trends source (TrendsAgent)
 pytrends>=4.9.0

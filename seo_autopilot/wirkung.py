@@ -52,7 +52,7 @@ Benutzung:
     from seo_autopilot.wirkung import miss_faellige, messungen, als_text
 
     anzahl = await miss_faellige(db_pfad, projekte)
-    print(als_text(messungen(db_pfad, project_id="joseph")))
+    print(als_text(messungen(db_pfad, project_id="beratung-beispiel")))
 """
 
 from __future__ import annotations
@@ -544,6 +544,7 @@ def _konkurrierende_aenderungen(
     Solange hier etwas drinsteht, lässt sich eine Wirkung nicht einer einzelnen
     Maßnahme zuschreiben — auch dann nicht, wenn die Zahlen eindeutig aussehen.
     """
+    eigener_tag = _als_datum(aenderung.zeitpunkt)
     treffer = []
     for andere in alle:
         if andere.id == aenderung.id:
@@ -551,9 +552,30 @@ def _konkurrierende_aenderungen(
         if andere.ziel_url != aenderung.ziel_url:
             continue
         tag = _als_datum(andere.zeitpunkt)
+        if tag and tag == eigener_tag:
+            continue  # selbes Aenderungspaket (v1.16) — wird gemeinsam gemessen
         if tag and von <= tag <= bis:
             treffer.append(andere)
     return treffer
+
+
+def aenderungspaket(alle: Sequence[Aenderung], aenderung: Aenderung) -> List[Aenderung]:
+    """Andere Aenderungen an derselben Adresse am SELBEN Tag.
+
+    Titel, Beschreibung und og:-Angaben einer Seite werden meist im selben Lauf
+    gesetzt. Bis v1.15 zaehlten sie sich gegenseitig als "weitere Aenderung" —
+    Ergebnis am 18.09.2026: 507 von 508 Messungen "nicht zurechenbar". Ein
+    Paket wird jetzt als EINE Massnahme gemessen (gleiche Zahlen, Notiz nennt
+    alle Teile) und in der Bilanz einmal gezaehlt.
+    """
+    tag = _als_datum(aenderung.zeitpunkt)
+    return [
+        a
+        for a in alle
+        if a.id != aenderung.id
+        and a.ziel_url == aenderung.ziel_url
+        and _als_datum(a.zeitpunkt) == tag
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -624,6 +646,13 @@ async def miss_eine(
     # mehrfach an derselben Seite gearbeitet hat, kann die Wirkung nicht einer
     # einzelnen Massnahme zuschreiben.
     if alle_aenderungen:
+        paket = aenderungspaket(alle_aenderungen, aenderung)
+        if paket:
+            arten = sorted({aenderung.aktion, *(p.aktion for p in paket)})
+            notiz = (
+                f"Änderungspaket: {len(paket) + 1} Änderungen am selben Tag "
+                f"({', '.join(arten)}), gemeinsam gemessen. {notiz}"
+            )
         konkurrenz = _konkurrierende_aenderungen(
             alle_aenderungen, aenderung, v_von, n_bis
         )
@@ -666,9 +695,22 @@ def _gsc_holer(property_url: str, quelle: Any) -> Callable:
     """Baut die `hole_fenster`-Funktion für ein Projekt aus einer GSC-Quelle."""
 
     async def hole(url: str, von: date, bis: date):
-        return await quelle.pull_url_window(property_url, url, von, bis)
+        return await quelle.pull_url_window(property_url, gsc_adresse(url), von, bis)
 
     return hole
+
+
+def gsc_adresse(url: str) -> str:
+    """Startseite ohne Schraegstrich -> mit (so fuehrt Google sie).
+
+    Das Aenderungsbuch hatte "https://beratung-beispiel.de" gebucht; die
+    Search Console kennt nur ".../" und lieferte 0 statt 130 Einblendungen
+    (geprueft 18.09.2026) — jede Startseiten-Messung hiess "zu wenig Daten".
+    """
+    from urllib.parse import urlparse
+
+    teile = urlparse(url or "")
+    return url + "/" if teile.scheme and teile.netloc and not teile.path else url
 
 
 def _gsc_konfiguration(projekt: Dict[str, Any]) -> Optional[Tuple[str, str]]:
@@ -870,6 +912,7 @@ def bilanz(
     alle = messungen(db_pfad, project_id=project_id, fenster_tage=fenster_tage)
     if nur_eigene:
         alle = [m for m in alle if m.urheber == URHEBER_AUTOPILOT]
+    alle = _pakete_zusammenfassen(alle)
 
     je_aktion: Dict[str, Dict[str, Any]] = {}
     for m in alle:
@@ -919,6 +962,27 @@ def bilanz(
         reverse=True,
     )
     return ergebnis
+
+
+def _pakete_zusammenfassen(liste: List[Messung]) -> List[Messung]:
+    """Messungen eines Aenderungspakets (selbe Seite, selber Tag, selbes Fenster)
+    zaehlen in der Bilanz EINMAL — unter der Aktion "a+b" statt je Teil."""
+    gruppen: Dict[Tuple[str, str, str, int], List[Messung]] = {}
+    for m in liste:
+        gruppen.setdefault(
+            (m.project_id, m.ziel_url, m.geaendert_am, m.fenster_tage), []
+        ).append(m)
+    aus: List[Messung] = []
+    for gruppe in gruppen.values():
+        # Nur echte Pakete (verschiedene Arten, z. B. Titel + Beschreibung) —
+        # gleichartige Einzelmessungen bleiben einzeln.
+        if len(gruppe) == 1 or len({m.aktion for m in gruppe}) == 1:
+            aus.extend(gruppe)
+            continue
+        vertreter = Messung(**{k: getattr(gruppe[0], k) for k in _SPALTEN})
+        vertreter.aktion = "+".join(sorted({m.aktion for m in gruppe}))
+        aus.append(vertreter)
+    return aus
 
 
 # ---------------------------------------------------------------------------

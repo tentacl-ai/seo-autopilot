@@ -45,6 +45,13 @@ SEO_FEEDS: Dict[str, str] = {
     "google_news_cwv": "https://news.google.com/rss/search?q=core+web+vitals+INP&hl=en-US&gl=US&ceid=US:en",
     "google_news_geo": "https://news.google.com/rss/search?q=google+AI+overviews+SEO&hl=en-US&gl=US&ceid=US:en",
     "google_news_ai_crawlers": "https://news.google.com/rss/search?q=GPTBot+ClaudeBot+SEO&hl=en-US&gl=US&ceid=US:en",
+    # v1.14.0 Marktbeobachter: bezahlte Suche, Bing und Messung (alle am 16.09.2026 erreichbar geprueft)
+    "google_ads_blog": "https://blog.google/products/ads-commerce/rss/",
+    "google_analytics_blog": "https://blog.google/products/marketingplatform/analytics/rss/",
+    "microsoft_ads_blog": "https://about.ads.microsoft.com/en/blog/rss",
+    "bing_webmaster_blog": "https://blogs.bing.com/webmaster/feed",
+    "ppc_land": "https://ppc.land/rss/",
+    "seroundtable": "https://www.seroundtable.com/index.xml",
 }
 
 # Keywords by priority

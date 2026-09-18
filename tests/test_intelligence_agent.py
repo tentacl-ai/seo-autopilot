@@ -138,8 +138,8 @@ class TestGoogleNewsFeeds:
             assert "ceid=US:en" in url
 
     def test_total_feed_count(self):
-        # 8 original + 4 Google News = 12
-        assert len(SEO_FEEDS) == 12
+        # 8 original + 4 Google News + 6 Marktbeobachter (SEA, Bing, Analytics; v1.14.0) = 18
+        assert len(SEO_FEEDS) == 18
 
     def test_feed_instance_includes_google_news(self):
         feed = IntelligenceFeed()
@@ -239,14 +239,11 @@ class TestIntelligenceAgentCheckForUpdates:
 class TestImpactAnalysis:
     @pytest.mark.asyncio
     async def test_heuristic_fallback_without_api_key(self, agent, confirmed_event):
-        """Ohne CLAUDE_API_KEY wird heuristic assessment verwendet."""
+        """Ohne Abo-Zugang wird heuristic assessment verwendet (nie die bezahlte API)."""
         with patch.object(
             type(agent), "_assess_project_impact", wraps=agent._assess_project_impact
         ):
-            with patch(
-                "seo_autopilot.agents.intelligence_agent.settings"
-            ) as mock_settings:
-                mock_settings.CLAUDE_API_KEY = None
+            with patch("seo_autopilot.abo_ki.verfuegbar", return_value=False):
                 report = await agent.analyze_impact(confirmed_event)
 
         assert len(report.impacts) == 1
@@ -348,13 +345,29 @@ class TestManualPollEndpoint:
             mock_agent.poll_feeds = AsyncMock(return_value=[])
             from starlette.testclient import TestClient
             from seo_autopilot.api.main import app
+            from seo_autopilot.core.config import settings
 
+            settings.API_SECRET_KEY = "test-key"
             client = TestClient(app, raise_server_exceptions=False)
-            resp = client.post("/api/intelligence/poll")
+            resp = client.post(
+                "/api/intelligence/poll", headers={"X-API-Key": "test-key"}
+            )
             assert resp.status_code == 200
             data = resp.json()
             assert data["status"] == "ok"
             assert data["events_detected"] == 0
+
+    def test_manual_poll_requires_api_key(self):
+        """Ohne gueltigen API-Key muss der Endpoint blockieren (Security-Fix)."""
+        from starlette.testclient import TestClient
+        from seo_autopilot.api.main import app
+        from seo_autopilot.core.config import settings
+
+        settings.API_SECRET_KEY = "test-key"
+        client = TestClient(app, raise_server_exceptions=False)
+        assert client.post("/api/intelligence/poll").status_code == 401
+        resp = client.post("/api/intelligence/poll", headers={"X-API-Key": "falsch"})
+        assert resp.status_code == 401
 
     def test_manual_poll_with_events(self):
         evt = AlgorithmEvent(
@@ -369,9 +382,13 @@ class TestManualPollEndpoint:
             mock_agent.poll_feeds = AsyncMock(return_value=[evt])
             from starlette.testclient import TestClient
             from seo_autopilot.api.main import app
+            from seo_autopilot.core.config import settings
 
+            settings.API_SECRET_KEY = "test-key"
             client = TestClient(app, raise_server_exceptions=False)
-            resp = client.post("/api/intelligence/poll")
+            resp = client.post(
+                "/api/intelligence/poll", headers={"X-API-Key": "test-key"}
+            )
             assert resp.status_code == 200
             data = resp.json()
             assert data["events_detected"] == 1

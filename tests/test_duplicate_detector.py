@@ -192,17 +192,17 @@ def test_short_pages_not_flagged_as_near_duplicate():
     pages = [
         {
             "url": "https://x.test/start",
-            "title": "Time Millionaire OS — BiancaAi",
+            "title": "Time Millionaire OS — Coaching-BeispielAi",
             "h1": ["Start"],
-            "meta_description": "BiancaAi ist das Operating System.",
-            "text_content": "Time Millionaire OS BiancaAi Start Operating System",
+            "meta_description": "Coaching-BeispielAi ist das Operating System.",
+            "text_content": "Time Millionaire OS Coaching-BeispielAi Start Operating System",
         },
         {
             "url": "https://x.test/impressum",
-            "title": "Impressum — BiancaAi",
+            "title": "Impressum — Coaching-BeispielAi",
             "h1": ["Impressum"],
-            "meta_description": "Impressum der BiancaAi Plattform.",
-            "text_content": "Impressum BiancaAi Plattform Angaben Paragraph",
+            "meta_description": "Impressum der Coaching-BeispielAi Plattform.",
+            "text_content": "Impressum Coaching-BeispielAi Plattform Angaben Paragraph",
         },
     ]
     issues = detector.detect_issues(pages)

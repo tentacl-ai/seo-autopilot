@@ -151,31 +151,15 @@ def parse_response(raw: str) -> Dict[str, Any]:
         return {}
 
 
-async def call_claude(prompt: str, api_key: str) -> str:
-    """Call Claude API with a prompt. Returns raw response text."""
-    import httpx
+async def call_claude(prompt: str, api_key: str = "") -> str:
+    """Claude ueber Roberts Max-Abo (abo_ki, seit 16.09.2026). api_key bleibt nur fuer die Signatur."""
+    import asyncio
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": "claude-haiku-4-5-20251001",
-                "max_tokens": 512,
-                "messages": [{"role": "user", "content": prompt}],
-            },
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        # Extract text from content blocks
-        for block in data.get("content", []):
-            if block.get("type") == "text":
-                return block["text"]
-    return ""
+    from .. import abo_ki
+
+    return await asyncio.get_event_loop().run_in_executor(
+        None, lambda: abo_ki.fragen(prompt, modell="haiku")
+    )
 
 
 async def analyze_keywords(
@@ -195,9 +179,11 @@ async def analyze_keywords(
     result = IntentGEOResult()
 
     # Resolve API key
-    key = api_key or os.environ.get("CLAUDE_API_KEY", "")
+    from .. import abo_ki
+
+    key = api_key or ("abo" if abo_ki.verfuegbar() else "")
     if not key:
-        result.skipped_reason = "No CLAUDE_API_KEY set — intent/GEO analysis skipped"
+        result.skipped_reason = "Kein Abo-Zugang — intent/GEO analysis skipped"
         logger.info(f"[intent_geo] {result.skipped_reason}")
         return result
 

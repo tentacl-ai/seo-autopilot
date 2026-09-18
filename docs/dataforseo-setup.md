@@ -1,5 +1,16 @@
 # DataForSEO einrichten
 
+> **Hinweis: standardmäßig deaktiviert und ungetestet.**
+> Die Anbindung (`seo_autopilot/sources/dataforseo.py`) ist vorhanden, gehört
+> aber bewusst **nicht** zur Standard-Einrichtung — aus Kostengründen. Sie ist
+> in keinem Projekt aktiviert und läuft daher auch in keinem regelmäßigen Test
+> mit. Wer sie einschaltet, sollte jede Abfrage zunächst einzeln prüfen und den
+> Deckel `max_abfragen_pro_lauf` klein halten.
+>
+> Was der Autopilot ohne Datenanbieter kann, steht in
+> [konzept.md](konzept.md); der eigene Wettbewerbsvergleich läuft über
+> `seo-autopilot wettbewerb`.
+
 ## Wozu das gut ist
 
 Die Google Search Console zeigt nur die **eigenen** Zahlen: eigene Klicks,
@@ -59,7 +70,7 @@ DATAFORSEO_PASSWORD=das-api-passwort
 oder eine einzige Zeile `login:passwort`.
 
 Die Datei gehört **nicht** ins Git-Repository. Sinnvoller Ort:
-`/opt/odoo/credentials/dataforseo.json`, Rechte `chmod 600`.
+`credentials/dataforseo.json`, Rechte `chmod 600`.
 
 > **Wichtig:** Zugangsdaten stehen niemals im Programmcode. Sie tauchen auch
 > in keiner Log-Zeile und in keiner Fehlermeldung auf — auch nicht gekürzt.
@@ -80,12 +91,12 @@ projects:
     source_config:
       gsc:
         property_url: sc-domain:example.com
-        credentials_path: /opt/odoo/credentials/tentacl-seo-service-account.json
+        credentials_path: credentials/dataforseo.json
       dataforseo:
         max_abfragen_pro_lauf: 25        # Kostenbremse (Standard: 25)
         location_code: 2276              # 2276 = Deutschland (Standard)
         language_code: de                # Standard
-        # credentials_path: /opt/odoo/credentials/dataforseo.json   # nur für Weg B
+        # credentials_path: credentials/dataforseo.json   # nur für Weg B
 ```
 
 Alle vier Einträge sind freiwillig. Ohne sie gilt: Deutschland, Deutsch,
@@ -94,7 +105,7 @@ höchstens 25 Abfragen pro Lauf, Zugangsdaten aus der Umgebung.
 ## Schritt 4: Prüfen, ob es sitzt
 
 ```bash
-cd /opt/odoo/docs/seo-autopilot
+cd /srv/seo-autopilot
 ./venv/bin/python3 -c "
 import asyncio
 from seo_autopilot.sources.dataforseo import DataForSEODataSource

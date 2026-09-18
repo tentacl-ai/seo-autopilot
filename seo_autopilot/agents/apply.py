@@ -42,7 +42,23 @@ DEFAULT_WHITELIST = {
     "missing_sitemap_xml",
     # Welle 2.5: erweitertes Set
     "org_schema_no_sameas",
+    # Handwerker (v1.13): Meta-Ebene und Auszeichnung je Seite
+    "missing_og_title",
+    "missing_twitter_card",
+    "images_without_alt",
+    "image_missing_dimensions",
+    "no_jsonld",
 }
+
+# Befunde mit Schwere "low", die trotzdem automatisch behoben werden duerfen:
+# Sie aendern nur Meta-Angaben oder Auszeichnung, nie sichtbaren Inhalt.
+from ..handwerker import QUELLE_VORLAGE, SICHERE_EINGRIFFE  # noqa: E402
+from ..befund_arten import HINWEIS, art_von  # noqa: E402
+
+VORLAGE_BEGRUENDUNG = (
+    "Vorlagen-Vorschlag ohne Seitenkontext — laeuft nie automatisch, "
+    "nur nach menschlicher Pruefung."
+)
 
 
 class ApplyAgent(Agent):
@@ -108,13 +124,21 @@ class ApplyAgent(Agent):
         vorgelegt = 0
         for f in fixes:
             ftype = f.get("type", "")
+            if art_von(ftype) == HINWEIS:
+                # Laut Google ohne Wirkung (llms.txt, KI-Chunking, Schema ohne
+                # Rich Result) — weder ausfuehren noch zur Freigabe vorlegen.
+                continue
             severity = (f.get("priority") or f.get("severity") or "low").lower()
-            if severity == "low":
+            if severity == "low" and ftype not in SICHERE_EINGRIFFE:
                 continue
 
             weg, begruendung = entscheide(
                 ftype, betriebsart, in_whitelist=ftype in whitelist
             )
+            # Geratene Vorlagen (ohne Wissen ueber die Seite) werden auch im
+            # Autopilot nie ausgefuehrt — sie landen zur Pruefung in der Schlange.
+            if weg == WEG_AUSFUEHREN and f.get("source") == QUELLE_VORLAGE:
+                weg, begruendung = WEG_FREIGABE, VORLAGE_BEGRUENDUNG
             if weg == WEG_AUSFUEHREN:
                 eligible.append(f)
             elif weg == WEG_FREIGABE:
@@ -168,11 +192,16 @@ class ApplyAgent(Agent):
         # Apply
         applied: List[Dict[str, Any]] = []
         failed: List[Dict[str, Any]] = []
+        nicht_behebbar: List[Dict[str, Any]] = []
         for f in eligible:
             if not adapter.can_apply(f):
                 failed.append({**f, "fix_error": "adapter cannot apply this type"})
                 continue
             ar: ApplyResult = adapter.apply_fix(f, audit_id=self.audit_id)
+            if getattr(ar, "nicht_behebbar", None):
+                # Befund bleibt offen, kein Eintrag im Aenderungsbuch, kein Fehler
+                nicht_behebbar.append({**f, "fix_error": ar.nicht_behebbar})
+                continue
             entry = {
                 **f,
                 "applied_at": datetime.utcnow().isoformat() + "Z",
@@ -203,18 +232,20 @@ class ApplyAgent(Agent):
         # In den Context schreiben fuer Persistence + Telegram
         if ctx is not None:
             existing = list(getattr(ctx, "applied_fixes", []) or [])
-            ctx.applied_fixes = existing + applied + failed
+            ctx.applied_fixes = existing + applied + failed + nicht_behebbar
 
         result.metrics = {
             "fixes_eligible": len(eligible),
             "fixes_applied": len(applied),
             "fixes_failed": len(failed),
+            "fixes_nicht_behebbar": len(nicht_behebbar),
             "adapter_type": adapter_type,
         }
         result.fixes = applied + failed
         result.status = AgentStatus.COMPLETED
         result.log_output = (
             f"Auto-Fix: {len(applied)} applied, {len(failed)} failed, "
+            f"{len(nicht_behebbar)} nicht automatisch behebbar, "
             f"{len(fixes) - len(eligible)} skipped (not in whitelist)"
         )
         logger.info(result.log_output)
