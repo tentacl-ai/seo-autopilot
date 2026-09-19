@@ -223,6 +223,11 @@ class TestHinweise:
 
 
 class TestMailMeldung:
+    @pytest.fixture(autouse=True)
+    def gueltige_mailkonfiguration(self, monkeypatch):
+        monkeypatch.setattr(mail, "MAILER", "/opt/test-mailer.py")
+        monkeypatch.setattr(mail, "EMPFAENGER", "alerts@tentacl.ai")
+
     def test_gleicher_inhalt_nur_einmal(self, tmp_path, monkeypatch):
         gesendet = []
         monkeypatch.setattr(
@@ -247,3 +252,21 @@ class TestMailMeldung:
         )
         assert mail.an_robert("B", "T", schluessel="s", ordner=tmp_path) is False
         assert not mail.schon_gemeldet("s", "T", ordner=tmp_path)
+
+    @pytest.mark.parametrize(
+        "adresse",
+        ["", "ungueltig", "empfaenger@beispiel.de", "test@example.com", "x@y.invalid"],
+    )
+    def test_unconfigured_or_placeholder_recipient_fails_closed(
+        self, adresse, tmp_path, monkeypatch
+    ):
+        aufrufe = []
+        monkeypatch.setattr(mail, "EMPFAENGER", adresse)
+        monkeypatch.setattr(
+            mail.subprocess,
+            "run",
+            lambda *a, **k: aufrufe.append(a) or type("R", (), {"returncode": 0})(),
+        )
+
+        assert mail.an_robert("B", "T", ordner=tmp_path) is False
+        assert aufrufe == []

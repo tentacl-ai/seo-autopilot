@@ -66,6 +66,7 @@ class Settings(BaseSettings):
     # Einbindung in die eigene Umgebung (Werte gehoeren in die .env, nicht in den
     # Code — der Ordner ist oeffentlich auf GitHub). Leer = Funktion inaktiv.
     MAILER_PFAD: Optional[str] = os.getenv("SEO_MAILER_PFAD")
+    MELDUNGS_EMPFAENGER: Optional[str] = os.getenv("SEO_MELDUNGS_EMPFAENGER")
     INDEXNOW_SITES: Optional[str] = os.getenv("SEO_INDEXNOW_SITES")
     BING_STATE: Optional[str] = os.getenv("SEO_BING_STATE")
     ENTSCHEIDUNGEN_ORDNER: Optional[str] = os.getenv("SEO_ENTSCHEIDUNGEN_ORDNER")

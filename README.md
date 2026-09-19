@@ -8,7 +8,7 @@
 
 **Multi-tenant SEO automation that closes the loop:** crawl → find → fix → measure → report.
 
-> Version 1.16.0 · 1098 tests · 17 analysis dimensions · 136 documented issue types
+> Version 1.16.0 · 1103 tests · 17 analysis dimensions · 136 documented issue types
 
 Most SEO tools stop at a list of warnings. SEO Autopilot repairs what it finds,
 writes the change into the site's repository, and then uses Search Console to
@@ -500,6 +500,7 @@ installation directory. Set up log rotation for `logs/cron.log`.
 | `LOG_LEVEL`, `LOG_FILE` | Logging |
 | `SENTRY_DSN` | Optional error tracking |
 | `SEO_MAILER_PFAD` → `MAILER_PFAD` | Path to your own mail sender (empty = mailing disabled) |
+| `SEO_MELDUNGS_EMPFAENGER` → `MELDUNGS_EMPFAENGER` | Explicit recipient for watchdog alerts (empty or placeholder domain = mailing disabled) |
 | `SEO_INDEXNOW_SITES` → `INDEXNOW_SITES` | Path to your IndexNow site list |
 | `SEO_BING_STATE` → `BING_STATE` | Path to the Bing Webmaster state file |
 | `SEO_ENTSCHEIDUNGEN_ORDNER` → `ENTSCHEIDUNGEN_ORDNER` | Where the decision pages (report buttons) are written |

@@ -19,8 +19,28 @@ from ..core.config import settings
 logger = logging.getLogger(__name__)
 
 MAILER = settings.MAILER_PFAD or ""
-EMPFAENGER = "empfaenger@beispiel.de"
+EMPFAENGER = (settings.MELDUNGS_EMPFAENGER or "").strip()
 STAND = Path(__file__).resolve().parents[2] / "logs" / "gemeldet"
+
+# Platzhalter- und reservierte Domains duerfen niemals echte Meldungen erhalten.
+# `beispiel.de` nimmt Mail technisch an; genau deshalb reicht eine optisch
+# offensichtliche Beispieladresse als Schutz nicht aus.
+RESERVIERTE_DOMAINS = {
+    "beispiel.de",
+    "example.com",
+    "example.net",
+    "example.org",
+}
+
+
+def empfaenger_erlaubt(adresse: str) -> bool:
+    adresse = (adresse or "").strip().lower()
+    if adresse.count("@") != 1:
+        return False
+    lokal, domain = adresse.rsplit("@", 1)
+    if not lokal or not domain or domain in RESERVIERTE_DOMAINS:
+        return False
+    return not domain.endswith((".example", ".invalid", ".localhost", ".test"))
 
 
 def fingerabdruck(text: str) -> str:
@@ -41,6 +61,14 @@ def an_robert(
     betreff: str, text: str, schluessel: str | None = None, ordner: Path = STAND
 ) -> bool:
     """Schickt eine Klartext-Mail. Mit `schluessel` nur bei geaendertem Inhalt."""
+    if not MAILER:
+        logger.warning("[Meldung] Versand gesperrt: MAILER_PFAD fehlt")
+        return False
+    if not empfaenger_erlaubt(EMPFAENGER):
+        logger.warning(
+            "[Meldung] Versand gesperrt: kein zulaessiger MELDUNGS_EMPFAENGER konfiguriert"
+        )
+        return False
     if schluessel and schon_gemeldet(schluessel, text, ordner):
         logger.info(f"[Meldung] {schluessel}: unveraendert, keine Mail")
         return False
