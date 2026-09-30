@@ -19,8 +19,8 @@ Rangliste, KI-Sichtbarkeit mit Verlauf) folgen gesondert, weil sie laufende Kost
 - Nach Zweck getrennt: gesperrter Such-/Nutzer-Crawler = Fehler `ai_crawler_blocked`; nur
   Training gesperrt (GPTBot, ClaudeBot, CCBot, Google-Extended ...) = Hinweis
   `ai_training_blocked` ohne Punktabzug, denn die KI-Suche laeuft ueber eigene Crawler.
-  Live: skin-match.de meldete bisher faelschlich "KI-Suche ausgesperrt (hoch)" wegen CCBot;
-  bei joseph-hehenwarter.de wurden drei gesperrte Trainings-Crawler uebersehen.
+  Live: eine Seite meldete bisher faelschlich "KI-Suche ausgesperrt (hoch)" wegen CCBot;
+  bei einer anderen wurden drei gesperrte Trainings-Crawler uebersehen.
 - Sperre ueber `User-agent: *` zaehlt nicht doppelt, sondern steht in `wildcard_disallow`.
 
 ### Changed - Abgeschaltete Rich Results
@@ -49,8 +49,8 @@ Rangliste, KI-Sichtbarkeit mit Verlauf) folgen gesondert, weil sie laufende Kost
   Begriffe aus `rangliste.begriffe` in projects.yaml, sonst automatisch die 20 staerksten
   der letzten drei Monate (ohne `site:` & Co.). Kostet nichts.
 - Aufruf: `python -m seo_autopilot.rangliste --projekt X --nachholen 12 --bericht`.
-- Live 30.09.: tentacl-ai, lovebianca-ai, naturcoach laufen; joseph-hehenwarter.de
-  liefert 403 (Dienstkonto hat keine Search-Console-Berechtigung).
+- Live 30.09.: mehrere Projekte laufen; fehlt dem Dienstkonto die
+  Search-Console-Berechtigung, meldet der Import 403 und speichert nichts.
 
 ### Added - KI-Sichtbarkeit mit Gedaechtnis (Erweiterung des Tests aus v1.14.0)
 - `ki_verlauf.py`: jedes Ergebnis wird in `ki_sichtbarkeit` gespeichert; Verlauf je KI,
