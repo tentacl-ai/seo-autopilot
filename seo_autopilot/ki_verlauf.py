@@ -176,6 +176,19 @@ def wettbewerber(db_pfad: str, project_id: str) -> Dict[str, Any]:
     }
 
 
+def letzter_lauf(db_pfad: str, project_id: str) -> List[Dict[str, Any]]:
+    """Letzter Lauf je Frage: welche KI hat uns genannt, wer wurde stattdessen genannt."""
+    daten = _laeufe(db_pfad, project_id, 1)
+    fragen: Dict[str, Dict[str, Any]] = {}
+    for r in _zeilen(db_pfad, project_id, daten):
+        f = fragen.setdefault(
+            r["frage"], {"frage": r["frage"], "je_ki": {}, "andere": set()}
+        )
+        f["je_ki"][r["ki"]] = r["genannt"]
+        f["andere"].update(json.loads(r["wettbewerber"] or "[]"))
+    return [{**f, "andere": sorted(f["andere"])} for f in fragen.values()]
+
+
 def auswertung(db_pfad: str, project_id: str, eigener_host: str) -> Dict[str, Any]:
     return {
         "verlauf": verlauf(db_pfad, project_id),

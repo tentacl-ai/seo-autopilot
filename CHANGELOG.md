@@ -64,13 +64,19 @@ Rangliste, KI-Sichtbarkeit mit Verlauf) folgen gesondert, weil sie laufende Kost
 - Nach Vorbild OpenSEO (share of voice, cited sources); keine neuen Kosten.
 - Wettbewerber werden nur als ganzes Wort erkannt ("Endel" nicht in "Pendel").
 
+### Added - Schnappschuss fuer die Steuerzentrale (Seite "Sichtbarkeit")
+- `pulse_export.py`: je Berichtsprojekt `reports/pulse/<projekt>.json` mit Website-Note,
+  Rangliste samt Wochenverlauf und KI-Sichtbarkeit je Lauf/Frage/Quelle/Wettbewerber.
+  Nur aus vorhandenen Auswertungen, atomar geschrieben; die Steuerzentrale liest nur.
+- `rangliste.wochenverlauf()`, `ki_verlauf.letzter_lauf()`.
+
 ### Added - Rangliste im Kunden-Wochenbericht
 - Abschnitt "Rangliste der wichtigsten Suchbegriffe": gefundene Begriffe mit Position,
   Trend zur Vorwoche und zu vor vier Wochen, Handy/PC; nicht gefundene in einer Zeile.
 - Import laeuft als eigener Cron montags vor dem Bericht (`python -m seo_autopilot.rangliste`).
 
 ### Tests
-- +63 Tests; jeder neue Schutz zuerst am alten Code rot (13 rote Faelle nachgewiesen).
+- +68 Tests; jeder neue Schutz zuerst am alten Code rot (13 rote Faelle nachgewiesen).
 
 ## [1.16.0] - 2026-09-18
 

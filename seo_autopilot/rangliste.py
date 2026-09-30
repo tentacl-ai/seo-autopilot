@@ -342,6 +342,29 @@ def tabelle(db_pfad: str, project_id: str) -> Tuple[Optional[str], List[Zeile]]:
     return aktuell, zeilen
 
 
+def wochenverlauf(
+    db_pfad: str, project_id: str, anzahl: int = 12
+) -> List[Dict[str, Any]]:
+    """Je Woche: wie viele Begriffe gefunden, wie viele auf Seite 1 (fuer eine Kurve)."""
+    with _verbinde(db_pfad) as conn:
+        rows = conn.execute(
+            f"select woche, count(*) as begriffe, count(position) as gefunden, "
+            f"sum(case when position <= 10 then 1 else 0 end) as seite1 "
+            f"from {TABELLE} where project_id = ? and geraet = ? "
+            "group by woche order by woche desc limit ?",
+            (project_id, ALLE, anzahl),
+        ).fetchall()
+    return [
+        {
+            "woche": r["woche"],
+            "begriffe": r["begriffe"],
+            "gefunden": r["gefunden"],
+            "seite1": r["seite1"] or 0,
+        }
+        for r in reversed(rows)
+    ]
+
+
 def _p(wert: Optional[float]) -> str:
     return f"{wert:.1f}" if wert is not None else "–"
 
