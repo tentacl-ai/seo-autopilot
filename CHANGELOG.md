@@ -102,6 +102,15 @@ Rangliste, KI-Sichtbarkeit mit Verlauf) folgen gesondert, weil sie laufende Kost
   die Settings lehnen unbekannte Variablen ab, dann faellt die ganze `.env` weg
   (auch der PageSpeed-Schluessel).
 
+### Fixed - CI wieder gruen (seit August rot)
+- flake8 stoppte jeden Lauf vor den Tests: unbenutzte Importe, f-Strings ohne Platzhalter,
+  Variable `l`. In `weekly_report.py` standen zwei Texte doppelt im Woerterbuch; entfernt
+  wurden die frueheren, die zur Laufzeit ohnehin ueberschrieben wurden (Verhalten gleich).
+- Python 3.9-3.11 aus der Testmatrix und `python_requires>=3.12`: der Code nutzt
+  3.12-Syntax (f-Strings), Docker und Betrieb laufen auf 3.12 - die alte Angabe war falsch.
+- `.flake8`: fuenf Stellen in `chancen.py`, `einrichtung.py`, `health.py` voruebergehend
+  ausgenommen, weil dort im Betriebsordner noch nicht committete Arbeit liegt.
+
 ### Tests
 - +93 Tests; jeder neue Schutz zuerst am alten Code rot (17 rote Faelle, dazu 3 absichtlich
   eingebaute Fehler in maps.py, die die Tests fanden).
