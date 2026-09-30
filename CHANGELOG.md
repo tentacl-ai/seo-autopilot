@@ -52,8 +52,19 @@ Rangliste, KI-Sichtbarkeit mit Verlauf) folgen gesondert, weil sie laufende Kost
 - Live 30.09.: tentacl-ai, lovebianca-ai, naturcoach laufen; joseph-hehenwarter.de
   liefert 403 (Dienstkonto hat keine Search-Console-Berechtigung).
 
+### Added - KI-Sichtbarkeit mit Gedaechtnis (Erweiterung des Tests aus v1.14.0)
+- `ki_verlauf.py`: jedes Ergebnis wird in `ki_sichtbarkeit` gespeichert; Verlauf je KI,
+  meistzitierte Quellen ("hier holen sich die KIs ihre Antworten"), Wettbewerber und Fragen,
+  bei denen nur andere genannt werden. Beim ersten Lauf werden die alten Kundenberichte
+  nachgetragen. Ausgefallene Abrufe zaehlen nicht als "nicht genannt".
+- `scripts/ki_sichtbarkeit.py`: optionale `wettbewerber` in der Fragen-Datei, erkannt im
+  vollen Antworttext und in den zitierten Quellen (vorher nur 300-Zeichen-Auszug).
+- Kundenbericht zeigt Verlauf, Quellen und Wettbewerber. Regeln nach Anthropics Skill
+  `seo-ai-visibility`: keine Sichtbarkeits-Punktzahl, nur was tatsaechlich passiert ist.
+- Nach Vorbild OpenSEO (share of voice, cited sources); keine neuen Kosten.
+
 ### Tests
-- +52 Tests; jeder neue Schutz zuerst am alten Code rot (12 rote Faelle nachgewiesen).
+- +60 Tests; jeder neue Schutz zuerst am alten Code rot (12 rote Faelle nachgewiesen).
 
 ## [1.16.0] - 2026-09-18
 

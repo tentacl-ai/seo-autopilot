@@ -259,7 +259,11 @@ def bing(cfg: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def ki_sichtbarkeit(
-    bericht: Dict[str, Any], vorwoche: Optional[Dict[str, Any]]
+    bericht: Dict[str, Any],
+    vorwoche: Optional[Dict[str, Any]],
+    db: Optional[str] = None,
+    schluessel: str = "",
+    host: str = "",
 ) -> Dict[str, Any]:
     if not bericht.get("ki_fragen"):
         return {"fehler": "keine KI-Fragen hinterlegt"}
@@ -270,7 +274,21 @@ def ki_sichtbarkeit(
     aus = pruefen(json.loads(_pfad(bericht["ki_fragen"]).read_text(encoding="utf-8")))
     if vorwoche and "genannt_je_ki" in vorwoche:
         aus["vorwoche"] = vorwoche["genannt_je_ki"]
+    if db and schluessel:
+        aus["gedaechtnis"] = _ki_gedaechtnis(db, schluessel, host or aus["host"], aus)
     return aus
+
+
+def _ki_gedaechtnis(
+    db: str, schluessel: str, host: str, ergebnis: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Ergebnis ablegen (beim ersten Mal alte Berichte nachtragen) und auswerten."""
+    from . import ki_verlauf
+
+    if not ki_verlauf.verlauf(db, schluessel, laeufe=1):
+        ki_verlauf.nachtragen(db, schluessel, ABLAGE / schluessel)
+    ki_verlauf.speichere(db, schluessel, ergebnis)
+    return ki_verlauf.auswertung(db, schluessel, host)
 
 
 # Ab hier rechnet der Autopilot die Note nach Ursache statt nach Menge (v1.16.0).
@@ -844,7 +862,13 @@ def sammeln(
         _versuche(
             b,
             "ki_sichtbarkeit",
-            lambda: ki_sichtbarkeit(bericht_cfg, vorher.get("ki_sichtbarkeit")),
+            lambda: ki_sichtbarkeit(
+                bericht_cfg,
+                vorher.get("ki_sichtbarkeit"),
+                db=db,
+                schluessel=schluessel,
+                host=b["host"],
+            ),
         )
         from .marktradar import neueste
 
@@ -1234,12 +1258,69 @@ def _abschnitt_ki(b: Dict[str, Any]) -> List[str]:
             ],
         )
     )
+    t += _ki_gedaechtnis_html(ks.get("gedaechtnis") or {})
     t.append(
         _p(
             "verlinkt = Link auf die Website, erwaehnt = nur Name. Antworten schwanken – der Verlauf zählt.",
             klein=True,
         )
     )
+    return t
+
+
+def _ki_gedaechtnis_html(g: Dict[str, Any]) -> List[str]:
+    """Verlauf, meistzitierte Quellen, Wettbewerber. Keine Punktzahl, nur Beobachtetes."""
+    t: List[str] = []
+    laeufe = g.get("verlauf") or []
+    if len(laeufe) > 1:
+        kis = sorted({k for l in laeufe for k in l["je_ki"]})
+        t.append(
+            _tabelle(
+                ["Verlauf", *kis],
+                [
+                    [
+                        datetime.fromisoformat(l["datum"]).strftime("%d.%m."),
+                        *[
+                            (
+                                f"{l['je_ki'][k]['genannt']} von {l['je_ki'][k]['von']}"
+                                if k in l["je_ki"]
+                                else "–"
+                            )
+                            for k in kis
+                        ],
+                    ]
+                    for l in laeufe[-6:]
+                ],
+            )
+        )
+    if g.get("quellen"):
+        t.append(
+            _p(
+                "<b>Hier holen sich die KIs ihre Antworten</b> (letzte Wochen): "
+                + _e(
+                    ", ".join(
+                        f"{q['domain']} ({q['antworten']}×)" for q in g["quellen"][:6]
+                    )
+                )
+                + ". Wer dort vorkommt, wird eher genannt."
+            )
+        )
+    wb = g.get("wettbewerb") or {}
+    if wb.get("andere"):
+        t.append(
+            _p(
+                f"<b>Andere Anbieter genannt</b>: "
+                + _e(", ".join(f"{n} ({z}×)" for n, z in wb["andere"].items()))
+                + f" · Sie: {wb.get('wir', 0)}× in {wb.get('antworten', 0)} Antworten."
+            )
+        )
+    for frage, namen in list((wb.get("luecken") or {}).items())[:3]:
+        t.append(
+            _p(
+                f"Nur andere genannt bei „{_e(frage)}“: {_e(', '.join(namen))}",
+                klein=True,
+            )
+        )
     return t
 
 

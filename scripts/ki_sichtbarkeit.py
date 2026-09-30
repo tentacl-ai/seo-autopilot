@@ -7,7 +7,8 @@
 
 Fragen-Datei (je Website eine):
     {"host": "natur-beispiel.at", "marken": ["natur-beispiel.at", "Beispiel Natur-Beispiel"],
-     "fragen": ["Ich suche ein Coaching-Retreat auf Kreta ...", ...]}
+     "fragen": ["Ich suche ein Coaching-Retreat auf Kreta ...", ...],
+     "wettbewerber": [{"name": "Anderes Retreat", "host": "anderes-retreat.de"}]}  # optional
 
 Ergebnis je Frage und KI: genannt (Link auf den Host = "verlinkt", nur Name im Text = "erwaehnt", sonst "nein"),
 zitierte Quellen (Domains) und ein kurzer Antwortauszug. Die Antworten schwanken von Lauf zu Lauf -
@@ -122,7 +123,22 @@ def frage_claude(frage: str, hinweis: str = HINWEIS) -> dict:
 KIS = {"ChatGPT": frage_chatgpt, "Gemini": frage_gemini, "Claude": frage_claude}
 
 
-def bewerten(ergebnis: dict, host: str, marken: list[str]) -> dict:
+def _wettbewerber_im(
+    text: str, domains: list[str], wettbewerber: list[dict]
+) -> list[str]:
+    """Namen der Wettbewerber, die im VOLLEN Antworttext oder in den Quellen vorkommen."""
+    klein = text.lower()
+    return [
+        w["name"]
+        for w in wettbewerber
+        if (w.get("host") and any(w["host"] in d for d in domains))
+        or any(m.lower() in klein for m in [w["name"], *w.get("marken", [])] if m)
+    ]
+
+
+def bewerten(
+    ergebnis: dict, host: str, marken: list[str], wettbewerber: list[dict] | None = None
+) -> dict:
     domains = list(dict.fromkeys(_domain(q) for q in ergebnis["quellen"] if q))
     text = ergebnis["text"]
     if any(host in d for d in domains):
@@ -134,13 +150,20 @@ def bewerten(ergebnis: dict, host: str, marken: list[str]) -> dict:
     return {
         "genannt": genannt,
         "quellen": domains[:8],
+        "wettbewerber": _wettbewerber_im(text, domains, wettbewerber or []),
         "auszug": " ".join(text.split())[:300],
     }
 
 
-def einzeln(ki: str, frage: str, host: str, marken: list[str]) -> tuple[str, str, dict]:
+def einzeln(
+    ki: str,
+    frage: str,
+    host: str,
+    marken: list[str],
+    wettbewerber: list[dict] | None = None,
+) -> tuple[str, str, dict]:
     try:
-        return ki, frage, bewerten(KIS[ki](frage), host, marken)
+        return ki, frage, bewerten(KIS[ki](frage), host, marken, wettbewerber)
     except (
         Exception
     ) as e:  # noqa: BLE001 - eine KI darf ausfallen, der Test laeuft weiter
@@ -157,10 +180,14 @@ def einzeln(ki: str, frage: str, host: str, marken: list[str]) -> tuple[str, str
 
 def pruefen(konfig: dict) -> dict:
     host, marken = konfig["host"], konfig.get("marken", [konfig["host"]])
+    # optional: [{"name": "Wettbewerber GmbH", "host": "wettbewerber.de", "marken": [...]}]
+    wettbewerber = konfig.get("wettbewerber") or []
     auftraege = [(ki, f) for f in konfig["fragen"] for ki in KIS]
     with ThreadPoolExecutor(max_workers=6) as pool:
         ergebnisse = list(
-            pool.map(lambda a: einzeln(a[0], a[1], host, marken), auftraege)
+            pool.map(
+                lambda a: einzeln(a[0], a[1], host, marken, wettbewerber), auftraege
+            )
         )
     je_frage: dict[str, dict] = {}
     for ki, frage, e in ergebnisse:
