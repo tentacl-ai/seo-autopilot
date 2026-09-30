@@ -103,7 +103,7 @@ Rangliste, KI-Sichtbarkeit mit Verlauf) folgen gesondert, weil sie laufende Kost
   (auch der PageSpeed-Schluessel).
 
 ### Tests
-- +92 Tests; jeder neue Schutz zuerst am alten Code rot (16 rote Faelle, dazu 3 absichtlich
+- +93 Tests; jeder neue Schutz zuerst am alten Code rot (17 rote Faelle, dazu 3 absichtlich
   eingebaute Fehler in maps.py, die die Tests fanden).
 
 ## [1.16.0] - 2026-09-18

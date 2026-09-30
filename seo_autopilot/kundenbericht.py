@@ -1296,23 +1296,25 @@ def _abschnitt_maps(b: Dict[str, Any]) -> List[str]:
     m = b.get("maps")
     if not isinstance(m, dict) or "woche" not in m:
         return []
-    sterne = (
-        f"{m['sterne']:.1f}".replace(".", ",") + " Sterne"
-        if m["sterne"]
-        else "noch keine Sterne"
-    )
-    mehr = ""
-    if m.get("bewertungen_davor") is not None:
-        d = m["bewertungen"] - m["bewertungen_davor"]
-        mehr = f" ({'+' if d >= 0 else ''}{d} seit letzter Woche)"
-    t = [
-        _h("Google Maps"),
-        _p(f"<b>{sterne}</b> aus <b>{m['bewertungen']}</b> Bewertungen{mehr}."),
-    ]
+    erste = m.get("bewertungen_davor") is None
+    if not m["bewertungen"]:
+        satz = "Noch keine Bewertungen im Eintrag."
+    else:
+        sterne = f"{m['sterne']:.1f}".replace(".", ",")
+        satz = f"<b>{sterne} Sterne</b> aus <b>{m['bewertungen']}</b> Bewertungen"
+        if not erste:
+            d = m["bewertungen"] - m["bewertungen_davor"]
+            satz += f" ({'+' if d >= 0 else ''}{d} seit letzter Woche)"
+        satz += "."
+    t = [_h("Google Maps"), _p(satz)]
     if m["plaetze"]:
         zeilen = []
         for z in m["plaetze"]:
-            vorher = "neu" if z["neu"] else _platz_text(z["davor"])
+            vorher = (
+                "erste Messung"
+                if erste
+                else ("neu" if z["neu"] else _platz_text(z["davor"]))
+            )
             zeilen.append([z["begriff"], z["ort"], _platz_text(z["platz"]), vorher])
         t.append(
             _tabelle(["Suche in Maps", "Gesucht von", "Platz", "Vorwoche"], zeilen)

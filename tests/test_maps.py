@@ -173,6 +173,16 @@ class TestImBericht:
         assert "Platz 2" in html and "nicht unter 60" in html
         assert "<b>Berater</b>" not in html and "&lt;b&gt;Berater&lt;/b&gt;" in html
 
+    def test_erste_messung_ohne_bewertungen(self, tmp_path):
+        from seo_autopilot.kundenbericht import _abschnitt_maps, maps_fuer_bericht
+
+        db = str(tmp_path / "t.db")
+        g = falsches_google([[WIR]], sterne=None, bewertungen=0)
+        maps.messen_und_speichern(db, {"p": {"maps": CFG}}, date(2026, 9, 28), g)
+        html = "".join(_abschnitt_maps({"maps": maps_fuer_bericht(db, "p")}))
+        assert "Noch keine Bewertungen" in html and "Sterne" not in html
+        assert "erste Messung" in html
+
     def test_ohne_maps_kein_abschnitt(self, tmp_path):
         from seo_autopilot.kundenbericht import _abschnitt_maps, maps_fuer_bericht
 
