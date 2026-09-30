@@ -42,8 +42,18 @@ Rangliste, KI-Sichtbarkeit mit Verlauf) folgen gesondert, weil sie laufende Kost
   kommt noindex dazu oder schrumpft der sichtbare Text um mehr als 25 %, wird zurueckgerollt,
   nichts committet und der Befund bleibt offen (`nicht_behebbar`).
 
+### Added - Rangliste (Nachbau OpenSEO-Rank-Tracking ohne DataForSEO)
+- `rangliste.py`: woechentliche Durchschnittsposition je Suchbegriff aus der Search
+  Console, gesamt und je Geraet (Handy/Computer), Vergleich Vorwoche und vor vier Wochen.
+  Verlauf rueckwirkend (`--nachholen 12`), weil die Search Console 16 Monate zurueckreicht.
+  Begriffe aus `rangliste.begriffe` in projects.yaml, sonst automatisch die 20 staerksten
+  der letzten drei Monate (ohne `site:` & Co.). Kostet nichts.
+- Aufruf: `python -m seo_autopilot.rangliste --projekt X --nachholen 12 --bericht`.
+- Live 30.09.: tentacl-ai, lovebianca-ai, naturcoach laufen; joseph-hehenwarter.de
+  liefert 403 (Dienstkonto hat keine Search-Console-Berechtigung).
+
 ### Tests
-- +38 Tests; jeder neue Schutz zuerst am alten Code rot (12 rote Faelle nachgewiesen).
+- +52 Tests; jeder neue Schutz zuerst am alten Code rot (12 rote Faelle nachgewiesen).
 
 ## [1.16.0] - 2026-09-18
 
