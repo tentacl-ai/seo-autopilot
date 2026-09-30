@@ -110,6 +110,8 @@ Rangliste, KI-Sichtbarkeit mit Verlauf) folgen gesondert, weil sie laufende Kost
   3.12-Syntax (f-Strings), Docker und Betrieb laufen auf 3.12 - die alte Angabe war falsch.
 - `.flake8`: fuenf Stellen in `chancen.py`, `einrichtung.py`, `health.py` voruebergehend
   ausgenommen, weil dort im Betriebsordner noch nicht committete Arbeit liegt.
+- `Pillow` in `install_requires`: stand nur in `requirements.txt`; wer per pip installierte,
+  bekam keine Bildreparaturen (2 Tests fielen auf GitHub deshalb durch).
 
 ### Tests
 - +93 Tests; jeder neue Schutz zuerst am alten Code rot (17 rote Faelle, dazu 3 absichtlich

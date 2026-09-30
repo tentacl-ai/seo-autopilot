@@ -50,6 +50,7 @@ setup(
         "jinja2>=3.1.0",
         "google-api-python-client>=2.100.0",
         "google-auth-oauthlib>=1.0.0",
+        "Pillow>=10.0.0",  # Bildreparaturen (handwerker, static_files); stand nur in requirements.txt
     ],
     extras_require={
         "dev": [
