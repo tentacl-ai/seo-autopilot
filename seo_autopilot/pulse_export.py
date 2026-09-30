@@ -10,6 +10,7 @@ Inhalt, alles aus vorhandenen Auswertungen, keine neuen Abrufe:
 - ``website``: Note mit Verlauf, offene/umgesetzte Empfehlungen (Kundenbericht)
 - ``google``: Rangliste je Suchbegriff + Verlauf je Woche (rangliste.py)
 - ``ki``: KI-Sichtbarkeit je Lauf, je Frage, Quellen, Wettbewerber (ki_verlauf.py)
+- ``links``: verlinkende Websites aus dem Common-Crawl-Graphen (backlinks.py)
 
 Aufruf: ``python -m seo_autopilot.pulse_export`` (alle aktiven Berichtsprojekte)
 """
@@ -92,6 +93,7 @@ def schnappschuss(db: str, projects: str, schluessel: str) -> Dict[str, Any]:
         "website": _teil(lambda: _website(db, schluessel)),
         "google": _teil(lambda: _google(db, schluessel)),
         "ki": _teil(lambda: _ki(db, schluessel, host)),
+        "links": _teil(lambda: kb.backlinks_fuer_bericht(db, schluessel)),
     }
 
 

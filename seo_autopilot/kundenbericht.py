@@ -313,6 +313,16 @@ def rangliste_fuer_bericht(db: str, schluessel: str, top: int = 15) -> Dict[str,
     }
 
 
+def backlinks_fuer_bericht(db: str, schluessel: str) -> Dict[str, Any]:
+    """Verlinkende Websites aus dem Common-Crawl-Graphen (backlinks.py, eigener Cron monatlich)."""
+    from .backlinks import auswertung, graph_text
+
+    aus = auswertung(db, schluessel, top=10)
+    if aus:
+        aus["zeitraum"] = graph_text(aus["graph"])
+    return aus
+
+
 def wo_wir_stehen(db: str, schluessel: str, tage: int = 7) -> Dict[str, Any]:
     """Kopfzahlen fuer das Audit "wo wir stehen" (Robert 18.09.2026).
 
@@ -873,6 +883,7 @@ def sammeln(
     _versuche(b, "bing", lambda: bing(cfg))
     _versuche(b, "wo_wir_stehen", lambda: wo_wir_stehen(db, schluessel))
     _versuche(b, "rangliste", lambda: rangliste_fuer_bericht(db, schluessel))
+    _versuche(b, "backlinks", lambda: backlinks_fuer_bericht(db, schluessel))
     _versuche(b, "website_pruefung", lambda: website_pruefung(db, projects, schluessel))
     _versuche(b, "werkzeug", lambda: werkzeug_zustand(db, projects, schluessel))
     _versuche(b, "extras", lambda: extras(bericht_cfg))
@@ -1019,6 +1030,7 @@ def als_html(b: Dict[str, Any]) -> str:
         + _abschnitt_empfehlungen(b)
         + _abschnitt_google(b)
         + _abschnitt_rangliste(b)
+        + _abschnitt_backlinks(b)
         + _abschnitt_analytics(b)
         + _abschnitt_markt(b)
     )
@@ -1223,6 +1235,46 @@ def _abschnitt_rangliste(b: Dict[str, Any]) -> List[str]:
         if rl.get("nicht_gefunden")
         else []
     )
+
+
+def _abschnitt_backlinks(b: Dict[str, Any]) -> List[str]:
+    bl = b.get("backlinks")
+    if not isinstance(bl, dict) or "graph" not in bl:
+        return []
+    kopf = _h(f"Wer auf die Website verlinkt (Crawl {bl['zeitraum']})")
+    if not bl["im_graphen"]:
+        return [
+            kopf,
+            _p(
+                "Die Website steht im öffentlichen Link-Verzeichnis von Common Crawl noch "
+                "nicht drin (zu neu oder bisher zu selten verlinkt).",
+                klein=True,
+            ),
+        ]
+    vergleich = (
+        f" (vorher {bl['davor']})" if bl.get("davor") is not None else " (erster Stand)"
+    )
+    t = [kopf, _p(f"<b>{bl['domains']}</b> Websites verlinken hierher{vergleich}.")]
+    if bl["neu"]:
+        t.append(_p("Neu: " + _e(", ".join(bl["neu"][:15])), klein=True))
+    if bl["weg"]:
+        t.append(
+            _p("Nicht mehr verlinkt: " + _e(", ".join(bl["weg"][:15])), klein=True)
+        )
+    if bl["wichtigste"]:
+        t.append(
+            _tabelle(
+                ["Website", "Bedeutung (Platz im Netz)"],
+                [
+                    [
+                        w["domain"],
+                        f"{w['rang']:,}".replace(",", ".") if w["rang"] else "–",
+                    ]
+                    for w in bl["wichtigste"]
+                ],
+            )
+        )
+    return t
 
 
 def _abschnitt_analytics(b: Dict[str, Any]) -> List[str]:

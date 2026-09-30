@@ -64,6 +64,16 @@ Rangliste, KI-Sichtbarkeit mit Verlauf) folgen gesondert, weil sie laufende Kost
 - Nach Vorbild OpenSEO (share of voice, cited sources); keine neuen Kosten.
 - Wettbewerber werden nur als ganzes Wort erkannt ("Endel" nicht in "Pendel").
 
+### Added - Backlinks aus dem Common-Crawl-Webgraphen (kostenlos)
+- `backlinks.py`: welche Websites auf ein Projekt verlinken, mit Bedeutung (Harmonic-Centrality-Platz)
+  und Vergleich zum Vormonat (neu/weggefallen). Quelle: monatlicher Domain-Graph von Common Crawl,
+  gestreamt (curl | pigz | mawk), nichts auf der Platte. Domains, die Common Crawl nicht kennt,
+  heissen "nicht im Graphen" statt "0 Links".
+- Geprueft und verworfen: Bing Webmaster `GetLinkCounts`/`GetUrlLinks` liefern fuer alle 15 Seiten
+  im Konto 0 Links; Search Console hat keine Link-Schnittstelle.
+- Im Wochenbericht ("Wer auf die Website verlinkt") und im Schnappschuss fuer die Steuerzentrale.
+- Graphen werden nach Datum sortiert, nicht nach Namen (alphabetisch waere "jun" nach "jul").
+
 ### Added - Schnappschuss fuer die Steuerzentrale (Seite "Sichtbarkeit")
 - `pulse_export.py`: je Berichtsprojekt `reports/pulse/<projekt>.json` mit Website-Note,
   Rangliste samt Wochenverlauf und KI-Sichtbarkeit je Lauf/Frage/Quelle/Wettbewerber.
@@ -81,7 +91,7 @@ Rangliste, KI-Sichtbarkeit mit Verlauf) folgen gesondert, weil sie laufende Kost
   (auch der PageSpeed-Schluessel).
 
 ### Tests
-- +69 Tests; jeder neue Schutz zuerst am alten Code rot (14 rote Faelle nachgewiesen).
+- +80 Tests; jeder neue Schutz zuerst am alten Code rot (15 rote Faelle nachgewiesen).
 
 ## [1.16.0] - 2026-09-18
 
