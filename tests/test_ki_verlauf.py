@@ -37,6 +37,13 @@ class TestBewerten:
                         [{"name": "Anderes", "host": "anderes.de"}])
         assert e["wettbewerber"] == ["Anderes"]
 
+    def test_name_nur_als_ganzes_wort(self):
+        w = [{"name": "Endel", "host": "endel.io"}, {"name": "Brain.fm", "host": "brain.fm"}]
+        e = ks.bewerten({"text": "Ein Pendel beruhigt.", "quellen": []}, "x.de", ["x.de"], w)
+        assert e["wettbewerber"] == []
+        e = ks.bewerten({"text": "Apps wie Endel oder Brain.fm.", "quellen": []}, "x.de", ["x.de"], w)
+        assert e["wettbewerber"] == ["Endel", "Brain.fm"]
+
     def test_ohne_wettbewerberliste_wie_bisher(self):
         e = ks.bewerten({"text": "x.de ist gut", "quellen": []}, "x.de", ["x.de"])
         assert e["genannt"] == "erwaehnt" and e["wettbewerber"] == []

@@ -62,9 +62,15 @@ Rangliste, KI-Sichtbarkeit mit Verlauf) folgen gesondert, weil sie laufende Kost
 - Kundenbericht zeigt Verlauf, Quellen und Wettbewerber. Regeln nach Anthropics Skill
   `seo-ai-visibility`: keine Sichtbarkeits-Punktzahl, nur was tatsaechlich passiert ist.
 - Nach Vorbild OpenSEO (share of voice, cited sources); keine neuen Kosten.
+- Wettbewerber werden nur als ganzes Wort erkannt ("Endel" nicht in "Pendel").
+
+### Added - Rangliste im Kunden-Wochenbericht
+- Abschnitt "Rangliste der wichtigsten Suchbegriffe": gefundene Begriffe mit Position,
+  Trend zur Vorwoche und zu vor vier Wochen, Handy/PC; nicht gefundene in einer Zeile.
+- Import laeuft als eigener Cron montags vor dem Bericht (`python -m seo_autopilot.rangliste`).
 
 ### Tests
-- +60 Tests; jeder neue Schutz zuerst am alten Code rot (12 rote Faelle nachgewiesen).
+- +63 Tests; jeder neue Schutz zuerst am alten Code rot (13 rote Faelle nachgewiesen).
 
 ## [1.16.0] - 2026-09-18
 

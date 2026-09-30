@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -128,11 +129,16 @@ def _wettbewerber_im(
 ) -> list[str]:
     """Namen der Wettbewerber, die im VOLLEN Antworttext oder in den Quellen vorkommen."""
     klein = text.lower()
+
+    def im_text(m: str) -> bool:
+        # nur ganze Woerter: "Endel" darf nicht in "Pendel" anschlagen
+        return re.search(rf"(?<!\w){re.escape(m.lower())}(?!\w)", klein) is not None
+
     return [
         w["name"]
         for w in wettbewerber
         if (w.get("host") and any(w["host"] in d for d in domains))
-        or any(m.lower() in klein for m in [w["name"], *w.get("marken", [])] if m)
+        or any(im_text(m) for m in [w["name"], *w.get("marken", [])] if m.strip())
     ]
 
 

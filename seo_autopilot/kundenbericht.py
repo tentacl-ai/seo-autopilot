@@ -296,6 +296,23 @@ def _ki_gedaechtnis(
 NOTENUMSTELLUNG = "2026-09-18 07:19"
 
 
+def rangliste_fuer_bericht(db: str, schluessel: str, top: int = 15) -> Dict[str, Any]:
+    """Woechentliche Positionen je Suchbegriff (rangliste.py, eigener Cron montags)."""
+    from .rangliste import tabelle
+
+    woche, zeilen = tabelle(db, schluessel)
+    if not zeilen:
+        return {}
+    return {
+        "woche": woche,
+        "gefunden": sum(1 for z in zeilen if z.position is not None),
+        "seite1": sum(1 for z in zeilen if z.position is not None and z.position <= 10),
+        "begriffe": len(zeilen),
+        "zeilen": [z.__dict__ for z in zeilen if z.position is not None][:top],
+        "nicht_gefunden": [z.begriff for z in zeilen if z.position is None],
+    }
+
+
 def wo_wir_stehen(db: str, schluessel: str, tage: int = 7) -> Dict[str, Any]:
     """Kopfzahlen fuer das Audit "wo wir stehen" (Robert 18.09.2026).
 
@@ -855,6 +872,7 @@ def sammeln(
     _versuche(b, "analytics", lambda: analytics(cfg))
     _versuche(b, "bing", lambda: bing(cfg))
     _versuche(b, "wo_wir_stehen", lambda: wo_wir_stehen(db, schluessel))
+    _versuche(b, "rangliste", lambda: rangliste_fuer_bericht(db, schluessel))
     _versuche(b, "website_pruefung", lambda: website_pruefung(db, projects, schluessel))
     _versuche(b, "werkzeug", lambda: werkzeug_zustand(db, projects, schluessel))
     _versuche(b, "extras", lambda: extras(bericht_cfg))
@@ -1000,6 +1018,7 @@ def als_html(b: Dict[str, Any]) -> str:
         _abschnitt_entscheidungen(b)
         + _abschnitt_empfehlungen(b)
         + _abschnitt_google(b)
+        + _abschnitt_rangliste(b)
         + _abschnitt_analytics(b)
         + _abschnitt_markt(b)
     )
@@ -1164,6 +1183,46 @@ def _abschnitt_google(b: Dict[str, Any]) -> List[str]:
             ),
         ]
     return t
+
+
+def _abschnitt_rangliste(b: Dict[str, Any]) -> List[str]:
+    rl = b.get("rangliste")
+    if not isinstance(rl, dict) or "woche" not in rl:
+        return []
+    from .rangliste import _p as pos, _trend
+
+    return [
+        _h(f"Rangliste der wichtigsten Suchbegriffe (Woche {rl['woche']})"),
+        _p(
+            f"{rl['gefunden']} von {rl['begriffe']} Begriffen bei Google gefunden, "
+            f"{rl['seite1']} davon auf Seite 1. Position 1 ist ganz oben; "
+            "▲ = nach vorn gerückt."
+        ),
+        _tabelle(
+            ["Suchbegriff", "Pos.", "Vorwoche", "4 Wochen", "Handy", "PC"],
+            [
+                [
+                    z["begriff"],
+                    pos(z["position"]),
+                    _trend(z["position"], z["vorwoche"]),
+                    _trend(z["position"], z["vor_4_wochen"]),
+                    pos(z["handy"]),
+                    pos(z["computer"]),
+                ]
+                for z in rl["zeilen"]
+            ],
+        ),
+    ] + (
+        [
+            _p(
+                "Diese Woche nicht bei Google gefunden: "
+                + _e(", ".join(rl["nicht_gefunden"])),
+                klein=True,
+            )
+        ]
+        if rl.get("nicht_gefunden")
+        else []
+    )
 
 
 def _abschnitt_analytics(b: Dict[str, Any]) -> List[str]:
