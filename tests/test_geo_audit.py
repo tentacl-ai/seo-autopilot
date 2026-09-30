@@ -51,17 +51,17 @@ def poor_page():
 
 
 class TestAICrawlerAccess:
-    def test_detects_blocked_gptbot(self):
-        robots = "User-agent: GPTBot\nDisallow: /\n"
+    def test_detects_blocked_search_crawler(self):
+        robots = "User-agent: OAI-SearchBot\nDisallow: /\n"
         auditor = GEOAuditor(robots_txt_content=robots)
         blocked = auditor.check_ai_crawler_access()
-        assert "GPTBot" in blocked
+        assert "OAI-SearchBot" in blocked
 
-    def test_detects_blocked_claudebot(self):
+    def test_training_block_does_not_prevent_citation(self):
         robots = "User-agent: ClaudeBot\nDisallow: /\n"
         auditor = GEOAuditor(robots_txt_content=robots)
         blocked = auditor.check_ai_crawler_access()
-        assert "ClaudeBot" in blocked
+        assert blocked == []
 
     def test_no_block_when_allowed(self):
         robots = "User-agent: Googlebot\nAllow: /\n"
@@ -133,7 +133,7 @@ class TestSiteAnalysis:
         assert len(result["page_scores"]) == 2
 
     def test_blocked_crawler_site_level_issue(self):
-        robots = "User-agent: GPTBot\nDisallow: /\n"
+        robots = "User-agent: PerplexityBot\nDisallow: /\n"
         auditor = GEOAuditor(robots_txt_content=robots)
         page = {
             "url": "https://example.com",

@@ -17,7 +17,7 @@ Warum das Ganze so vorsichtig gebaut ist
 
 Eine Wirkungsmessung, die zu gern "verbessert" sagt, ist schlimmer als gar
 keine: Sie führt dazu, dass wirkungslose Maßnahmen wiederholt werden. Deshalb
-gibt es hier fünf Sperren, die lieber kein Urteil fällen als ein schlechtes:
+gibt es hier sechs Sperren, die lieber kein Urteil fällen als ein schlechtes:
 
 1. **Zu dünne Datenlage → kein Urteil.** Unterhalb von
    `mindest_impressionen(fenster)` Einblendungen im Vorher-Fenster ist jede
@@ -39,6 +39,9 @@ gibt es hier fünf Sperren, die lieber kein Urteil fällen als ein schlechtes:
 5. **Ein Abfragefehler ist kein Messergebnis.** Liefert die Search Console
    `None`, wird nichts gespeichert und beim nächsten Lauf erneut versucht —
    statt eine kaputte Abfrage als "keine Wirkung" zu verbuchen.
+6. **Google-Update im Messzeitraum → nicht zurechenbar.** Rollt Google
+   während der Messung ein Core Update aus, ist jede Bewegung eher Google
+   als unsere Arbeit (Liste: `daten/google_updates.json`, `google_updates.py`).
 
 Die Position ist das Hauptkriterium, nicht die Klicks. Bei den Größenordnungen,
 um die es hier geht (zweistellige Klickzahlen pro Monat), schwanken Klicks
@@ -64,6 +67,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
+from . import google_updates
 from .changelog_book import (
     URHEBER_AUTOPILOT,
     URHEBER_MENSCH,
@@ -466,6 +470,28 @@ def beurteile(
     return (URTEIL_UNVERAENDERT, f"Keine nennenswerte Bewegung. {basis}")
 
 
+def _google_updates_pruefen(
+    urteil: str, notiz: str, von: date, bis: date
+) -> Tuple[str, str]:
+    """Sperre 6: Ein Core Update im Messzeitraum macht das Ergebnis unzurechenbar.
+
+    Rollt Google waehrend Vorher- oder Nachher-Fenster ein Core Update aus,
+    bewegt sich die Position oft um mehr als jede einzelne Massnahme. Ein
+    Spam Update wird nur vermerkt (siehe google_updates.py).
+    """
+    updates = google_updates.im_zeitraum(von, bis)
+    if not updates:
+        return urteil, notiz
+    namen = ", ".join(f"{u.name} ab {u.start.strftime('%d.%m.%Y')}" for u in updates)
+    if any(u.sperrt_zurechnung for u in updates) and urteil in URTEILE_BELASTBAR:
+        return (
+            URTEIL_NICHT_ZURECHENBAR,
+            f"Google-Update im Messzeitraum ({namen}). Ohne Update wäre das Urteil "
+            f"„{_URTEIL_KLARTEXT.get(urteil, urteil)}“ gewesen. {notiz}",
+        )
+    return urteil, f"{notiz} Google-Update im Messzeitraum: {namen}."
+
+
 # ---------------------------------------------------------------------------
 # Fälligkeit
 # ---------------------------------------------------------------------------
@@ -664,6 +690,8 @@ async def miss_eine(
                 f"Messzeitraum ({', '.join(arten)}). {notiz}"
             )
 
+    urteil, notiz = _google_updates_pruefen(urteil, notiz, v_von, n_bis)
+
     messung = Messung(
         id=str(uuid.uuid4()),
         change_id=aenderung.id,
@@ -752,6 +780,12 @@ async def miss_faellige(
     from .sources.gsc import GSCDataSource
 
     tag = _heute(heute)
+    if google_updates.ist_veraltet(tag):
+        logger.warning(
+            "[wirkung] Google-Update-Liste älter als "
+            f"{google_updates.VERALTET_NACH_TAGEN} Tage — daten/google_updates.json "
+            "neu aus claude-seo kopieren (siehe daten/HERKUNFT.md)"
+        )
     faellig = faellige_messungen(db_pfad, project_id=project_id, heute=tag)
     if not faellig:
         logger.info("[wirkung] nichts fällig")

@@ -44,6 +44,8 @@ _HINWEIS_TYPEN = {
     "missing_llms_full_txt",
     "llms_no_links",
     "missing_ai_txt",
+    # Nur KI-Training gesperrt: bewusste Entscheidung, KI-Suche laeuft ueber eigene Crawler
+    "ai_training_blocked",
     # "Chunking" / Schreiben fuer KI (GEO-Faustregeln)
     "geo_paragraph_length",
     "geo_structured_format",
@@ -55,6 +57,7 @@ _HINWEIS_TYPEN = {
     # Structured Data ohne Rich-Result-Nutzen
     "no_jsonld",
     "schema_rich_result_opportunity",
+    "schema_rich_result_retired",
     "articles_missing_date_modified",
 }
 

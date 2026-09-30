@@ -44,12 +44,33 @@ RECOMMENDED_FIELDS: Dict[str, List[str]] = {
     "FAQPage": [],  # mainEntity is sufficient
 }
 
+# Rich Results, die Google abgeschaltet hat: Typ -> (seit, was stattdessen).
+# Pflichtfelder solcher Typen zu bemaengeln ist Arbeit ohne Wirkung; entfernen
+# muss man sie aber auch nicht (andere Leser wie Fact Check Explorer, KI).
+# Quelle: claude-seo skills/seo-schema/references/deprecated-types-2024-2026.md
+# (v2.4.1, MIT, Copyright (c) 2026 agricidaniel), dort geprueft gegen
+# developers.google.com am 2026-09-23. Dataset ist NICHT abgeschaltet (Dataset Search).
+ABGESCHALTETE_RICH_RESULTS: Dict[str, tuple] = {
+    "FAQPage": (
+        "07.05.2026",
+        "Sichtbarer FAQ-Text reicht; fuer echte Nutzerfragen QAPage.",
+    ),
+    "HowTo": ("09/2023", "Schritte als klare Zwischenueberschriften im Text."),
+    "SpecialAnnouncement": ("31.07.2025", "Event (zeitlich begrenzt) oder Article."),
+    "ClaimReview": ("06/2025", "Keiner; Fact Check Explorer liest es weiterhin."),
+    "VehicleListing": ("06/2025", "Product mit Fahrzeugangaben."),
+    "EstimatedSalary": ("06/2025", "JobPosting mit baseSalary."),
+    "OccupationalAggregateRating": ("06/2025", "JobPosting mit baseSalary."),
+    "LearningVideo": ("06/2025", "VideoObject."),
+    "CourseInfo": ("06/2025", "Course-Liste (Course + ItemList)."),
+    "PracticeProblem": ("01/2026", "Keiner."),
+}
+
 # Which schema types are expected on which page type (heuristic)
 PAGE_TYPE_SCHEMA_MAP: Dict[str, List[str]] = {
     "homepage": ["Organization", "WebSite"],
     "blog": ["Article", "BlogPosting"],
     "product": ["Product"],
-    "faq": ["FAQPage"],
     "contact": ["LocalBusiness", "ContactPage"],
     "event": ["Event"],
 }
@@ -147,6 +168,22 @@ class SchemaValidator:
                             "JSON-LD block without @type",
                             "A JSON-LD block has no @type — will be ignored by Google.",
                             "Add @type (e.g. Organization, Article, Product).",
+                        )
+                    )
+                    continue
+
+                # Google zeigt dafuer nichts mehr an: keine Pflichtfeld-Befunde
+                if schema_type in ABGESCHALTETE_RICH_RESULTS:
+                    seit, ersatz = ABGESCHALTETE_RICH_RESULTS[schema_type]
+                    issues.append(
+                        _schema_issue(
+                            "schema_rich_result_retired",
+                            "info",
+                            url,
+                            f"{schema_type}: Google shows no rich result anymore (since {seit})",
+                            f"Google retired the {schema_type} rich result. The markup does "
+                            "no harm, but fixing or adding it brings no visibility in Google.",
+                            f"No action needed. Alternative: {ersatz}",
                         )
                     )
                     continue

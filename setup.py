@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="seo-autopilot",
-    version="1.16.0",
+    version="1.17.0",
     description="Multi-tenant SEO automation platform – real crawler, GSC, PageSpeed, AI agents",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -32,7 +32,7 @@ setup(
     ],
     packages=find_packages(exclude=["tests*", "docs*", "examples*"]),
     package_data={
-        "seo_autopilot": ["reports/templates/*.html"],
+        "seo_autopilot": ["reports/templates/*.html", "daten/*.json", "daten/*.md"],
     },
     python_requires=">=3.9",
     install_requires=[

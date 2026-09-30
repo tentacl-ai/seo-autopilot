@@ -21,20 +21,9 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
-logger = logging.getLogger(__name__)
+from seo_autopilot.analyzers.ki_crawler import gesperrte_ki_crawler
 
-# AI crawler user-agents checked in robots.txt
-AI_CRAWLERS = [
-    "GPTBot",
-    "ChatGPT-User",
-    "ClaudeBot",
-    "PerplexityBot",
-    "Google-Extended",
-    "anthropic-ai",
-    "cohere-ai",
-    "CCBot",
-    "Bytespider",
-]
+logger = logging.getLogger(__name__)
 
 # GEO check definitions with weighting
 GEO_CHECKS = {
@@ -94,30 +83,12 @@ class GEOAuditor:
         self.robots_txt = robots_txt_content or ""
 
     def check_ai_crawler_access(self) -> List[str]:
-        """Checks which AI crawlers are blocked in robots.txt."""
-        blocked = []
-        if not self.robots_txt:
-            return blocked
+        """AI search/user crawlers blocked by their own robots.txt group.
 
-        lines = self.robots_txt.lower().split("\n")
-        current_agent = ""
-
-        for line in lines:
-            line = line.strip()
-            if line.startswith("user-agent:"):
-                current_agent = line.split(":", 1)[1].strip()
-            elif line.startswith("disallow:") and line.split(":", 1)[1].strip() == "/":
-                # Check if current agent is an AI crawler
-                for crawler in AI_CRAWLERS:
-                    if crawler.lower() == current_agent or current_agent == "*":
-                        if current_agent == "*":
-                            # Wildcard blocks everything, but check if
-                            # specific allow rules for AI crawlers exist
-                            pass  # Wildcard block handled separately
-                        else:
-                            blocked.append(crawler)
-
-        return blocked
+        Training-only blocks (GPTBot, ClaudeBot, Google-Extended ...) do not
+        prevent citation; a "User-agent: *" block is reported as wildcard_disallow.
+        """
+        return gesperrte_ki_crawler(self.robots_txt)["sichtbarkeit"]
 
     def analyze_page(self, page: Dict[str, Any]) -> Dict[str, Any]:
         """Analyzes a single page for GEO readiness.

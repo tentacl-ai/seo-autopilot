@@ -25,6 +25,7 @@ from html import escape
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from ..nachkontrolle import pruefe as nachkontrolle_pruefen
 from ..handwerker import (
     bilder_der_seite,
     datei_fuer_seite,
@@ -80,6 +81,7 @@ class StaticFilesAdapter:
         self.push_to_remote = bool(self.config.get("push_to_remote", False))
         self.post_apply_command = self.config.get("post_apply_command", "")
         self._nicht_behebbar: List[str] = []
+        self._vorher: Dict[str, str] = {}  # Stand vor dem Fix (Nachkontrolle)
         # Git-Wurzel darf oberhalb von root liegen (z. B. root = repo/frontend/dist)
         self._git_root = self._git_wurzel()
         self._has_git = self._git_root is not None
@@ -778,6 +780,7 @@ class StaticFilesAdapter:
             return result
 
         self._nicht_behebbar = []
+        self._vorher = {}
         try:
             try:
                 files = self._dispatch(method_name, fix)
@@ -800,6 +803,18 @@ class StaticFilesAdapter:
                 result.diff = "(no changes — fix already in place)"
                 return result
             result.files_changed = files
+
+            # Nachkontrolle: hat der Fix Titel, H1, JSON-LD & Co. mitgerissen?
+            # Dann zurueckrollen, BEVOR committet wird. Befund bleibt offen.
+            verluste = self._nachkontrolle(files, ftype)
+            if verluste:
+                self._zurueckrollen(files)
+                result.files_changed = []
+                result.nicht_behebbar = "Nachkontrolle: " + "; ".join(verluste[:3])
+                logger.warning(
+                    f"[apply] {ftype} zurueckgerollt: {result.nicht_behebbar}"
+                )
+                return result
 
             # Git stage + commit (nur versionierte Dateien; ignorierte bleiben
             # geaendert, aber ohne Commit — das Aenderungsbuch haelt sie fest)
@@ -849,6 +864,7 @@ class StaticFilesAdapter:
             return method(suggestion)
         dateien = self._ziel_dateien(fix)
         self._pruefe_fremde_aenderungen(dateien)
+        self._vorher_merken(dateien)
         if fix.get("seite") and not dateien:
             raise KeineZielDatei(
                 f"keine Datei fuer Seite {fix.get('seite')} unter {self.root}"
@@ -875,6 +891,28 @@ class StaticFilesAdapter:
         if method_name == "apply_og_image":
             return method(fix.get("url") or suggestion, dateien)
         return method(suggestion, dateien)
+
+    def _vorher_merken(self, dateien: List[Path]) -> None:
+        """Stand aller HTML-Dateien, die dieser Fix anfassen kann (fuer Nachkontrolle)."""
+        for path in [*dateien, *self._index_html_files()]:
+            if path.suffix.lower() in (".html", ".htm") and path.exists():
+                rel = str(path.relative_to(self.root))
+                self._vorher.setdefault(rel, path.read_text(encoding="utf-8"))
+
+    def _nachkontrolle(self, files: List[str], ftype: str) -> List[str]:
+        verluste: List[str] = []
+        for rel in files:
+            vorher = self._vorher.get(rel)
+            if vorher is None:
+                continue  # robots.txt/sitemap.xml oder nicht vorab gelesen
+            for v in nachkontrolle_pruefen(vorher, self._read(rel), ftype).verluste:
+                verluste.append(f"{rel}: {v}")
+        return verluste
+
+    def _zurueckrollen(self, files: List[str]) -> None:
+        for rel in files:
+            if rel in self._vorher:
+                self._write(rel, self._vorher[rel])
 
     def _commit_message(self, fix: Dict[str, Any], audit_id: str) -> str:
         title = (fix.get("issue_title") or fix.get("type") or "fix").strip()

@@ -31,8 +31,8 @@ class TestRobotsIssues:
             exists=True,
             status_code=200,
             raw=(
-                "User-agent: GPTBot\nDisallow: /\n"
-                "User-agent: ClaudeBot\nDisallow: /\n"
+                "User-agent: OAI-SearchBot\nDisallow: /\n"
+                "User-agent: PerplexityBot\nDisallow: /\n"
                 "User-agent: *\nDisallow:\n"
             ),
         )
@@ -41,8 +41,8 @@ class TestRobotsIssues:
         types = [i["type"] for i in issues]
         assert "ai_crawler_blocked" in types
         ai_issue = [i for i in issues if i["type"] == "ai_crawler_blocked"][0]
-        assert "GPTBot" in ai_issue["title"]
-        assert "ClaudeBot" in ai_issue["title"]
+        assert "OAI-SearchBot" in ai_issue["title"]
+        assert "PerplexityBot" in ai_issue["title"]
 
     def test_css_js_blocked(self, auditor):
         robots = RobotsResult(

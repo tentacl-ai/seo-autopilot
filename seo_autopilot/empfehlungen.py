@@ -34,7 +34,8 @@ Grundsatz (Google-Leitfaden "Optimizing your website for generative AI features
 on Google Search", 10.07.2026): Jede Empfehlung begruendet sich aus echter
 Nachfrage (Search-Console-Suchbegriffe bzw. echte Fragen). Ohne Suchdaten gibt
 es keine Empfehlung; "besser fuer KI/GEO" ist nie ein Grund. FAQPage-JSON-LD
-ist nur ein optionaler Entwurf, der Nutzen liegt im sichtbaren Text.
+wird nicht mehr vorgeschlagen: Google hat FAQ-Rich-Results am 07.05.2026 ganz
+abgeschaltet, der Nutzen liegt allein im sichtbaren Text.
 
 Warum `intent_geo_agent` nie einen Befund lieferte (Befund 18.09.2026)
 ----------------------------------------------------------------------
@@ -1040,21 +1041,6 @@ def _stuffing(s: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _faq_jsonld(fragen: Sequence[Dict[str, str]]) -> Dict[str, Any]:
-    return {
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        "mainEntity": [
-            {
-                "@type": "Question",
-                "name": f["frage"],
-                "acceptedAnswer": {"@type": "Answer", "text": f["antwort"]},
-            }
-            for f in fragen
-        ],
-    }
-
-
 def faq_html(
     fragen: Sequence[Dict[str, str]], ueberschrift: str = "Häufige Fragen"
 ) -> str:
@@ -1191,9 +1177,8 @@ def empfehlungen_aus_ki(
                     "seite": seite,
                     "fragen": beantwortet,
                     "html": faq_html(beantwortet),
-                    # FAQPage-JSON-LD bewusst NICHT automatisch: FAQ-Rich-Results zeigt
-                    # Google seit 2023 praktisch nur Behoerden/Gesundheit; der Nutzen
-                    # liegt im sichtbaren Text. Der Entwurf steht unten (optional).
+                    # Kein FAQPage-JSON-LD: FAQ-Rich-Results seit 07.05.2026 abgeschaltet;
+                    # der Nutzen liegt im sichtbaren Text.
                     "einfuegestelle": "vor </main> (sonst vor </article>), vor dem Footer",
                 }
             aus.append(
@@ -1205,9 +1190,6 @@ def empfehlungen_aus_ki(
                     text,
                     {
                         "fragen": fragen,
-                        "jsonld_entwurf_optional": (
-                            _faq_jsonld(beantwortet) if beantwortet else None
-                        ),
                         "anwendung": anwendung,
                         "belege": list(belege)[:6],
                     },

@@ -102,7 +102,6 @@ def _faq(seite=SEITE, fragen=FRAGEN, prio=10.0, **kw):
         "seite": seite,
         "fragen": fragen,
         "html": em.faq_html(fragen),
-        "jsonld": em._faq_jsonld(fragen),
     }
     return em.Empfehlung(
         "p",
@@ -154,7 +153,7 @@ def _commits(site):
 
 
 class TestAdapter:
-    def test_faq_block_idempotent_vor_main_ende_mit_jsonld(self, site):
+    def test_faq_block_idempotent_vor_main_ende_ohne_jsonld(self, site):
         a = StaticFilesAdapter({"root_path": str(site)})
         fix = {**_faq().vorschlag["anwendung"], "type": "empfehlung_faq_ergaenzen"}
         r1 = a.apply_fix(fix)
@@ -165,7 +164,8 @@ class TestAdapter:
             < inhalt.index("</main>")
             < inhalt.index("<footer")
         )
-        assert '"@type": "FAQPage"' in inhalt.split("</head>")[0]
+        # FAQ-Rich-Results seit 07.05.2026 abgeschaltet: nur sichtbarer Text
+        assert "FAQPage" not in inhalt
         r2 = a.apply_fix(fix)
         assert r2.success and r2.files_changed == [] and _datei(site) == inhalt
 

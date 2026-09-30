@@ -207,9 +207,9 @@ class TestErzeugen:
         assert em.PLATZHALTER in faq.text  # der Kunde sieht, was fehlt
         anw = faq.vorschlag["anwendung"]
         assert len(anw["fragen"]) == 2 and em.PLATZHALTER not in anw["html"]
-        # FAQPage-JSON-LD ist optional und geht nicht automatisch mit
+        # Kein FAQPage-JSON-LD mehr: FAQ-Rich-Results seit 07.05.2026 abgeschaltet
         assert "jsonld" not in anw
-        assert faq.vorschlag["jsonld_entwurf_optional"]["@type"] == "FAQPage"
+        assert "FAQPage" not in str(faq.vorschlag)
         assert "„was kostet campingplatz software“ (40×)" in faq.text
 
     def test_system_prompt_traegt_regeln_und_anrede(self, db):

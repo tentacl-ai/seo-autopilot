@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.17.0] - 2026-09-30
+
+"Von GitHub gelernt" - Vergleich mit den zwei meistbesternten SEO-Werkzeugen auf GitHub
+(every-app/open-seo, 21.900 Sterne; AgriciDaniel/claude-seo, 18.000 Sterne). Uebernommen
+wurden vier Teile aus claude-seo v2.4.1 (MIT, Herkunft in `seo_autopilot/daten/HERKUNFT.md`).
+Die Punkte aus OpenSEO (DataForSEO-Zwischenspeicher, Local SEO mit Karten-Raster,
+Rangliste, KI-Sichtbarkeit mit Verlauf) folgen gesondert, weil sie laufende Kosten haben.
+
+### Fixed - KI-Crawler in robots.txt
+- Neues gemeinsames Modul `analyzers/ki_crawler.py` statt zwei unterschiedlicher Listen in
+  `robots_sitemap.py` und `geo_audit.py`. Gruppen nach RFC 9309: untereinander stehende
+  `User-agent`-Zeilen bilden EINE Gruppe (vorher galt nur die letzte), laengste Regel gewinnt.
+- Neue Such-Crawler: OAI-SearchBot, Claude-SearchBot, Claude-User, Perplexity-User,
+  Applebot-Extended, Meta-ExternalAgent.
+- Nach Zweck getrennt: gesperrter Such-/Nutzer-Crawler = Fehler `ai_crawler_blocked`; nur
+  Training gesperrt (GPTBot, ClaudeBot, CCBot, Google-Extended ...) = Hinweis
+  `ai_training_blocked` ohne Punktabzug, denn die KI-Suche laeuft ueber eigene Crawler.
+  Live: skin-match.de meldete bisher faelschlich "KI-Suche ausgesperrt (hoch)" wegen CCBot;
+  bei joseph-hehenwarter.de wurden drei gesperrte Trainings-Crawler uebersehen.
+- Sperre ueber `User-agent: *` zaehlt nicht doppelt, sondern steht in `wildcard_disallow`.
+
+### Changed - Abgeschaltete Rich Results
+- `schema_validation.py`: FAQPage (seit 07.05.2026), HowTo, SpecialAnnouncement, ClaimReview,
+  VehicleListing, EstimatedSalary, LearningVideo, CourseInfo, PracticeProblem erzeugen keine
+  Pflichtfeld-/Syntaxbefunde mehr, sondern den Hinweis `schema_rich_result_retired`.
+- Empfehlungen schlagen kein FAQPage-JSON-LD mehr vor; der sichtbare FAQ-Text bleibt.
+
+### Added - Google-Updates in der Wirkungsmessung (Sperre 6)
+- `daten/google_updates.json` (nur Eintraege mit Google-Quelle, Stand 28.09.2026) und
+  `google_updates.py`. Faellt ein Core Update (angenommene Ausrolldauer 21 Tage) in den
+  Messzeitraum, wird ein Ergebnis `nicht_zurechenbar`; das eigentliche Urteil steht in der
+  Notiz. Spam Updates (14 Tage) werden nur vermerkt. Warnung im Log, wenn die Liste aelter
+  als 120 Tage ist.
+
+### Added - Nachkontrolle vor dem Commit
+- `nachkontrolle.py`: Der Adapter vergleicht jede geaenderte HTML-Datei vor/nach dem Fix.
+  Verschwinden Titel, H1, Meta-Description, Canonical, JSON-LD, og:-Angaben oder hreflang,
+  kommt noindex dazu oder schrumpft der sichtbare Text um mehr als 25 %, wird zurueckgerollt,
+  nichts committet und der Befund bleibt offen (`nicht_behebbar`).
+
+### Tests
+- +38 Tests; jeder neue Schutz zuerst am alten Code rot (12 rote Faelle nachgewiesen).
+
 ## [1.16.0] - 2026-09-18
 
 "SEO-Profi" - Stufen 2 bis 4 nach dem Rundumschlag vom 18.09.2026. Robert: "Das soll

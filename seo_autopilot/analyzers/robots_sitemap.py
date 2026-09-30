@@ -19,21 +19,9 @@ from xml.etree import ElementTree
 
 import httpx
 
-logger = logging.getLogger(__name__)
+from seo_autopilot.analyzers.ki_crawler import gesperrte_ki_crawler
 
-# AI crawlers — blocking these hurts GEO/AIO visibility
-AI_CRAWLERS = [
-    "GPTBot",
-    "ChatGPT-User",
-    "ClaudeBot",
-    "anthropic-ai",
-    "PerplexityBot",
-    "Bytespider",
-    "CCBot",
-    "Google-Extended",
-    "FacebookBot",
-    "cohere-ai",
-]
+logger = logging.getLogger(__name__)
 
 # CSS/JS blocking prevents rendering — critical for JS-heavy sites
 ASSET_PATTERNS = [
@@ -65,7 +53,12 @@ class RobotsResult:
     exists: bool = False
     status_code: int = 0
     sitemap_directives: List[str] = field(default_factory=list)
+    # Such-/Nutzer-Crawler mit eigener Sperre (Fehler)
     blocked_ai_crawlers: List[str] = field(default_factory=list)
+    # Nur Trainings-/Steuer-Token gesperrt (Hinweis, bewusste Entscheidung moeglich)
+    blocked_ai_training: List[str] = field(default_factory=list)
+    # Nur ueber "User-agent: *" gesperrt (Ursache = wildcard_disallow)
+    ai_crawlers_blocked_by_wildcard: List[str] = field(default_factory=list)
     blocks_css_js: bool = False
     has_wildcard_disallow: bool = False
     disallow_rules: List[Tuple[str, str]] = field(
@@ -176,10 +169,11 @@ class RobotsSitemapAuditor:
                     sitemap_url = ":".join(line.split(":")[1:]).strip()
                 result.sitemap_directives.append(sitemap_url)
 
-        # Detect AI crawler blocking
-        for crawler in AI_CRAWLERS:
-            if self._is_blocked(result.raw, crawler):
-                result.blocked_ai_crawlers.append(crawler)
+        # Detect AI crawler blocking (RFC 9309 groups, see ki_crawler.py)
+        gesperrt = gesperrte_ki_crawler(result.raw)
+        result.blocked_ai_crawlers = gesperrt["sichtbarkeit"]
+        result.blocked_ai_training = gesperrt["training"]
+        result.ai_crawlers_blocked_by_wildcard = gesperrt["ueber_stern"]
 
         # Detect CSS/JS blocking
         for agent, path in result.disallow_rules:
@@ -192,22 +186,6 @@ class RobotsSitemapAuditor:
         for agent, path in result.disallow_rules:
             if agent == "*" and path == "/":
                 result.has_wildcard_disallow = True
-
-    def _is_blocked(self, robots_txt: str, crawler: str) -> bool:
-        """Check if a specific crawler is blocked via Disallow: /."""
-        current_agent = ""
-        for raw_line in robots_txt.splitlines():
-            line = raw_line.split("#")[0].strip()
-            if not line:
-                continue
-            lower = line.lower()
-            if lower.startswith("user-agent:"):
-                current_agent = line.split(":", 1)[1].strip()
-            elif lower.startswith("disallow:"):
-                path = line.split(":", 1)[1].strip()
-                if current_agent.lower() == crawler.lower() and path == "/":
-                    return True
-        return False
 
     def _parse_sitemap(self, result: SitemapResult, content: str) -> None:
         """Parse sitemap XML into structured data."""
@@ -279,10 +257,25 @@ class RobotsSitemapAuditor:
                     "robots",
                     "ai_crawler_blocked",
                     "high",
-                    f"AI crawlers blocked: {crawlers}",
-                    f"robots.txt blocks these AI crawlers: {crawlers}. "
-                    "This hurts visibility in AI search (ChatGPT, Perplexity, Claude).",
-                    "Remove Disallow: / for AI crawlers unless you have a specific reason to block them.",
+                    f"AI search crawlers blocked: {crawlers}",
+                    f"robots.txt blocks these AI search/user crawlers: {crawlers}. "
+                    "The site cannot be cited in these AI answers (ChatGPT, Perplexity, Claude).",
+                    "Remove Disallow: / for AI search crawlers unless you have a specific reason to block them.",
+                )
+            )
+
+        # Training-only blocks are a legitimate choice: search runs on separate bots
+        if robots.blocked_ai_training:
+            bots = ", ".join(robots.blocked_ai_training)
+            issues.append(
+                _issue(
+                    "robots",
+                    "ai_training_blocked",
+                    "info",
+                    f"AI training crawlers blocked: {bots}",
+                    f"robots.txt blocks model training for: {bots}. AI search "
+                    "(OAI-SearchBot, Claude-SearchBot, PerplexityBot) is not affected.",
+                    "No action needed if intentional.",
                 )
             )
 
@@ -321,7 +314,13 @@ class RobotsSitemapAuditor:
                     "wildcard_disallow",
                     "critical",
                     "robots.txt blocks all crawlers (Disallow: /)",
-                    "User-agent: * with Disallow: / blocks all search engine crawlers from the entire site.",
+                    "User-agent: * with Disallow: / blocks all search engine crawlers from the entire site."
+                    + (
+                        f" This also locks out AI crawlers without their own group: "
+                        f"{', '.join(robots.ai_crawlers_blocked_by_wildcard)}."
+                        if robots.ai_crawlers_blocked_by_wildcard
+                        else ""
+                    ),
                     "Remove or restrict the Disallow: / rule to specific paths.",
                 )
             )
