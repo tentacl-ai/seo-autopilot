@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/tentacl-ai/seo-autopilot/actions/workflows/ci.yml/badge.svg)](https://github.com/tentacl-ai/seo-autopilot/actions/workflows/ci.yml)
 [![GitHub License: MIT](https://img.shields.io/badge/license-MIT-green)](#license)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/fastapi-0.110-green)](https://fastapi.tiangolo.com/)
 [![Async SQLAlchemy](https://img.shields.io/badge/sqlalchemy-2.0-orange)](https://www.sqlalchemy.org/)
 

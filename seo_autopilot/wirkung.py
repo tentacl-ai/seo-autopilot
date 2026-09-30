@@ -68,12 +68,12 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from . import google_updates
+from .changelog_book import standard_db_pfad  # noqa: F401  (bewusst re-exportiert)
 from .changelog_book import (
     URHEBER_AUTOPILOT,
     URHEBER_MENSCH,
     Aenderung,
     aenderungen,
-    standard_db_pfad,  # noqa: F401  (bewusst re-exportiert)
 )
 
 logger = logging.getLogger(__name__)

@@ -169,14 +169,6 @@ BEFUND_TEXTE: Dict[str, tuple] = {
         "Zu große Bilddateien",
         "Bilder verkleinern und als WebP ausliefern.",
     ),
-    "geo_freshness_signals": (
-        "Kein Änderungsdatum für KI-Suchen",
-        "Veröffentlichungs- und Änderungsdatum in den Seitendaten angeben.",
-    ),
-    "org_schema_no_sameas": (
-        "Firmenangaben ohne Profil-Links",
-        "In den Firmenangaben für Google die Profile (LinkedIn, Instagram usw.) verknüpfen.",
-    ),
     "missing_h1": (
         "Seiten ohne sichtbare Hauptüberschrift",
         "Je Seite genau eine Hauptüberschrift setzen, die sagt, worum es geht.",

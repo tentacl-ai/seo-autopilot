@@ -1,0 +1,9 @@
+[flake8]
+# Voruebergehend (30.09.2026): In diesen drei Dateien liegt im Betriebsordner noch
+# unfertige, nicht committete Arbeit. Jede Aenderung hier wuerde das Vorspulen dort
+# blockieren. Die Ausnahmen gelten nur fuer die genannten Codes und fallen weg,
+# sobald diese Arbeit committet ist (dann die 5 Stellen direkt beheben).
+per-file-ignores =
+    seo_autopilot/chancen.py: F401
+    seo_autopilot/einrichtung.py: F401,E741
+    seo_autopilot/health.py: E231,F541

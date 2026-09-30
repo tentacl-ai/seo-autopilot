@@ -45,7 +45,6 @@ sicher rücknehmbar ist, führt der Autopilot nicht selbst aus.
 
 from __future__ import annotations
 
-import json
 import logging
 import sqlite3
 import uuid

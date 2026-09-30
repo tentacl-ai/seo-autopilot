@@ -24,9 +24,6 @@ setup(
         "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
         "Operating System :: OS Independent",
     ],
@@ -34,7 +31,7 @@ setup(
     package_data={
         "seo_autopilot": ["reports/templates/*.html", "daten/*.json", "daten/*.md"],
     },
-    python_requires=">=3.9",
+    python_requires=">=3.12",
     install_requires=[
         "fastapi>=0.110.0",
         "uvicorn[standard]>=0.27.1",

@@ -1019,7 +1019,7 @@ def _karte(inhalt: str, farbe: str = ORANGE) -> str:
 
 def als_html(b: Dict[str, Any]) -> str:
     t = [
-        f'<div style="background:#faf9f7;padding:20px 16px"><div style="max-width:680px;margin:0 auto">',
+        '<div style="background:#faf9f7;padding:20px 16px"><div style="max-width:680px;margin:0 auto">',
         f'<h2 style="font:700 24px {SCHRIFT};color:{TEXT};margin:0">{_e(b["name"])} – Wochenbericht</h2>',
         _p(
             f'{_e(b["host"])} · {datetime.fromisoformat(b["stand"]):%d.%m.%Y}',
@@ -1431,23 +1431,23 @@ def _ki_gedaechtnis_html(g: Dict[str, Any]) -> List[str]:
     t: List[str] = []
     laeufe = g.get("verlauf") or []
     if len(laeufe) > 1:
-        kis = sorted({k for l in laeufe for k in l["je_ki"]})
+        kis = sorted({k for lauf in laeufe for k in lauf["je_ki"]})
         t.append(
             _tabelle(
                 ["Verlauf", *kis],
                 [
                     [
-                        datetime.fromisoformat(l["datum"]).strftime("%d.%m."),
+                        datetime.fromisoformat(lauf["datum"]).strftime("%d.%m."),
                         *[
                             (
-                                f"{l['je_ki'][k]['genannt']} von {l['je_ki'][k]['von']}"
-                                if k in l["je_ki"]
+                                f"{lauf['je_ki'][k]['genannt']} von {lauf['je_ki'][k]['von']}"
+                                if k in lauf["je_ki"]
                                 else "–"
                             )
                             for k in kis
                         ],
                     ]
-                    for l in laeufe[-6:]
+                    for lauf in laeufe[-6:]
                 ],
             )
         )
@@ -1467,7 +1467,7 @@ def _ki_gedaechtnis_html(g: Dict[str, Any]) -> List[str]:
     if wb.get("andere"):
         t.append(
             _p(
-                f"<b>Andere Anbieter genannt</b>: "
+                "<b>Andere Anbieter genannt</b>: "
                 + _e(", ".join(f"{n} ({z}×)" for n, z in wb["andere"].items()))
                 + f" · Sie: {wb.get('wir', 0)}× in {wb.get('antworten', 0)} Antworten."
             )
