@@ -75,8 +75,13 @@ Rangliste, KI-Sichtbarkeit mit Verlauf) folgen gesondert, weil sie laufende Kost
   Trend zur Vorwoche und zu vor vier Wochen, Handy/PC; nicht gefundene in einer Zeile.
 - Import laeuft als eigener Cron montags vor dem Bericht (`python -m seo_autopilot.rangliste`).
 
+### Added - Einstellung fuer den Places-Schluessel (Local SEO)
+- `GOOGLE_PLACES_API_KEY` in den Settings. Pflicht, bevor der Schluessel in die `.env` kommt:
+  die Settings lehnen unbekannte Variablen ab, dann faellt die ganze `.env` weg
+  (auch der PageSpeed-Schluessel).
+
 ### Tests
-- +68 Tests; jeder neue Schutz zuerst am alten Code rot (13 rote Faelle nachgewiesen).
+- +69 Tests; jeder neue Schutz zuerst am alten Code rot (14 rote Faelle nachgewiesen).
 
 ## [1.16.0] - 2026-09-18
 

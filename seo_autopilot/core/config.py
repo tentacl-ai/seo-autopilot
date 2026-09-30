@@ -63,6 +63,12 @@ class Settings(BaseSettings):
     # https://developers.google.com/speed/docs/insights/v5/get-started
     PAGESPEED_API_KEY: Optional[str] = os.getenv("PAGESPEED_API_KEY")
 
+    # Google Places API (New) fuer Local SEO (Sterne, Bewertungen, Platz in Maps).
+    # Eigener Schluessel im GCP-Projekt tentacl-seo, nur Places + nur Hub-IPs.
+    # Muss hier stehen: die Settings lehnen unbekannte .env-Variablen ab, und dann
+    # faellt die ganze .env weg (auch der PageSpeed-Schluessel).
+    GOOGLE_PLACES_API_KEY: Optional[str] = os.getenv("GOOGLE_PLACES_API_KEY")
+
     # Einbindung in die eigene Umgebung (Werte gehoeren in die .env, nicht in den
     # Code — der Ordner ist oeffentlich auf GitHub). Leer = Funktion inaktiv.
     MAILER_PFAD: Optional[str] = os.getenv("SEO_MAILER_PFAD")
