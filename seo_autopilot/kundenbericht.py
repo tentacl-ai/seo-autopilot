@@ -323,6 +323,13 @@ def backlinks_fuer_bericht(db: str, schluessel: str) -> Dict[str, Any]:
     return aus
 
 
+def maps_fuer_bericht(db: str, schluessel: str, domain: str = "") -> Dict[str, Any]:
+    """Google-Maps-Eintrag: Sterne, Bewertungen, Platz je Suchbegriff (maps.py, Cron montags)."""
+    from .maps import auswertung
+
+    return auswertung(db, schluessel, domain)
+
+
 def wo_wir_stehen(db: str, schluessel: str, tage: int = 7) -> Dict[str, Any]:
     """Kopfzahlen fuer das Audit "wo wir stehen" (Robert 18.09.2026).
 
@@ -884,6 +891,9 @@ def sammeln(
     _versuche(b, "wo_wir_stehen", lambda: wo_wir_stehen(db, schluessel))
     _versuche(b, "rangliste", lambda: rangliste_fuer_bericht(db, schluessel))
     _versuche(b, "backlinks", lambda: backlinks_fuer_bericht(db, schluessel))
+    _versuche(
+        b, "maps", lambda: maps_fuer_bericht(db, schluessel, cfg.get("domain", ""))
+    )
     _versuche(b, "website_pruefung", lambda: website_pruefung(db, projects, schluessel))
     _versuche(b, "werkzeug", lambda: werkzeug_zustand(db, projects, schluessel))
     _versuche(b, "extras", lambda: extras(bericht_cfg))
@@ -1031,6 +1041,7 @@ def als_html(b: Dict[str, Any]) -> str:
         + _abschnitt_google(b)
         + _abschnitt_rangliste(b)
         + _abschnitt_backlinks(b)
+        + _abschnitt_maps(b)
         + _abschnitt_analytics(b)
         + _abschnitt_markt(b)
     )
@@ -1274,6 +1285,40 @@ def _abschnitt_backlinks(b: Dict[str, Any]) -> List[str]:
                 ],
             )
         )
+    return t
+
+
+def _platz_text(n: Optional[int]) -> str:
+    return f"Platz {n}" if n else "nicht unter 60"
+
+
+def _abschnitt_maps(b: Dict[str, Any]) -> List[str]:
+    m = b.get("maps")
+    if not isinstance(m, dict) or "woche" not in m:
+        return []
+    sterne = (
+        f"{m['sterne']:.1f}".replace(".", ",") + " Sterne"
+        if m["sterne"]
+        else "noch keine Sterne"
+    )
+    mehr = ""
+    if m.get("bewertungen_davor") is not None:
+        d = m["bewertungen"] - m["bewertungen_davor"]
+        mehr = f" ({'+' if d >= 0 else ''}{d} seit letzter Woche)"
+    t = [
+        _h("Google Maps"),
+        _p(f"<b>{sterne}</b> aus <b>{m['bewertungen']}</b> Bewertungen{mehr}."),
+    ]
+    if m["plaetze"]:
+        zeilen = []
+        for z in m["plaetze"]:
+            vorher = "neu" if z["neu"] else _platz_text(z["davor"])
+            zeilen.append([z["begriff"], z["ort"], _platz_text(z["platz"]), vorher])
+        t.append(
+            _tabelle(["Suche in Maps", "Gesucht von", "Platz", "Vorwoche"], zeilen)
+        )
+    for h in m.get("hinweise") or []:
+        t.append(_p("Hinweis: " + _e(h), klein=True))
     return t
 
 

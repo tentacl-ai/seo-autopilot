@@ -8,7 +8,7 @@
 
 **Multi-tenant SEO automation that closes the loop:** crawl → find → fix → measure → report.
 
-> Version 1.16.0 · 1183 tests · 18 analysis dimensions · 136 documented issue types
+> Version 1.16.0 · 1195 tests · 18 analysis dimensions · 136 documented issue types
 
 Most SEO tools stop at a list of warnings. SEO Autopilot repairs what it finds,
 writes the change into the site's repository, and then uses Search Console to
@@ -646,11 +646,16 @@ Treat it as a starting point for a contribution, not as something that runs.
 
 Deliberately not covered:
 
-- **No backlink index.** Building one means crawling half the web.
+- **No own backlink index.** Building one means crawling half the web. Instead,
+  `backlinks.py` reads the free monthly Common Crawl domain graph: which websites
+  link to you (domain level only, no anchor texts; small or new sites are often missing).
 - **No third-party rankings.** Scraping Google's result pages violates their
   terms of service. Your own positions come from Search Console, which is more
   accurate than any estimate.
-- **No Google Business Profile / local pack data.**
+- **Local SEO only through the official Places API.** `maps.py` reads the Google Maps
+  listing (stars, reviews, category, website) and your position in the Maps search per
+  term and location, weekly, within Google's free monthly quota. No review replies, no
+  profile editing (that needs the Business Profile API and the owner's consent).
 - **DataForSEO is built but switched off.** `sources/dataforseo.py` works and the
   setup guide is in [docs/dataforseo-setup.md](docs/dataforseo-setup.md), but it
   is not enabled in any project and is not part of the standard setup.

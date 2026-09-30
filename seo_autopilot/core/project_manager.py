@@ -76,6 +76,9 @@ class ProjectConfig:
     # auf der Startseite vorkommen muessen — sonst bricht der Audit vor jeder
     # Analyse und jedem Auto-Fix ab. Fehlt das Feld, aendert sich nichts.
     erwartet: Optional[Any] = None
+    # Local SEO (maps.py): {place_id, region, radius_km, begriffe, orte} — als Feld
+    # gefuehrt, sonst verwirft _save_config() den Block beim naechsten Lauf.
+    maps: Optional[Dict[str, Any]] = None
 
     # Metadata
     created_at: datetime = None

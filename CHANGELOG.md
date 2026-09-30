@@ -85,13 +85,26 @@ Rangliste, KI-Sichtbarkeit mit Verlauf) folgen gesondert, weil sie laufende Kost
   Trend zur Vorwoche und zu vor vier Wochen, Handy/PC; nicht gefundene in einer Zeile.
 - Import laeuft als eigener Cron montags vor dem Bericht (`python -m seo_autopilot.rangliste`).
 
+### Added - Local SEO: Google-Maps-Eintrag und Platz in der Maps-Suche
+- `maps.py` (Nachbau OpenSEO-Local-SEO ohne DataForSEO, ueber die Places API (New)):
+  je Projekt mit `maps:`-Block in projects.yaml einmal pro Woche Sterne, Bewertungen,
+  Status, Adresse, Telefon, hinterlegte Website und der Platz je Suchbegriff (bis 60),
+  gesucht vom Standort und optional von weiteren Orten aus.
+- Hinweise am Eintrag: nicht geoeffnet, Website fehlt/zeigt woanders hin/auf eine
+  Unterseite, keine passende Kategorie, kein Telefon, weniger als 5 Bewertungen.
+- Kosten: Textsuche nur mit IDs (frei ohne Grenze), Profil 1x pro Woche (Enterprise,
+  1.000 frei im Monat) - praktisch 0 EUR. `--finden "Name Ort"` ermittelt die place_id.
+- Im Kunden-Wochenbericht (Abschnitt "Google Maps") und im Pulse-Schnappschuss (`maps`).
+- `ProjectConfig.maps`: ohne das Feld haette `_save_config()` den Block still verworfen.
+
 ### Added - Einstellung fuer den Places-Schluessel (Local SEO)
 - `GOOGLE_PLACES_API_KEY` in den Settings. Pflicht, bevor der Schluessel in die `.env` kommt:
   die Settings lehnen unbekannte Variablen ab, dann faellt die ganze `.env` weg
   (auch der PageSpeed-Schluessel).
 
 ### Tests
-- +80 Tests; jeder neue Schutz zuerst am alten Code rot (15 rote Faelle nachgewiesen).
+- +92 Tests; jeder neue Schutz zuerst am alten Code rot (16 rote Faelle, dazu 3 absichtlich
+  eingebaute Fehler in maps.py, die die Tests fanden).
 
 ## [1.16.0] - 2026-09-18
 
