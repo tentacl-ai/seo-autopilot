@@ -66,6 +66,12 @@ ABGESCHALTETE_RICH_RESULTS: Dict[str, tuple] = {
     "PracticeProblem": ("01/2026", "Keiner."),
 }
 
+# VideoObject: Google-Doku vom 24.09.2026 (Lernschleife 01.10.2026) - creator ODER
+# author ist empfohlen und braucht name oder alternateName; interactionStatistic
+# zaehlt nur mit diesen vier interactionType-Werten.
+# https://developers.google.com/search/docs/appearance/structured-data/video
+VIDEO_INTERAKTIONEN = {"WatchAction", "LikeAction", "CommentAction", "ShareAction"}
+
 # Which schema types are expected on which page type (heuristic)
 PAGE_TYPE_SCHEMA_MAP: Dict[str, List[str]] = {
     "homepage": ["Organization", "WebSite"],
@@ -204,6 +210,9 @@ class SchemaValidator:
                         )
                     )
 
+                if schema_type == "VideoObject":
+                    issues.extend(_video_hinweise(schema, url))
+
                 # Errors from special checks
                 for error in result.get("errors", []):
                     issues.append(
@@ -295,6 +304,59 @@ class SchemaValidator:
                 )
 
         return issues
+
+
+def _als_liste(wert: Any) -> List[Any]:
+    if wert is None:
+        return []
+    return wert if isinstance(wert, list) else [wert]
+
+
+def _typname(wert: Any) -> str:
+    """'https://schema.org/WatchAction' oder {'@type': 'WatchAction'} -> 'WatchAction'."""
+    if isinstance(wert, dict):
+        wert = wert.get("@type", "")
+    if isinstance(wert, list):
+        wert = wert[0] if wert else ""
+    return str(wert or "").rstrip("/").rsplit("/", 1)[-1]
+
+
+def _video_hinweise(schema: Dict, url: str) -> List[Dict[str, Any]]:
+    """Empfohlene VideoObject-Angaben laut Google (Stand 24.09.2026)."""
+    probleme = []
+    urheber = _als_liste(schema.get("creator")) + _als_liste(schema.get("author"))
+    if not urheber:
+        probleme.append("creator/author fehlt")
+    elif not any(
+        isinstance(u, dict) and (u.get("name") or u.get("alternateName"))
+        for u in urheber
+    ):
+        probleme.append("creator/author ohne name oder alternateName")
+    falsch = sorted(
+        {
+            _typname(z.get("interactionType")) or "(leer)"
+            for z in _als_liste(schema.get("interactionStatistic"))
+            if isinstance(z, dict)
+            and _typname(z.get("interactionType")) not in VIDEO_INTERAKTIONEN
+        }
+    )
+    if falsch:
+        probleme.append("interactionType nicht unterstuetzt: " + ", ".join(falsch))
+    if not probleme:
+        return []
+    return [
+        _schema_issue(
+            "schema_video_empfohlen",
+            "low",
+            url,
+            "VideoObject: " + "; ".join(probleme),
+            "Google recommends creator or author (Person/Organization with name or "
+            "alternateName) for video results and counts interactionStatistic only for "
+            "WatchAction, LikeAction, CommentAction and ShareAction.",
+            "Add creator (or author) with name and url; use only the four supported "
+            "interactionType values.",
+        )
+    ]
 
 
 def _has_field(schema: Dict, field_name: str) -> bool:

@@ -136,6 +136,8 @@ _FEHLER_TYPEN = {
 }
 
 _EMPFEHLUNG_TYPEN = {
+    # VideoObject: empfohlene Angaben (Google-Doku 24.09.2026)
+    "schema_video_empfohlen",
     # Meta-Laengen und Social-Vorschau
     "short_title",
     "long_title",

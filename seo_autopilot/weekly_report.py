@@ -245,6 +245,11 @@ BEFUND_TEXTE: Dict[str, tuple] = {
         "Pflichtangaben in den Google-Steckbriefen fehlen",
         "Fehlende Felder ergänzen.",
     ),
+    "schema_video_empfohlen": (
+        "Video-Steckbrief ohne Urheber oder mit Zählwerten, die Google nicht liest",
+        "Urheber (creator mit Name) ergänzen; bei Zählwerten nur Aufrufe, Likes, "
+        "Kommentare und Teilungen angeben.",
+    ),
     "missing_org_schema": (
         "Es fehlt der Firmen-Steckbrief für Google",
         "Firmenangaben maschinenlesbar hinterlegen (Name, Logo, Adresse).",
