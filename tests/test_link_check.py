@@ -109,6 +109,17 @@ class TestSammeln:
         )
         assert len(ziele) == 1
 
+    def test_kauflinks_werden_nie_aufgerufen(self):
+        """Kauflinks werden nie aufgerufen, jeder Aufruf zaehlte beim Shop als Klick."""
+        html = (
+            '<a href="/api/go/sku/creme" rel="sponsored nofollow noopener">Kaufen</a>'
+            '<a href="/go/123">Kaufen</a>'
+            '<a href="/ratgeber/" rel="nofollow">Ratgeber</a>'
+        )
+        seite = {"url": f"{DOMAIN}/a", "final_url": f"{DOMAIN}/a", "html": html}
+        ziele = sammle_interne_links([seite], DOMAIN)
+        assert [z.url for z in ziele] == [f"{DOMAIN}/ratgeber/"]
+
     def test_quellseiten_werden_gesammelt(self):
         seiten = [_seite(f"{DOMAIN}/a", ["/x"]), _seite(f"{DOMAIN}/b", ["/x"])]
         (ziel,) = sammle_interne_links(seiten, DOMAIN)

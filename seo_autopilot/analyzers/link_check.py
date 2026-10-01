@@ -48,6 +48,20 @@ MAX_ZUSATZQUELLEN = 20
 # Schemata, die kein Seitenlink sind
 _KEIN_SEITENLINK = ("mailto:", "tel:", "javascript:", "data:", "sms:", "fax:")
 
+# Kauf-/Affiliate-Links nie aufrufen (01.10.2026): Jeder Aufruf zählt beim Shop als Klick,
+# verfälscht die Klickstatistik und kann bei Amazon & Co. als Bot-Klick auffallen.
+# Erkannt an rel="sponsored" (Google-Standard für bezahlte Links) oder einem typischen Weiterleitungspfad.
+_KAUFLINK_PFAD = re.compile(r"^/(?:api/)?(?:go|goto|out|recommends|affiliate)/", re.I)
+
+
+def ist_kauflink(a, voll: str) -> bool:
+    rel = a.get("rel") or []
+    rel = rel.split() if isinstance(rel, str) else rel
+    return "sponsored" in [r.lower() for r in rel] or bool(
+        _KAUFLINK_PFAD.match(urlparse(voll).path)
+    )
+
+
 # Offensichtliche, nicht ersetzte Vorlagen-Platzhalter
 _PLATZHALTER = re.compile(
     r"(\{\{.*?\}\}|%7b%7b.*?%7d%7d|\$\{.*?\}|<%.*?%>|\[object\s*object\]"
@@ -130,6 +144,8 @@ def sammle_interne_links(seiten: List[Dict[str, Any]], domain: str) -> List[Link
             voll = urljoin(basis, href).split("#")[0]
             teile = urlparse(voll)
             if teile.scheme not in ("http", "https") or host_ohne_www(voll) != eigen:
+                continue
+            if ist_kauflink(a, voll):
                 continue
             ziel = ziele.setdefault(_norm(voll), LinkZiel(url=voll, roh_href=href))
             if seite.get("url") not in ziel.quellen:
