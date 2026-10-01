@@ -424,6 +424,16 @@ def _pruefe_lernschleife(
                 "logs/lernschleife.log und den Cron-Eintrag pruefen.",
             )
         )
+    elif str(stand.get("mail", "")).startswith("nicht verschickt"):
+        report.befunde.append(
+            Befund(
+                "warnung",
+                "-",
+                "Lernschleife: Mail nicht verschickt",
+                str(stand["mail"])[:300],
+                "Empfaenger in projects.yaml (lernschleife.empfaenger) und Mailer pruefen.",
+            )
+        )
     elif stand.get("fehler"):
         report.befunde.append(
             Befund(

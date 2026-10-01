@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.18.1] - 2026-10-01
+
+### Fixed
+- `ProjectManager._save_config` schrieb nur den Abschnitt `projects` zurueck; weitere Abschnitte
+  in `projects.yaml` (z. B. `lernschleife.empfaenger`) verschwanden beim naechsten Speichern still.
+- Waechter: eine nicht verschickte Lernschleifen-Mail ist jetzt eine Warnung.
+
 ## [1.18.0] - 2026-10-01
 
 "Lernschleife" - der Autopilot haelt sich selbst auf dem Stand. Einmal die Woche werden die

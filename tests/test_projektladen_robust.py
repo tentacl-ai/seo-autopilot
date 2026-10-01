@@ -76,3 +76,23 @@ class TestFehlerIsolation:
     def test_fehlende_datei_ist_kein_absturz(self, tmp_path):
         pm = ProjectManager(str(tmp_path / "gibtsnicht.yaml"))
         assert pm.list_projects() == []
+
+
+class TestSpeichern:
+    def test_weitere_abschnitte_bleiben_beim_speichern(self, tmp_path):
+        """Speichern schrieb nur `projects` zurueck - `lernschleife` verschwand still."""
+        pfad = tmp_path / "projects.yaml"
+        pfad.write_text(
+            yaml.safe_dump(
+                {
+                    "projects": {"a": dict(GESUND)},
+                    "lernschleife": {"empfaenger": "x@y.de"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        pm = ProjectManager(str(pfad))
+        pm.update_project("a", name="Neu")
+        daten = yaml.safe_load(pfad.read_text(encoding="utf-8"))
+        assert daten["lernschleife"] == {"empfaenger": "x@y.de"}
+        assert daten["projects"]["a"]["name"] == "Neu"

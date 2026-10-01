@@ -249,3 +249,19 @@ def test_probelauf_verbraucht_nichts(db, ordner, tmp_path):
     assert len(erg.neue_vorschlaege) == 1 and erg.mail == "Probelauf"
     assert len(ls.kandidaten(db)) == 2 and not stand.exists()
     assert not (ordner / "entscheidungen_dyn.json").exists()
+
+
+def test_waechter_meldet_nicht_verschickte_mail(tmp_path):
+    p = tmp_path / "s.json"
+    p.write_text(
+        json.dumps(
+            {
+                "vorschlaege": [],
+                "letzter_lauf": TestWaechter.JETZT.isoformat(),
+                "mail": "nicht verschickt: gesperrt",
+            }
+        )
+    )
+    r = HealthReport()
+    _pruefe_lernschleife("lernschleife", TestWaechter.JETZT, r, stand_pfad=p)
+    assert [b.titel for b in r.befunde] == ["Lernschleife: Mail nicht verschickt"]

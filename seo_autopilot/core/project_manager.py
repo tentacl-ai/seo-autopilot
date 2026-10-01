@@ -156,6 +156,15 @@ class ProjectManager:
 
         logger.info(f"Loaded {len(self.projects)} projects from {self.config_path}")
 
+    def _weitere_abschnitte(self) -> Dict[str, Any]:
+        try:
+            alt = yaml.safe_load(self.config_path.read_text(encoding="utf-8"))
+        except (OSError, yaml.YAMLError):
+            return {}
+        if not isinstance(alt, dict) or "projects" not in alt:
+            return {}
+        return {k: v for k, v in alt.items() if k != "projects"}
+
     def _save_config(self):
         """Save projects to YAML"""
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -164,7 +173,10 @@ class ProjectManager:
             "projects": {
                 pid: {k: v for k, v in asdict(cfg).items() if k != "id"}
                 for pid, cfg in self.projects.items()
-            }
+            },
+            # Weitere Abschnitte (z. B. `lernschleife`) gehoeren nicht zu einem
+            # Projekt und duerfen beim Speichern nicht still verschwinden.
+            **self._weitere_abschnitte(),
         }
 
         with open(self.config_path, "w") as f:
