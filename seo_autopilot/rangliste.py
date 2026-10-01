@@ -73,6 +73,25 @@ class Zeile:
     impressionen: int
     handy: Optional[float]
     computer: Optional[float]
+    klicks: int = 0
+
+
+# KI-Uebersicht: Google zaehlt alle Links darin mit der Position des ganzen Blocks
+# (Search-Console-Hilfe 7042828, Lernschleife 01.10.2026). Ein Top-Platz ohne einen
+# einzigen Klick bei genug Einblendungen ist deshalb oft nur eine Quellen-Nennung.
+KI_VERDACHT_POSITION = 3.0
+KI_VERDACHT_IMPRESSIONEN = 20
+
+
+def ki_uebersicht_verdacht(
+    position: Optional[float], impressionen: int, klicks: int
+) -> bool:
+    return (
+        position is not None
+        and position <= KI_VERDACHT_POSITION
+        and impressionen >= KI_VERDACHT_IMPRESSIONEN
+        and klicks == 0
+    )
 
 
 def _verbinde(db_pfad: str) -> sqlite3.Connection:
@@ -305,7 +324,7 @@ def tabelle(db_pfad: str, project_id: str) -> Tuple[Optional[str], List[Zeile]]:
     """Juengste Woche mit Vergleich zu Vorwoche und vor vier Wochen."""
     with _verbinde(db_pfad) as conn:
         rows = conn.execute(
-            f"select woche, begriff, geraet, position, impressionen from {TABELLE} "
+            f"select woche, begriff, geraet, position, klicks, impressionen from {TABELLE} "
             "where project_id = ? order by woche",
             (project_id,),
         ).fetchall()
@@ -335,6 +354,7 @@ def tabelle(db_pfad: str, project_id: str) -> Tuple[Optional[str], List[Zeile]]:
             ],
             handy=pos(aktuell, b, "MOBILE"),
             computer=pos(aktuell, b, "DESKTOP"),
+            klicks=(wert.get((aktuell, b, ALLE)) or {"klicks": 0})["klicks"],
         )
         for b in begriffe
     ]

@@ -238,3 +238,53 @@ class TestImKundenbericht:
         assert rangliste_fuer_bericht(str(tmp_path / "k.db"), "p") == {}
         assert _abschnitt_rangliste({"rangliste": {}}) == []
         assert _abschnitt_rangliste({"rangliste": {"fehler": "x"}}) == []
+
+
+class TestKiUebersichtVerdacht:
+    """Search-Console-Hilfe: alle Links einer KI-Uebersicht teilen sich deren Position."""
+
+    @pytest.mark.parametrize(
+        "pos, impr, klicks, erwartet",
+        [
+            (1.5, 80, 0, True),
+            (3.0, 20, 0, True),
+            (1.5, 80, 1, False),  # ein Klick: echte Besuche, kein Verdacht
+            (1.5, 19, 0, False),  # zu wenig Einblendungen fuer ein Urteil
+            (4.2, 500, 0, False),  # Platz 4+: normales Klickverhalten
+            (None, 0, 0, False),
+        ],
+    )
+    def test_regel(self, pos, impr, klicks, erwartet):
+        assert rl.ki_uebersicht_verdacht(pos, impr, klicks) is erwartet
+
+    def test_markiert_im_bericht_mit_erklaerung(self, tmp_path):
+        from seo_autopilot.kundenbericht import (
+            _abschnitt_rangliste,
+            rangliste_fuer_bericht,
+        )
+
+        db = str(tmp_path / "k.db")
+        rl.speichere_woche(db, "p", "2026-W39", ["ki kasten", "normal"],
+                           [_z(["ki kasten"], 1.4, impr=90, klicks=0),
+                            _z(["normal"], 2.0, impr=90, klicks=7)], [])  # fmt: skip
+        daten = rangliste_fuer_bericht(db, "p")
+        assert {z["begriff"]: z["klicks"] for z in daten["zeilen"]} == {
+            "ki kasten": 0,
+            "normal": 7,
+        }
+        html = "".join(_abschnitt_rangliste({"rangliste": daten}))
+        assert "ki kasten ◇" in html and "normal ◇" not in html
+        assert "KI-Übersicht" in html
+
+    def test_ohne_verdacht_keine_erklaerung(self, tmp_path):
+        from seo_autopilot.kundenbericht import (
+            _abschnitt_rangliste,
+            rangliste_fuer_bericht,
+        )
+
+        db = str(tmp_path / "k.db")
+        rl.speichere_woche(db, "p", "2026-W39", ["normal"], [_z(["normal"], 2.0)], [])
+        html = "".join(
+            _abschnitt_rangliste({"rangliste": rangliste_fuer_bericht(db, "p")})
+        )
+        assert "◇" not in html

@@ -1212,39 +1212,60 @@ def _abschnitt_rangliste(b: Dict[str, Any]) -> List[str]:
     rl = b.get("rangliste")
     if not isinstance(rl, dict) or "woche" not in rl:
         return []
-    from .rangliste import _p as pos, _trend
+    from .rangliste import _p as pos, _trend, ki_uebersicht_verdacht
 
-    return [
-        _h(f"Rangliste der wichtigsten Suchbegriffe (Woche {rl['woche']})"),
-        _p(
-            f"{rl['gefunden']} von {rl['begriffe']} Begriffen bei Google gefunden, "
-            f"{rl['seite1']} davon auf Seite 1. Position 1 ist ganz oben; "
-            "▲ = nach vorn gerückt."
-        ),
-        _tabelle(
-            ["Suchbegriff", "Pos.", "Vorwoche", "4 Wochen", "Handy", "PC"],
-            [
-                [
-                    z["begriff"],
-                    pos(z["position"]),
-                    _trend(z["position"], z["vorwoche"]),
-                    _trend(z["position"], z["vor_4_wochen"]),
-                    pos(z["handy"]),
-                    pos(z["computer"]),
-                ]
-                for z in rl["zeilen"]
-            ],
-        ),
-    ] + (
+    def verdacht(z: Dict[str, Any]) -> bool:
+        return ki_uebersicht_verdacht(
+            z["position"], z.get("impressionen", 0), z.get("klicks", 0)
+        )
+
+    markiert = [z for z in rl["zeilen"] if verdacht(z)]
+    return (
         [
+            _h(f"Rangliste der wichtigsten Suchbegriffe (Woche {rl['woche']})"),
             _p(
-                "Diese Woche nicht bei Google gefunden: "
-                + _e(", ".join(rl["nicht_gefunden"])),
-                klein=True,
-            )
+                f"{rl['gefunden']} von {rl['begriffe']} Begriffen bei Google gefunden, "
+                f"{rl['seite1']} davon auf Seite 1. Position 1 ist ganz oben; "
+                "▲ = nach vorn gerückt."
+            ),
+            _tabelle(
+                ["Suchbegriff", "Pos.", "Vorwoche", "4 Wochen", "Handy", "PC"],
+                [
+                    [
+                        z["begriff"] + (" ◇" if verdacht(z) else ""),
+                        pos(z["position"]),
+                        _trend(z["position"], z["vorwoche"]),
+                        _trend(z["position"], z["vor_4_wochen"]),
+                        pos(z["handy"]),
+                        pos(z["computer"]),
+                    ]
+                    for z in rl["zeilen"]
+                ],
+            ),
         ]
-        if rl.get("nicht_gefunden")
-        else []
+        + (
+            [
+                _p(
+                    "◇ = vorne gelistet, aber kein einziger Klick. Oft wird die Seite dann nur "
+                    "als Quelle in einer KI-Übersicht genannt: Google gibt allen Links darin die "
+                    "Position des ganzen Kastens. Maßstab sind hier Klicks und Besuche, nicht der Platz.",
+                    klein=True,
+                )
+            ]
+            if markiert
+            else []
+        )
+        + (
+            [
+                _p(
+                    "Diese Woche nicht bei Google gefunden: "
+                    + _e(", ".join(rl["nicht_gefunden"])),
+                    klein=True,
+                )
+            ]
+            if rl.get("nicht_gefunden")
+            else []
+        )
     )
 
 
