@@ -86,6 +86,24 @@ BEREICHE: Dict[str, tuple] = {
     "lokal": ("Local SEO / Google-Unternehmensprofil", ["maps.py"]),
 }
 
+# Search-Console-API: Was sie heute kennt. Kommt ein Wert dazu (z. B. der Suchtyp
+# "Multimodal" fuer Lens/Circle to Search, seit 24.09.2026 nur in der Oberflaeche),
+# meldet die Lernschleife das einmal - dann kann der Autopilot ihn abfragen.
+GSC_API = "https://searchconsole.googleapis.com/$discovery/rest?version=v1"
+GSC_BEKANNT = {
+    "Suchtyp": {"WEB", "IMAGE", "VIDEO", "NEWS", "DISCOVER", "GOOGLE_NEWS"},
+    "Dimension": {
+        "DATE",
+        "QUERY",
+        "PAGE",
+        "COUNTRY",
+        "DEVICE",
+        "SEARCH_APPEARANCE",
+        "HOUR",
+    },
+    "Filter": {"QUERY", "PAGE", "COUNTRY", "DEVICE", "SEARCH_APPEARANCE"},
+}
+
 SYSTEM = (
     "Du pflegst ein SEO-Pruefwerkzeug (SEO-Autopilot). Du entscheidest, welche "
     "Branchenneuigkeiten eine Anpassung an seinen Pruefungen oder Berichten "
@@ -120,6 +138,7 @@ class Laufergebnis:
     neue_vorschlaege: List[Dict[str, Any]] = field(default_factory=list)
     verworfen: int = 0
     go_offen: List[Dict[str, Any]] = field(default_factory=list)
+    api_neu: List[str] = field(default_factory=list)
     mail: str = "nicht versucht"
     fehler: List[str] = field(default_factory=list)
 
@@ -128,6 +147,7 @@ class Laufergebnis:
             f"Lernschleife: {self.kandidaten} Meldung(en) bewertet, "
             f"{len(self.neue_vorschlaege)} Vorschlag/Vorschlaege, {self.verworfen} verworfen",
             f"Go, Umsetzung offen: {len(self.go_offen)}",
+            "Search-Console-API neu: " + (", ".join(self.api_neu) or "nichts"),
             f"Mail: {self.mail}",
         ]
         if self.fehler:
@@ -265,6 +285,30 @@ def bewerten(
     return pruefen(json_liste_aus_text(text), kand)
 
 
+def _gsc_discovery() -> Dict[str, Any]:
+    import httpx
+
+    return httpx.get(GSC_API, timeout=20).json()
+
+
+def gsc_api_neu(holen: Callable[[], Dict[str, Any]] = _gsc_discovery) -> List[str]:
+    """Werte, die die Search-Console-API neu kennt, als 'Suchtyp: MULTIMODAL' usw."""
+    schemas = holen()["schemas"]
+    anfrage = schemas["SearchAnalyticsQueryRequest"]["properties"]
+    aktuell = {
+        "Suchtyp": anfrage["type"].get("enum", []),
+        "Dimension": anfrage["dimensions"]["items"].get("enum", []),
+        "Filter": schemas["ApiDimensionFilter"]["properties"]["dimension"].get(
+            "enum", []
+        ),
+    }
+    return sorted(
+        f"{art}: {wert}"
+        for art, werte in aktuell.items()
+        for wert in set(werte) - GSC_BEKANNT[art]
+    )
+
+
 # ---------------------------------------------------------------------------
 # 3./4. Stand, Entscheidungen, Mail
 # ---------------------------------------------------------------------------
@@ -311,8 +355,16 @@ def knoepfe_anlegen(vorschlaege: List[Dict[str, Any]], ordner: Optional[Path]) -
         v["knopf_url"] = urls.get(v["id"], "")
 
 
-def mail_text(neu: List[Dict[str, Any]], go_offen: List[Dict[str, Any]]) -> str:
+def mail_text(
+    neu: List[Dict[str, Any]], go_offen: List[Dict[str, Any]], api_neu: List[str] = ()
+) -> str:
     teile = []
+    if api_neu:
+        teile.append(
+            "Neu in der Search-Console-API (jetzt abfragbar):\n"
+            + "\n".join(f"■ {w}" for w in api_neu)
+            + "\n"
+        )
     if neu:
         teile.append("Neue Vorschläge (Go oder Nein per Knopf):\n")
     for v in neu:
@@ -334,10 +386,18 @@ def mail_text(neu: List[Dict[str, Any]], go_offen: List[Dict[str, Any]]) -> str:
     return "\n".join(teile)
 
 
-def mail_html(neu: List[Dict[str, Any]], go_offen: List[Dict[str, Any]]) -> str:
+def mail_html(
+    neu: List[Dict[str, Any]], go_offen: List[Dict[str, Any]], api_neu: List[str] = ()
+) -> str:
     from .entscheidungen import knopf_html
 
     karten = []
+    if api_neu:
+        karten.append(
+            "<p><b>Neu in der Search-Console-API (jetzt abfragbar):</b></p><ul>"
+            + "".join(f"<li>{escape(w)}</li>" for w in api_neu)
+            + "</ul>"
+        )
     for v in neu:
         knopf = knopf_html(v["knopf_url"], "Go / Nein") if v.get("knopf_url") else ""
         karten.append(
@@ -408,6 +468,39 @@ def mail_senden(an: str, betreff: str, text: str, html: str) -> tuple:
 # ---------------------------------------------------------------------------
 
 
+def _api_abgleich(
+    stand: Dict[str, Any], holen: Callable[[], Dict[str, Any]]
+) -> List[str]:
+    """Neue Search-Console-API-Werte, jeweils nur einmal gemeldet. Ausfall = leer."""
+    try:
+        neu = gsc_api_neu(holen)
+    except Exception as exc:  # Netz/Format: nur vermerken, Lauf geht weiter
+        logger.warning(f"[Lernschleife] API-Abgleich fehlgeschlagen: {exc}")
+        return []
+    schon = set(stand.get("api_gemeldet", []))
+    return [w for w in neu if w not in schon]
+
+
+def _mailen(erg: Laufergebnis, api_neu: List[str], an: str, sender, heute: date) -> str:
+    neu = erg.neue_vorschlaege
+    if not (neu or erg.go_offen or api_neu):
+        return "nicht nötig (nichts Neues, kein Go offen)"
+    if neu:
+        kurz = f"{len(neu)} Vorschlag/Vorschläge"
+    elif api_neu:
+        kurz = "Search-Console-API erweitert"
+    else:
+        kurz = f"{len(erg.go_offen)} Go offen"
+    betreff = f"SEO-Autopilot · Lernschleife KW{heute.isocalendar()[1]}: {kurz}"
+    ok, info = sender(
+        an,
+        betreff,
+        mail_text(neu, erg.go_offen, api_neu),
+        mail_html(neu, erg.go_offen, api_neu),
+    )
+    return "verschickt" if ok else f"nicht verschickt: {info}"
+
+
 def lauf(
     db_pfad: str,
     projects_pfad: str,
@@ -417,13 +510,14 @@ def lauf(
     ordner: Optional[Path] = None,
     sender: Callable[..., tuple] = mail_senden,
     heute: Optional[date] = None,
+    api_holen: Optional[Callable[[], Dict[str, Any]]] = None,
 ) -> Laufergebnis:
     heute = heute or date.today()
     erg, stand = Laufergebnis(), stand_laden(stand_pfad)
     from . import entscheidungen as ent
 
     klicks_uebernehmen(stand, ent.antworten(**({"ordner": ordner} if ordner else {})))
-    kand = []
+    kand, neu = [], []
     try:
         kand = kandidaten(db_pfad)
         erg.kandidaten = len(kand)
@@ -431,14 +525,15 @@ def lauf(
     except Exception as exc:  # KI/DB-Ausfall: vermerken, nie abbrechen
         logger.warning(f"[Lernschleife] Bewertung fehlgeschlagen: {exc}")
         erg.fehler.append(f"Bewertung: {str(exc)[:200]}")
-        neu = []
     for i, v in enumerate(neu, 1):
         v.update(
             id=f"lernschleife-{heute.isoformat()}-{i}",
             status="offen",
             am=heute.isoformat(),
         )
-    erg.neue_vorschlaege = neu
+    erg.neue_vorschlaege, erg.api_neu = neu, _api_abgleich(
+        stand, api_holen or _gsc_discovery
+    )
     erg.go_offen = [v for v in stand["vorschlaege"] if v["status"] == "go"]
     if not senden:  # Probelauf: nichts merken, nichts anlegen, nichts schicken
         erg.mail = "Probelauf"
@@ -448,20 +543,11 @@ def lauf(
     if neu:
         knoepfe_anlegen(neu, ordner)
     stand["vorschlaege"] += neu
-    erg.go_offen = [v for v in stand["vorschlaege"] if v["status"] == "go"]
-    if neu or erg.go_offen:
-        betreff = f"SEO-Autopilot · Lernschleife KW{heute.isocalendar()[1]}: " + (
-            f"{len(neu)} Vorschlag/Vorschläge"
-            if neu
-            else f"{len(erg.go_offen)} Go offen"
+    erg.mail = _mailen(erg, erg.api_neu, empfaenger(projects_pfad), sender, heute)
+    if erg.mail == "verschickt":
+        stand["api_gemeldet"] = sorted(
+            set(stand.get("api_gemeldet", [])) | set(erg.api_neu)
         )
-        an = empfaenger(projects_pfad)
-        ok, info = sender(
-            an, betreff, mail_text(neu, erg.go_offen), mail_html(neu, erg.go_offen)
-        )
-        erg.mail = "verschickt" if ok else f"nicht verschickt: {info}"
-    else:
-        erg.mail = "nicht nötig (nichts Neues, kein Go offen)"
     stand.update(
         letzter_lauf=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         kandidaten=erg.kandidaten,

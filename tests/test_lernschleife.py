@@ -15,6 +15,30 @@ URL_SCHEMA = "https://developers.google.com/search/blog/2026/09/video-creator"
 URL_NEWS = "https://example-news.test/ads-tipp"
 
 
+def _discovery(typen=("WEB", "IMAGE", "VIDEO", "NEWS", "DISCOVER", "GOOGLE_NEWS")):
+    return {
+        "schemas": {
+            "SearchAnalyticsQueryRequest": {
+                "properties": {
+                    "type": {"enum": list(typen)},
+                    "dimensions": {
+                        "items": {"enum": sorted(ls.GSC_BEKANNT["Dimension"])}
+                    },
+                }
+            },
+            "ApiDimensionFilter": {
+                "properties": {"dimension": {"enum": sorted(ls.GSC_BEKANNT["Filter"])}}
+            },
+        }
+    }
+
+
+@pytest.fixture(autouse=True)
+def kein_netz(monkeypatch):
+    """Tests rufen nie die echte Google-API."""
+    monkeypatch.setattr(ls, "_gsc_discovery", lambda: _discovery())
+
+
 @pytest.fixture
 def db(tmp_path):
     pfad = str(tmp_path / "a.db")
@@ -265,3 +289,38 @@ def test_waechter_meldet_nicht_verschickte_mail(tmp_path):
     r = HealthReport()
     _pruefe_lernschleife("lernschleife", TestWaechter.JETZT, r, stand_pfad=p)
     assert [b.titel for b in r.befunde] == ["Lernschleife: Mail nicht verschickt"]
+
+
+class TestSearchConsoleApi:
+    def test_heute_nichts_neu(self):
+        assert ls.gsc_api_neu(lambda: _discovery()) == []
+
+    def test_neuer_suchtyp_einmal_gemeldet(self, db, ordner, tmp_path):
+        mails = []
+        kw = dict(
+            fragen=_ki([]),
+            stand_pfad=tmp_path / "s.json",
+            ordner=ordner,
+            sender=lambda *a: mails.append(a) or (True, ""),
+            api_holen=lambda: _discovery(("WEB", "MULTIMODAL")),
+        )
+        erg = ls.lauf(db, "x", **kw)
+        assert erg.api_neu == ["Suchtyp: MULTIMODAL"] and erg.mail == "verschickt"
+        assert "API erweitert" in mails[0][1] and "MULTIMODAL" in mails[0][2]
+        erg2 = ls.lauf(db, "x", **kw)
+        assert erg2.api_neu == [] and len(mails) == 1  # nur einmal
+
+    def test_api_ausfall_stoert_nicht(self, db, ordner, tmp_path):
+        def kaputt():
+            raise OSError("kein Netz")
+
+        erg = ls.lauf(
+            db,
+            "x",
+            fragen=_ki([]),
+            stand_pfad=tmp_path / "s.json",
+            ordner=ordner,
+            sender=lambda *a: (True, ""),
+            api_holen=kaputt,
+        )
+        assert erg.api_neu == [] and erg.fehler == []
