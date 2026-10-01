@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.19.0] - 2026-10-01
+
+Die ersten drei Vorschlaege der Lernschleife (Go 01.10.2026), jeweils an der Quelle geprueft.
+
+### Added - Video-Steckbrief nach Google-Doku vom 24.09.2026
+- `schema_validation`: neuer Befund `schema_video_empfohlen` (Empfehlung) fuer VideoObject ohne
+  `creator`/`author`, fuer Urheber ohne `name`/`alternateName` und fuer `interactionStatistic`
+  mit anderen Werten als WatchAction, LikeAction, CommentAction, ShareAction
+  (auch als schema.org-URL oder Objekt erkannt).
+
+### Added - Top-Platz ohne Klick in der Rangliste
+- Die Search Console gibt allen Links einer KI-Uebersicht die Position des ganzen Blocks
+  (Hilfe-Artikel 7042828). Die Rangliste speichert die Klicks schon; Begriffe mit Position
+  <= 3, mindestens 20 Einblendungen und null Klicks werden im Wochenbericht mit ◇ markiert
+  und erklaert. Massstab dort: Klicks und Besuche statt Position.
+
+### Added - Lernschleife beobachtet die Search-Console-API
+- Der Suchtyp "Multimodal" (Lens, Circle to Search) steht seit 24.09.2026 nur in der
+  Oberflaeche; die API kennt ihn noch nicht (geprueft am 01.10.2026). Die Lernschleife
+  vergleicht woechentlich Suchtypen, Dimensionen und Filter der API mit dem bekannten Stand und
+  meldet neue Werte genau einmal per Mail - dann kann der Autopilot sie abfragen.
+
 ## [1.18.1] - 2026-10-01
 
 ### Fixed

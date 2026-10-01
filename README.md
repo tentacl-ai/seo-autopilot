@@ -8,7 +8,7 @@
 
 **Multi-tenant SEO automation that closes the loop:** crawl → find → fix → measure → report.
 
-> Version 1.18.1 · 1225 tests · 18 analysis dimensions · 136 documented issue types
+> Version 1.19.0 · 1242 tests · 18 analysis dimensions · 139 documented issue types
 
 Most SEO tools stop at a list of warnings. SEO Autopilot repairs what it finds,
 writes the change into the site's repository, and then uses Search Console to
@@ -391,7 +391,10 @@ source. The source link always comes from the item, never from the AI's answer.
    that is not in the list, or an unknown area, are dropped.
 3. Each proposal gets a decision button (yes / later / no) and is mailed to the
    address in `projects.yaml` → `lernschleife.empfaenger`.
-4. The next run picks up the clicks. An approved proposal stays "go, not yet
+4. It also compares the Search Console API (search types, dimensions, filters)
+   with the known state and reports new values once, so the tool can start
+   querying them (e.g. the "Multimodal" search type, UI-only since 09/2026).
+5. The next run picks up the clicks. An approved proposal stays "go, not yet
    done" until `lernschleife --erledigt <id>`; `selfcheck` warns after 7 days.
 
 The loop never edits code. Approved changes are implemented in a normal,
