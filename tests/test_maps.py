@@ -137,17 +137,17 @@ class TestMessen:
 
 class TestHinweise:
     def test_was_am_eintrag_fehlt(self):
-        p = {"status": "CLOSED_TEMPORARILY", "website": "https://www.naturcoach.at/blog/artikel",
+        p = {"status": "CLOSED_TEMPORARILY", "website": "https://www.beispiel-coach.at/blog/artikel",
              "telefon": None, "bewertungen": 0, "art": "POI - Ort von Interesse"}  # fmt: skip
-        h = " ".join(maps.hinweise(p, "https://naturcoach.at"))
+        h = " ".join(maps.hinweise(p, "https://beispiel-coach.at"))
         assert "nicht als geöffnet" in h and "Unterseite" in h and "Telefonnummer" in h
         assert "Weniger als 5" in h and "Kategorie" in h
 
     def test_fremde_website(self):
         p = {"status": "OPERATIONAL", "website": "https://lovable.app/x", "telefon": "1",
              "bewertungen": 9, "art": "Berater"}  # fmt: skip
-        assert maps.hinweise(p, "https://joseph.de") == [
-            "Der Eintrag verweist auf lovable.app, nicht auf joseph.de."
+        assert maps.hinweise(p, "https://beispiel-berater.de") == [
+            "Der Eintrag verweist auf lovable.app, nicht auf beispiel-berater.de."
         ]
 
 

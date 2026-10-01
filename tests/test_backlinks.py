@@ -7,12 +7,12 @@ import pytest
 
 from seo_autopilot import backlinks as bl
 
-# Mini-Graph: 1 = ai.tentacl (wir), 2 = de.blog, 3 = com.portal, 4 = at.naturcoach (wir), 5 = de.spam
+# Mini-Graph: 1 = ai.tentacl (wir), 2 = de.blog, 3 = com.portal, 4 = at.beispiel-coach (wir), 5 = de.spam
 KNOTEN = [
     ["1", "ai.tentacl"],
     ["2", "de.blog"],
     ["3", "com.portal"],
-    ["4", "at.naturcoach"],
+    ["4", "at.beispiel-coach"],
     ["5", "de.spam"],
 ]
 KANTEN = [["2", "1"], ["3", "1"], ["1", "1"], ["4", "1"], ["5", "4"], ["2", "3"]]
@@ -20,7 +20,7 @@ RAENGE = [
     ["#harmonicc_pos", "#host_rev"],
     ["120", "com.portal"],
     ["5000", "de.blog"],
-    ["99", "at.naturcoach"],
+    ["99", "at.beispiel-coach"],
 ]
 
 
@@ -58,20 +58,20 @@ class TestNamen:
 
     def test_domain_und_umkehr(self):
         assert bl.domain_von("https://www.Tentacl.ai/") == "tentacl.ai"
-        assert bl.umgekehrt("naturcoach.at") == "at.naturcoach"
+        assert bl.umgekehrt("beispiel-coach.at") == "at.beispiel-coach"
 
 
 class TestGraph:
     def test_verlinkende_domains_mit_rang_ohne_selbstlink(self):
         e = bl.aus_graph_lesen(
-            "g", ["tentacl.ai", "naturcoach.at", "neu.de"], falscher_strom
+            "g", ["tentacl.ai", "beispiel-coach.at", "neu.de"], falscher_strom
         )
         assert e["tentacl.ai"] == {
             "blog.de": 5000,
             "portal.com": 120,
-            "naturcoach.at": 99,
+            "beispiel-coach.at": 99,
         }
-        assert e["naturcoach.at"] == {
+        assert e["beispiel-coach.at"] == {
             "spam.de": None
         }  # ohne Rang = unbedeutend/unbekannt
         assert e["neu.de"] is None  # nicht im Graphen, nicht "0 Links"
@@ -101,9 +101,9 @@ class TestGraph:
             and a["domains"] == 3
             and a["davor"] == 2
         )
-        assert a["neu"] == ["naturcoach.at", "portal.com"] and a["weg"] == ["alt.de"]
+        assert a["neu"] == ["beispiel-coach.at", "portal.com"] and a["weg"] == ["alt.de"]
         assert [w["domain"] for w in a["wichtigste"]] == [
-            "naturcoach.at",
+            "beispiel-coach.at",
             "portal.com",
             "blog.de",
         ]
