@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.18.0] - 2026-10-01
+
+"Lernschleife" - der Autopilot haelt sich selbst auf dem Stand. Einmal die Woche werden die
+Neuerungen aus dem Marktbeobachter bewertet und konkrete Anpassungen am Werkzeug
+vorgeschlagen; umgesetzt wird erst nach einem Go.
+
+### Added - Woechentliche Lernschleife (`lernschleife.py`)
+- Kandidaten: Meldungen des Marktbeobachters der letzten 7 Tage. Das Richtlinien-Radar
+  (`policy_radar.py`) ordnet jede Meldung den betroffenen Pruefbereichen zu; bereits
+  bewertete Meldungen (Tabelle `lernschleife_gesehen`) kommen nicht erneut dran.
+- Bewertung: EIN KI-Aufruf ohne Werkzeuge ueber `abo_ki`. Er sieht je Pruefbereich, was das
+  Werkzeug heute prueft (Modul-Beschreibungen), und nennt hoechstens drei Anpassungen.
+  Vorschlaege mit nicht gelisteter Quelle, unbekanntem Bereich oder leeren Feldern fliegen raus.
+- Entscheidung: je Vorschlag ein Knopf (Ja / Spaeter / Nein) ueber `entscheidungen.py` und
+  eine Mail an den Empfaenger aus `projects.yaml` (`lernschleife.empfaenger`).
+- Nachhalten: der naechste Lauf uebernimmt die Klicks; ein Go bleibt als "Umsetzung offen"
+  stehen, bis `seo-autopilot lernschleife --erledigt <id>` es abhakt.
+- Dieser Lauf aendert nie Code. `--trocken` bewertet nur und merkt, legt und schickt nichts.
+- Waechter: `health._pruefe_lernschleife` meldet einen ausgebliebenen Wochenlauf, eine
+  fehlgeschlagene Bewertung und ein Go, das laenger als 7 Tage liegt.
+
+### Added - Zielsignale (`zielsignale.py`)
+- Belastbare Zielzahlen aus Berichtsschnappschuessen (z. B. gespeicherte Bewerbungen) fliessen
+  in die Chancen-Priorisierung ein, ohne einen Euro-Wert zu erfinden.
+
+### Changed - Schlanke KI-Aufrufe
+- `abo_ki`: feste Modell-IDs, Aufruf ohne Plugins, MCP und Nutzer-Einstellungen, kurzer
+  Systemprompt (Grundlast je Aufruf von ~8-19k auf <1k Tokens). Identische Inhalts-Anfragen
+  liefern die gemerkte Antwort.
+
+### Fixed
+- `link_check`: Kauf- und Affiliate-Links (rel=sponsored, /go/ u. a.) werden nie aufgerufen;
+  jeder Pruefaufruf zaehlte sonst als Klick.
+- Anfrage-Adressen mit Schluessel-Parametern landen nicht mehr im Log (httpx auf WARNING).
+
 ## [1.17.0] - 2026-09-30
 
 "Von GitHub gelernt" - Vergleich mit den zwei meistbesternten SEO-Werkzeugen auf GitHub
