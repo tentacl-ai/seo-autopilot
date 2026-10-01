@@ -104,6 +104,47 @@ class TestRangfolge:
         assert chancen[0].url == "https://x.de/factoring"
         assert chancen[0].nach_umsatz
 
+    def test_serverseitige_zielerreichung_fliest_in_rangfolge_ein(self):
+        chancen = bewerte_chancen(
+            [
+                _befund(url="https://x.de/retreats", besucher=100),
+                _befund(url="https://x.de/blog", besucher=100),
+            ],
+            projekt="p",
+            seitenwerte={
+                "https://x.de/retreats": {
+                    "besucher": 100,
+                    "anfragen": 1,
+                    "ziel_name": "Bewerbung",
+                    "datenbasis": "GA4-Nutzer mit Einwilligung",
+                },
+                "https://x.de/blog": {
+                    "besucher": 100,
+                    "datenbasis": "GA4-Nutzer mit Einwilligung",
+                },
+            },
+        )
+
+        assert chancen[0].url == "https://x.de/retreats"
+        assert chancen[0].zielerreichungen == 1
+        assert "Bewerbung als Zielsignal" in chancen[0].begruendung
+
+    def test_ga4_interaktion_ist_ein_qualitaetssignal(self):
+        chancen = bewerte_chancen(
+            [
+                _befund(url="https://x.de/stark", besucher=100),
+                _befund(url="https://x.de/schwach", besucher=100),
+            ],
+            projekt="p",
+            seitenwerte={
+                "https://x.de/stark": {"besucher": 100, "interaktionsrate": 80.0},
+                "https://x.de/schwach": {"besucher": 100, "interaktionsrate": 20.0},
+            },
+        )
+
+        assert chancen[0].url == "https://x.de/stark"
+        assert "80.0 % Interaktion" in chancen[0].begruendung
+
 
 class TestErfahrungswerte:
     @pytest.fixture

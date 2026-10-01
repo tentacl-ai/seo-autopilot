@@ -70,7 +70,7 @@ KENNZAHLEN = [
 ]
 
 # Wie viele Seiten wir maximal aus dem Seiten-Report holen.
-SEITEN_LIMIT = 25
+SEITEN_LIMIT = 100
 
 # Kanalgruppen, die als "organische Suche" zählen (GA4 antwortet je nach
 # Spracheinstellung der Property englisch oder deutsch).
@@ -160,16 +160,25 @@ def baue_analytics(
     kanal_zeilen: List[Dict[str, Any]],
     start_date: str,
     end_date: str,
+    gesamt_zeilen: Optional[List[Dict[str, Any]]] = None,
 ) -> GA4Analytics:
-    """Setzt die beiden Teil-Reports zu einer Auswertung zusammen.
+    """Setzt Gesamt-, Seiten- und Kanalreport zu einer Auswertung zusammen.
 
-    Die Summen berechnen wir selbst aus den Zeilen, statt einen dritten
-    Report abzufragen — das spart eine API-Runde und liefert dieselbe Zahl.
-    Absprung- und Interaktionsrate werden nach Sitzungen gewichtet, sonst
-    würde eine Seite mit drei Besuchern genauso schwer wiegen wie die
-    Startseite.
+    Nutzer und Sitzungen sind nicht additiv über Seiten: Ein Mensch, der drei
+    Seiten besucht, darf in der Gesamtsumme nicht dreimal auftauchen. Deshalb
+    kommen die Gesamtsummen aus einem eigenen Report ohne Dimension. Nur wenn
+    ältere Aufrufer diesen Report nicht liefern, verwenden wir einen
+    defensiven Ersatz aus den Kanal- bzw. Seitenzeilen.
     """
     ergebnis = GA4Analytics(start_date=start_date, end_date=end_date)
+
+    gesamt = (gesamt_zeilen or [{}])[0] if gesamt_zeilen else None
+    if gesamt is not None:
+        ergebnis.total_users = int(_zahl(gesamt.get("activeUsers")))
+        ergebnis.total_sessions = int(_zahl(gesamt.get("sessions")))
+        ergebnis.total_pageviews = int(_zahl(gesamt.get("screenPageViews")))
+        ergebnis.bounce_rate = _prozent(gesamt.get("bounceRate"))
+        ergebnis.engagement_rate = _prozent(gesamt.get("engagementRate"))
 
     seiten: List[Dict[str, Any]] = []
     gewicht_absprung = 0.0
@@ -182,10 +191,6 @@ def baue_analytics(
         aufrufe = int(_zahl(zeile.get("screenPageViews")))
         absprung = _prozent(zeile.get("bounceRate"))
         interaktion = _prozent(zeile.get("engagementRate"))
-
-        ergebnis.total_users += nutzer
-        ergebnis.total_sessions += sitzungen
-        ergebnis.total_pageviews += aufrufe
 
         gewicht_absprung += absprung * sitzungen
         gewicht_interaktion += interaktion * sitzungen
@@ -206,9 +211,15 @@ def baue_analytics(
         seiten, key=lambda s: s["pageviews"], reverse=True
     )  # meistgesehene Seite zuerst
 
-    if gewicht_summe > 0:
+    if gesamt is None and gewicht_summe > 0:
         ergebnis.bounce_rate = round(gewicht_absprung / gewicht_summe, 2)
         ergebnis.engagement_rate = round(gewicht_interaktion / gewicht_summe, 2)
+
+    # Seitenaufrufe sind additiv. Sie bleiben auch ohne Gesamt-Report korrekt,
+    # solange die Seitenabfrage nicht auf weniger Zeilen als vorhanden gekappt
+    # ist. Nutzer und Sitzungen nehmen wir dagegen bevorzugt aus Kanälen.
+    if gesamt is None:
+        ergebnis.total_pageviews = sum(s["pageviews"] for s in seiten)
 
     kanaele: Dict[str, Dict[str, Any]] = {}
     kanal_sitzungen_gesamt = 0
@@ -231,10 +242,14 @@ def baue_analytics(
     if bezug > 0:
         ergebnis.organic_share = round((ergebnis.organic_sessions / bezug) * 100, 2)
 
-    # Ohne Seiten-Report (z. B. nur Kanäle vorhanden) trotzdem Summen füllen.
-    if not seiten_zeilen and kanal_sitzungen_gesamt:
+    # Kompatibler Ersatz für ältere Aufrufer ohne dimensionslosen Gesamtbericht.
+    # Kanal-Sitzungen sind additiv, Seitensitzungen sind es nicht.
+    if gesamt is None and kanal_sitzungen_gesamt:
         ergebnis.total_sessions = kanal_sitzungen_gesamt
         ergebnis.total_users = sum(k["users"] for k in kanaele.values())
+    elif gesamt is None:
+        ergebnis.total_sessions = sum(s["sessions"] for s in seiten)
+        ergebnis.total_users = sum(s["users"] for s in seiten)
 
     return ergebnis
 
@@ -357,6 +372,13 @@ class GA4DataSource(DataSource):
             return None
 
         try:
+            gesamt_antwort = self._run_report(
+                dimensions=[],
+                metrics=KENNZAHLEN,
+                start_date=start_date,
+                end_date=end_date,
+                limit=1,
+            )
             seiten_antwort = self._run_report(
                 dimensions=["pagePath"],
                 metrics=KENNZAHLEN,
@@ -380,6 +402,7 @@ class GA4DataSource(DataSource):
             zeilen_zu_dicts(kanal_antwort),
             start_date=start_date,
             end_date=end_date,
+            gesamt_zeilen=zeilen_zu_dicts(gesamt_antwort),
         )
 
     def _run_report(

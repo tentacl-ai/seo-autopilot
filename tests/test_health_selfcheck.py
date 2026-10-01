@@ -7,6 +7,7 @@ Beweis für irgendetwas.
 
 import sqlite3
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -235,3 +236,39 @@ def test_fehlender_zeitplan_wird_gemeldet(umgebung):
     report = _pruefe(umgebung, crontab="0 7 * * * --project-id anderes\n")
     assert report.exit_code == 1
     assert any("Kein Zeitplan" in b.titel for b in report.warnungen)
+
+
+class TestExternerBericht:
+    def _projekt(self):
+        return {
+            "beispielprojekt": {
+                "bericht": {
+                    "extern_aktiv": True,
+                    "extern_timer": "beispiel-bericht.timer",
+                }
+            }
+        }
+
+    def test_aktiver_timer_ist_still(self, monkeypatch):
+        monkeypatch.setattr(
+            health.subprocess,
+            "run",
+            lambda *a, **k: SimpleNamespace(returncode=0),
+        )
+        report = health.HealthReport()
+
+        health._pruefe_externe_berichte(self._projekt(), report)
+
+        assert report.befunde == []
+
+    def test_inaktiver_timer_wird_gemeldet(self, monkeypatch):
+        def lauf(befehl, **kwargs):
+            return SimpleNamespace(returncode=0 if "is-enabled" in befehl else 3)
+
+        monkeypatch.setattr(health.subprocess, "run", lauf)
+        report = health.HealthReport()
+
+        health._pruefe_externe_berichte(self._projekt(), report)
+
+        assert len(report.warnungen) == 1
+        assert "läuft nicht" in report.warnungen[0].titel

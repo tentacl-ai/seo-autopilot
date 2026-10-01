@@ -22,6 +22,9 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+# httpx loggt jede Anfrage-URL auf INFO — bei Gemini steht dort ?key=…
+# im Klartext. Schluessel in Adressen duerfen nie im Log landen.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
@@ -655,7 +658,7 @@ async def _seiten_kennzahlen(pid, cfg, tage):
         return []
     if not daten:
         return []
-    return [
+    seiten = [
         {
             "url": eintrag.get("page") or eintrag.get("url") or "",
             "besucher": int(eintrag.get("users") or eintrag.get("sessions") or 0),
@@ -663,6 +666,18 @@ async def _seiten_kennzahlen(pid, cfg, tage):
         }
         for eintrag in (daten.top_pages or [])
     ]
+    from ..zielsignale import lade_zielsignale
+
+    ziel = lade_zielsignale(cfg, tage=tage)
+    if ziel:
+        zielpfad = str(ziel.get("zielseite") or "").rstrip("/") or "/"
+        for eintrag in seiten:
+            pfad = str(eintrag["url"]).split("?", 1)[0].split("#", 1)[0]
+            if not pfad.startswith("/") and "://" in pfad:
+                pfad = "/" + pfad.split("://", 1)[1].split("/", 1)[-1]
+            if (pfad.rstrip("/") or "/") == zielpfad:
+                eintrag["anfragen"] = int(ziel.get("gesamt") or 0)
+    return seiten
 
 
 @cli.command()
@@ -734,65 +749,122 @@ def chancen(db, projects, projekt, anzahl):
 
 
 def _sichtbarkeit_je_seite(cfg, pid, tage=28):
-    """Klicks und Durchschnittsposition je Adresse aus der Search Console.
+    """Vereinigt Suchnachfrage, Nutzung und Zielerreichung je Adresse.
 
-    Liefert `{url: {"besucher": int, "position": float}}`. Ohne Search Console
-    kommt ein leeres Verzeichnis zurueck — der Chancen-Motor faellt dann
-    sichtbar auf reine Aufwandssortierung zurueck, statt eine Sichtbarkeit zu
-    erfinden, die niemand gemessen hat.
+    GSC liefert Position/Klicks/Einblendungen, GA4 die tatsaechliche Nutzung
+    nach Einwilligung und ein externer Ziel-Snapshot serverseitig bestaetigte
+    Anfragen. Fehlt GA4, dienen GSC-Einblendungen sichtbar als Ersatzmaßstab.
     """
     import asyncio
     from datetime import date, timedelta
+    from urllib.parse import urlsplit, urlunsplit
 
     quellen = cfg.get("enabled_sources") or []
-    if "gsc" not in quellen:
-        return {}
-    konfig = (cfg.get("source_config") or {}).get("gsc") or {}
-    property_url = konfig.get("property_url")
-    credentials = konfig.get("credentials_path")
-    if not property_url or not credentials:
-        return {}
+
+    domain = str(cfg.get("domain") or "").rstrip("/")
+
+    def _url(wert):
+        roh = str(wert or "/")
+        if "://" not in roh:
+            roh = domain + (roh if roh.startswith("/") else "/" + roh)
+        teile = urlsplit(roh)
+        basis = urlsplit(domain)
+        netloc = teile.netloc
+        if netloc.lower().removeprefix("www.") == basis.netloc.lower().removeprefix(
+            "www."
+        ):
+            netloc = basis.netloc
+        pfad = teile.path.rstrip("/") or "/"
+        return urlunsplit((basis.scheme or teile.scheme, netloc, pfad, "", ""))
 
     async def _hole():
-        from ..sources.gsc import GSCDataSource
+        werte = {}
+        source_config = cfg.get("source_config") or {}
 
-        quelle = GSCDataSource(str(credentials))
-        if not await quelle.authenticate():
-            return {}
-        # Die Search Console hinkt ein paar Tage hinterher.
-        ende = date.today() - timedelta(days=3)
-        start = ende - timedelta(days=tage)
-        antwort = (
-            quelle.service.searchanalytics()
-            .query(
-                siteUrl=str(property_url),
-                body={
-                    "startDate": start.isoformat(),
-                    "endDate": ende.isoformat(),
-                    "dimensions": ["page"],
-                    "rowLimit": 500,
-                },
+        gsc = source_config.get("gsc") or {}
+        if "gsc" in quellen and gsc.get("property_url") and gsc.get("credentials_path"):
+            from ..sources.gsc import GSCDataSource
+
+            quelle = GSCDataSource(str(gsc["credentials_path"]))
+            if await quelle.authenticate():
+                # Die Search Console hinkt ein paar Tage hinterher.
+                ende = date.today() - timedelta(days=3)
+                start = ende - timedelta(days=tage)
+                antwort = (
+                    quelle.service.searchanalytics()
+                    .query(
+                        siteUrl=str(gsc["property_url"]),
+                        body={
+                            "startDate": start.isoformat(),
+                            "endDate": ende.isoformat(),
+                            "dimensions": ["page"],
+                            "rowLimit": 500,
+                        },
+                    )
+                    .execute()
+                )
+                for r in antwort.get("rows", []):
+                    eintrag = werte.setdefault(_url(r["keys"][0]), {})
+                    eintrag.update(
+                        {
+                            "einblendungen": int(r.get("impressions", 0)),
+                            "position": round(float(r.get("position", 0.0)), 2),
+                            "klicks": int(r.get("clicks", 0)),
+                        }
+                    )
+
+        ga4 = source_config.get("ga4") or {}
+        if "ga4" in quellen and ga4.get("property_id") and ga4.get("credentials_path"):
+            from ..sources.ga4 import GA4DataSource
+
+            quelle = GA4DataSource(
+                str(ga4["credentials_path"]), str(ga4["property_id"])
             )
-            .execute()
-        )
-        return {
-            # Einblendungen statt Klicks als Sichtbarkeitsmassstab: Klicks
-            # sind bei kleinen Websites zweistellig und damit zu grob, um
-            # Seiten zu unterscheiden. Einblendungen messen ausserdem die
-            # Nachfrage, nicht nur den bisherigen Erfolg.
-            r["keys"][0]: {
-                "besucher": int(r.get("impressions", 0)),
-                "position": round(float(r.get("position", 0.0)), 2),
-                "klicks": int(r.get("clicks", 0)),
-            }
-            for r in antwort.get("rows", [])
-        }
+            daten = await quelle.pull_analytics(domain, days=tage)
+            if daten:
+                for seite in daten.top_pages or []:
+                    eintrag = werte.setdefault(_url(seite.get("page")), {})
+                    eintrag.update(
+                        {
+                            "besucher": int(seite.get("users") or 0),
+                            "sitzungen": int(seite.get("sessions") or 0),
+                            "aufrufe": int(seite.get("pageviews") or 0),
+                            "interaktionsrate": float(
+                                seite.get("engagement_rate") or 0
+                            ),
+                            "absprungrate": float(seite.get("bounce_rate") or 0),
+                            "datenbasis": "GA4-Nutzer mit Einwilligung",
+                        }
+                    )
+
+        # Wenn GA4 fuer eine Seite keine Daten liefert, bleibt die gemessene
+        # Suchnachfrage als ausdruecklich gekennzeichneter Ersatz bestehen.
+        for eintrag in werte.values():
+            if "besucher" not in eintrag:
+                eintrag["besucher"] = int(eintrag.get("einblendungen") or 0)
+                eintrag["datenbasis"] = "GSC-Einblendungen"
+        return werte
 
     try:
-        return asyncio.run(_hole())
+        werte = asyncio.run(_hole())
     except Exception as exc:
         logger.warning(f"[chancen] {pid}: Sichtbarkeit nicht abrufbar: {exc}")
-        return {}
+        werte = {}
+
+    try:
+        from ..zielsignale import lade_zielsignale
+
+        ziel = lade_zielsignale(cfg, tage=tage)
+        if ziel:
+            eintrag = werte.setdefault(_url(ziel.get("zielseite")), {})
+            eintrag["anfragen"] = int(ziel.get("gesamt") or 0)
+            eintrag["ziel_name"] = ziel.get("ziel_name") or "Ziel"
+            eintrag["zielkanaele"] = ziel.get("nach_kanal") or {}
+            eintrag.setdefault("besucher", 0)
+            eintrag.setdefault("datenbasis", "serverseitiges Zielsignal")
+    except Exception as exc:
+        logger.warning(f"[chancen] {pid}: Zielsignale nicht abrufbar: {exc}")
+    return werte
 
 
 def _letzte_befunde(con, project_id):

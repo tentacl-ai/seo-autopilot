@@ -1521,6 +1521,15 @@ def schritt_bericht(cfg: Dict[str, Any], klein: bool) -> Schritt:
     b = cfg.get("bericht") or {}
     if b.get("aktiv") and b.get("empfaenger"):
         return Schritt("B", "Wochenbericht", OK, f"aktiv an {b['empfaenger']}")
+    if b.get("extern_aktiv") and b.get("extern_timer"):
+        empfaenger = ", ".join(b.get("extern_empfaenger") or [])
+        zusatz = f" an {empfaenger}" if empfaenger else ""
+        return Schritt(
+            "B",
+            "Wochenbericht",
+            OK,
+            f"extern über {b['extern_timer']}{zusatz}",
+        )
     if klein:
         return Schritt("B", "Wochenbericht", INFO, "bewusst aus (paket: klein)")
     return Schritt(

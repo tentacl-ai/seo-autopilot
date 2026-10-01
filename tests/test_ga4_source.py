@@ -49,6 +49,12 @@ SEITEN_ANTWORT = _antwort(
     ],
 )
 
+GESAMT_ANTWORT = _antwort(
+    [],
+    ["activeUsers", "sessions", "screenPageViews", "bounceRate", "engagementRate"],
+    [([], [140, 180, 360, 0.47, 0.53])],
+)
+
 KANAL_ANTWORT = _antwort(
     ["sessionDefaultChannelGroup"],
     ["activeUsers", "sessions"],
@@ -62,7 +68,7 @@ LEERE_ANTWORT = _antwort(["pagePath"], ["sessions"], [])
 
 
 class _FakeClient:
-    """Ersetzt BetaAnalyticsDataClient: liefert Seiten- dann Kanal-Report."""
+    """Ersetzt BetaAnalyticsDataClient und liefert Reports der Reihe nach."""
 
     def __init__(self, antworten):
         self._antworten = list(antworten)
@@ -196,16 +202,17 @@ class TestUebersetzung:
     async def test_gemockte_antwort_wird_korrekt_uebersetzt(
         self, tmp_path, monkeypatch
     ):
-        quelle = _quelle(tmp_path, monkeypatch, [SEITEN_ANTWORT, KANAL_ANTWORT])
+        quelle = _quelle(
+            tmp_path, monkeypatch, [GESAMT_ANTWORT, SEITEN_ANTWORT, KANAL_ANTWORT]
+        )
         daten = await quelle.fetch("2026-08-01", "2026-08-17")
 
         assert isinstance(daten, GA4Analytics)
-        assert daten.total_users == 160
-        assert daten.total_sessions == 200
+        assert daten.total_users == 140
+        assert daten.total_sessions == 180
         assert daten.total_pageviews == 360
-        # Absprungrate nach Sitzungen gewichtet: (42*150 + 80*50) / 200
-        assert daten.bounce_rate == 51.5
-        assert daten.engagement_rate == 48.5
+        assert daten.bounce_rate == 47.0
+        assert daten.engagement_rate == 53.0
         # Top-Seite ist die mit den meisten Aufrufen
         assert daten.top_pages[0]["page"] == "/"
         assert daten.top_pages[1]["bounce_rate"] == 80.0
@@ -213,7 +220,9 @@ class TestUebersetzung:
 
     @pytest.mark.asyncio
     async def test_kanaele_und_organischer_anteil(self, tmp_path, monkeypatch):
-        quelle = _quelle(tmp_path, monkeypatch, [SEITEN_ANTWORT, KANAL_ANTWORT])
+        quelle = _quelle(
+            tmp_path, monkeypatch, [GESAMT_ANTWORT, SEITEN_ANTWORT, KANAL_ANTWORT]
+        )
         daten = await quelle.fetch()
 
         assert daten.by_channel["Organic Search"]["sessions"] == 120
@@ -234,6 +243,33 @@ class TestUebersetzung:
 
         assert daten.organic_sessions == 30
         assert daten.organic_share == 75.0
+
+    def test_gesamtbericht_verhindert_mehrfachzaehlung_ueber_seiten(self):
+        daten = baue_analytics(
+            seiten_zeilen=[
+                {"pagePath": "/", "activeUsers": 40, "sessions": 50, "screenPageViews": 70},
+                {"pagePath": "/kontakt", "activeUsers": 20, "sessions": 25, "screenPageViews": 30},
+            ],
+            kanal_zeilen=[
+                {"sessionDefaultChannelGroup": "Direct", "activeUsers": 35, "sessions": 45},
+                {"sessionDefaultChannelGroup": "Organic Search", "activeUsers": 15, "sessions": 20},
+            ],
+            start_date="2026-09-14",
+            end_date="2026-09-20",
+            gesamt_zeilen=[{
+                "activeUsers": 40,
+                "sessions": 65,
+                "screenPageViews": 100,
+                "bounceRate": 0.48649,
+                "engagementRate": 0.51351,
+            }],
+        )
+
+        assert daten.total_users == 40
+        assert daten.total_sessions == 65
+        assert daten.total_pageviews == 100
+        assert daten.bounce_rate == 48.65
+        assert daten.engagement_rate == 51.35
 
     def test_kaputte_werte_kippen_die_auswertung_nicht(self):
         daten = baue_analytics(
@@ -258,7 +294,9 @@ class TestUebersetzung:
 class TestLeerUndFehler:
     @pytest.mark.asyncio
     async def test_leere_antwort_ergibt_leeres_ergebnis(self, tmp_path, monkeypatch):
-        quelle = _quelle(tmp_path, monkeypatch, [LEERE_ANTWORT, LEERE_ANTWORT])
+        quelle = _quelle(
+            tmp_path, monkeypatch, [LEERE_ANTWORT, LEERE_ANTWORT, LEERE_ANTWORT]
+        )
         daten = await quelle.fetch()
 
         assert isinstance(daten, GA4Analytics)
@@ -324,13 +362,15 @@ class TestQuellenRegistrierung:
 
     @pytest.mark.asyncio
     async def test_pull_analytics_nutzt_zeitraum_in_tagen(self, tmp_path, monkeypatch):
-        quelle = _quelle(tmp_path, monkeypatch, [SEITEN_ANTWORT, KANAL_ANTWORT])
+        quelle = _quelle(
+            tmp_path, monkeypatch, [GESAMT_ANTWORT, SEITEN_ANTWORT, KANAL_ANTWORT]
+        )
         daten = await quelle.pull_analytics("https://example.com", days=7)
 
         assert daten is not None
-        # Zwei Reports: Seiten + Kanäle
-        assert len(quelle.client.aufrufe) == 2
-        assert daten.total_sessions == 200
+        # Drei Reports: echte Gesamtsumme + Seiten + Kanäle
+        assert len(quelle.client.aufrufe) == 3
+        assert daten.total_sessions == 180
 
 
 # ---------------------------------------------------------------------------

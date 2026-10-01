@@ -798,6 +798,17 @@ class TestWaechterPaket:
     def test_volles_paket_ist_still(self):
         assert self._pruefe({"voll": self.VOLL}).befunde == []
 
+    def test_externer_wochenbericht_gilt_als_eingerichtet(self):
+        cfg = dict(
+            self.VOLL,
+            bericht={
+                "aktiv": False,
+                "extern_aktiv": True,
+                "extern_timer": "kunde-bericht.timer",
+            },
+        )
+        assert self._pruefe({"extern": cfg}).befunde == []
+
     def test_paket_klein_ist_ausgenommen(self):
         assert (
             self._pruefe({"k": {"paket": "klein", "enabled_sources": []}}).befunde == []

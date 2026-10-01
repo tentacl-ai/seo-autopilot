@@ -77,6 +77,13 @@ AUFWAND_UNBEKANNT = AUFWAND_MITTEL
 # Sicherheit ohne Erfahrungswerte. Bewusst in der Mitte: Wir wissen es nicht.
 SICHERHEIT_NEUTRAL = 0.5
 
+# Ein serverseitig bestaetigtes Ziel ist ein starkes, aber noch nicht
+# monetarisiertes Signal. Jede Zielerreichung erhoeht die Rangfolge um 50 %,
+# maximal drei werden beruecksichtigt. Das ist bewusst eine Priorisierung und
+# keine Umsatzprognose.
+ZIELSIGNAL_BONUS = 0.5
+ZIELSIGNAL_MAX = 3
+
 # Ab so vielen belastbaren Messungen wird die eigene Trefferquote verwendet.
 MIN_MESSUNGEN_FUER_ERFAHRUNG = 3
 
@@ -136,6 +143,9 @@ class Chance:
     sicherheit_belegt: bool = False
     aufwand: float = AUFWAND_UNBEKANNT
     nach_umsatz: bool = False
+    zielerreichungen: int = 0
+    interaktionsrate: Optional[float] = None
+    datenbasis: str = ""
     begruendung: str = ""
 
     @property
@@ -188,11 +198,19 @@ def sicherheit_je_typ(
     return werte
 
 
-def _wert_und_besucher(
+def _seitensignale(
     url: str, seitenwerte: Dict[str, Any]
-) -> tuple[Optional[float], int]:
+) -> tuple[Optional[float], int, int, Optional[float], str, str]:
     eintrag = seitenwerte.get(url) or seitenwerte.get(url.rstrip("/")) or {}
-    return eintrag.get("wert"), int(eintrag.get("besucher") or 0)
+    interaktion = eintrag.get("interaktionsrate")
+    return (
+        eintrag.get("wert"),
+        int(eintrag.get("besucher") or 0),
+        int(eintrag.get("anfragen") or 0),
+        float(interaktion) if interaktion is not None else None,
+        str(eintrag.get("datenbasis") or ""),
+        str(eintrag.get("ziel_name") or "Ziel"),
+    )
 
 
 def bewerte_chancen(
@@ -225,20 +243,35 @@ def bewerte_chancen(
         position = befund.get("position")
         position = float(position) if position not in (None, "") else None
 
-        wert, besucher = _wert_und_besucher(url, seitenwerte)
+        wert, besucher, anfragen, interaktion, datenbasis, ziel_name = _seitensignale(
+            url, seitenwerte
+        )
         if besucher == 0:
             besucher = int(befund.get("besucher") or 0)
 
         # Geschaeftswert wenn vorhanden, sonst Sichtbarkeit als Ersatzmassstab.
         nach_umsatz = wert is not None and wert > 0
         gewicht = wert if nach_umsatz else float(max(besucher, 1))
+        ziel_faktor = 1.0
+        interaktions_faktor = 1.0
+        if not nach_umsatz:
+            ziel_faktor += min(anfragen, ZIELSIGNAL_MAX) * ZIELSIGNAL_BONUS
+            if interaktion is not None:
+                # 0 % -> 0,75; 50 % -> 1,0; 100 % -> 1,25.
+                interaktions_faktor = 0.75 + min(100.0, max(0.0, interaktion)) / 200
 
         aktion = aktion_je_typ.get(typ, "sonstiges")
         quote = erfahrung.get(aktion)
         sicherheit = quote if quote is not None else SICHERHEIT_NEUTRAL
 
         aufwand = AUFWAND_JE_TYP.get(typ, AUFWAND_UNBEKANNT)
-        punkte = (gewicht * potenzial(position) * sicherheit) / aufwand
+        punkte = (
+            gewicht
+            * potenzial(position)
+            * sicherheit
+            * ziel_faktor
+            * interaktions_faktor
+        ) / aufwand
 
         # Ohne hinterlegten Geschäftswert würde eine gut rankende Pflichtseite
         # die Liste anführen — beim ersten Live-Lauf belegte das Impressum
@@ -248,7 +281,21 @@ def bewerte_chancen(
         if pflichtseite:
             punkte *= PFLICHTSEITEN_DAEMPFER
 
-        massstab = "Umsatz" if nach_umsatz else f"{besucher} Einblendungen"
+        if nach_umsatz:
+            massstab = "Umsatz"
+        elif datenbasis == "GSC-Einblendungen":
+            massstab = f"{besucher} GSC-Einblendungen"
+        elif datenbasis:
+            massstab = f"{besucher} {datenbasis}"
+        else:
+            massstab = f"{besucher} Besucher"
+        if anfragen:
+            massstab += (
+                f", {anfragen}× {ziel_name} als Zielsignal"
+                f" (Faktor {ziel_faktor:.1f})"
+            )
+        if interaktion is not None:
+            massstab += f", {interaktion:.1f} % Interaktion"
         if pflichtseite:
             massstab += ", Pflichtseite ohne Verkaufsfunktion"
         beleg = (
@@ -270,6 +317,9 @@ def bewerte_chancen(
                 sicherheit_belegt=quote is not None,
                 aufwand=aufwand,
                 nach_umsatz=nach_umsatz,
+                zielerreichungen=anfragen,
+                interaktionsrate=interaktion,
+                datenbasis=datenbasis,
                 begruendung=f"Maßstab: {massstab} · {beleg}",
             )
         )
@@ -291,8 +341,9 @@ def als_text(chancen: List[Chance], anzahl: int = 10) -> str:
 
     if len(ohne_umsatz) == len(chancen):
         zeilen.append(
-            "⚠ Gewichtet nach Besucherzahlen, NICHT nach Umsatz — für keine\n"
-            "  Seite ist ein Geschäftswert hinterlegt. Die Reihenfolge kann\n"
+            "⚠ Gewichtet nach Reichweite, Interaktion und Zielsignalen,\n"
+            "  NICHT nach Umsatz — für keine Seite ist ein Geschäftswert hinterlegt.\n"
+            "  Die Reihenfolge kann\n"
             "  sich deutlich ändern, sobald die Zahlen vorliegen."
         )
     if len(ohne_erfahrung) == len(chancen):

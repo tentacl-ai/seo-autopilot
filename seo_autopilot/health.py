@@ -229,6 +229,7 @@ def run_selfcheck(
         _pruefe_historie(con, aktive, crontab, jetzt, report)
         _pruefe_freigaben(con, projekte, jetzt, report)
         _pruefe_paket(aktive, report)
+        _pruefe_externe_berichte(aktive, report)
     finally:
         con.close()
     if UMGEBUNG_PRUEFEN:
@@ -322,7 +323,10 @@ def _pruefe_paket(projekte: Dict[str, Dict[str, Any]], report: HealthReport) -> 
             fehlt.append("Search Console")
         if "ga4" not in quellen or not (quell_cfg.get("ga4") or {}).get("property_id"):
             fehlt.append("Google Analytics 4")
-        if not (cfg.get("bericht") or {}).get("aktiv"):
+        bericht = cfg.get("bericht") or {}
+        standard = bericht.get("aktiv") and bericht.get("empfaenger")
+        extern = bericht.get("extern_aktiv") and bericht.get("extern_timer")
+        if not standard and not extern:
             fehlt.append("Wochenbericht")
         if fehlt:
             report.befunde.append(
@@ -336,6 +340,62 @@ def _pruefe_paket(projekte: Dict[str, Dict[str, Any]], report: HealthReport) -> 
                     f"seo-autopilot einrichten --projekt {name} (zeigt, was fehlt, "
                     "und wer es freigeben muss). Bewusst klein? `paket: klein` "
                     "in projects.yaml eintragen.",
+                )
+            )
+
+
+def _pruefe_externe_berichte(
+    projekte: Dict[str, Dict[str, Any]], report: HealthReport
+) -> None:
+    """Externe Berichtstimer nicht nur konfigurieren, sondern ueberwachen."""
+    for name, cfg in projekte.items():
+        bericht = (cfg or {}).get("bericht") or {}
+        if not bericht.get("extern_aktiv"):
+            continue
+        timer = str(bericht.get("extern_timer") or "").strip()
+        if not timer:
+            report.befunde.append(
+                Befund(
+                    "warnung",
+                    name,
+                    "Externer Wochenbericht ohne Timer",
+                    "extern_aktiv ist gesetzt, aber extern_timer fehlt.",
+                    "Systemd-Timer in bericht.extern_timer eintragen.",
+                )
+            )
+            continue
+        try:
+            aktiviert = (
+                subprocess.run(
+                    ["systemctl", "is-enabled", "--quiet", timer], timeout=10
+                ).returncode
+                == 0
+            )
+            aktiv = (
+                subprocess.run(
+                    ["systemctl", "is-active", "--quiet", timer], timeout=10
+                ).returncode
+                == 0
+            )
+        except Exception as exc:
+            report.befunde.append(
+                Befund(
+                    "warnung",
+                    name,
+                    "Externer Wochenbericht nicht prüfbar",
+                    f"{timer}: {exc}",
+                    "Timer auf dem Berichtsserver mit systemctl prüfen.",
+                )
+            )
+            continue
+        if not aktiviert or not aktiv:
+            report.befunde.append(
+                Befund(
+                    "warnung",
+                    name,
+                    "Externer Wochenbericht läuft nicht",
+                    f"{timer}: enabled={aktiviert}, active={aktiv}",
+                    f"systemctl enable --now {timer}",
                 )
             )
 
