@@ -41,3 +41,4 @@ seo_autopilot.db.bak-*
 run-cron.sh
 # Oeffentliche Google-Update-Liste (aus claude-seo, keine Zugangsdaten)
 !seo_autopilot/daten/google_updates.json
+.env.bak*
