@@ -230,6 +230,7 @@ def run_selfcheck(
         _pruefe_freigaben(con, projekte, jetzt, report)
         _pruefe_paket(aktive, report)
         _pruefe_externe_berichte(aktive, report)
+        _pruefe_lernschleife(crontab, jetzt, report)
     finally:
         con.close()
     if UMGEBUNG_PRUEFEN:
@@ -398,6 +399,51 @@ def _pruefe_externe_berichte(
                     f"systemctl enable --now {timer}",
                 )
             )
+
+
+def _pruefe_lernschleife(
+    crontab: str,
+    jetzt: datetime,
+    report: HealthReport,
+    stand_pfad: Optional[Path] = None,
+) -> None:
+    """Laeuft die woechentliche Lernschleife, und bleibt ein Go liegen?"""
+    if "lernschleife" not in crontab:
+        return  # nicht eingerichtet - dann gibt es nichts zu ueberwachen
+    from . import lernschleife as ls
+
+    stand = ls.stand_laden(stand_pfad or ls.STAND_DATEI)
+    zuletzt = _als_datum(stand.get("letzter_lauf"))
+    if not zuletzt or (jetzt - zuletzt).days > ls.LAUF_ALARM_TAGE:
+        report.befunde.append(
+            Befund(
+                "warnung",
+                "-",
+                "Lernschleife laeuft nicht",
+                f"Letzter Lauf: {stand.get('letzter_lauf') or 'nie'}.",
+                "logs/lernschleife.log und den Cron-Eintrag pruefen.",
+            )
+        )
+    elif stand.get("fehler"):
+        report.befunde.append(
+            Befund(
+                "warnung",
+                "-",
+                "Lernschleife konnte nicht bewerten",
+                "; ".join(stand["fehler"])[:300],
+                "Abo-Zugang (abo_ki) und logs/lernschleife.log pruefen.",
+            )
+        )
+    for v in ls.go_ueberfaellig(stand, heute=jetzt.date()):
+        report.befunde.append(
+            Befund(
+                "warnung",
+                "-",
+                f"Go fuer Anpassung liegt seit {v.get('entschieden_am')}: {v.get('titel')}",
+                "Freigegeben, aber noch nicht umgesetzt.",
+                f"Umsetzen, dann seo-autopilot lernschleife --erledigt {v.get('id')}",
+            )
+        )
 
 
 def _pruefe_freigaben(

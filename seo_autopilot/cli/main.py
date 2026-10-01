@@ -343,6 +343,33 @@ def marktradar(db, sammeln, ohne_ki, tage):
 @click.option("--db", default="seo_autopilot.db", help="Pfad zur Audit-Datenbank")
 @click.option("--projects", default="projects.yaml", help="Pfad zur Projektliste")
 @click.option(
+    "--senden/--trocken",
+    default=False,
+    help="Knoepfe anlegen und Mail schicken oder nur bewerten",
+)
+@click.option("--erledigt", default=None, help="Vorschlag-ID nach Umsetzung abhaken")
+def lernschleife(db, projects, senden, erledigt):
+    """Woechentlich: Neuerungen aus dem Marktbeobachter bewerten und Anpassungen
+    am Autopiloten vorschlagen (Go per Knopf). Aendert nie Code.
+    """
+    from .. import lernschleife as ls
+
+    if erledigt:
+        ok = ls.erledigt(erledigt)
+        click.echo(f"{erledigt}: {'abgehakt' if ok else 'nicht gefunden'}")
+        raise SystemExit(0 if ok else 1)
+    erg = ls.lauf(db, projects, senden=senden)
+    click.echo(erg.als_text())
+    for v in erg.neue_vorschlaege:
+        click.echo(f"\n[{v['id']}] {v['titel']} ({v['bereich']}, {v['aufwand']})")
+        click.echo(f"  {v['was_aendern']}\n  Quelle: {v['url']}")
+    raise SystemExit(1 if erg.fehler else 0)
+
+
+@cli.command()
+@click.option("--db", default="seo_autopilot.db", help="Pfad zur Audit-Datenbank")
+@click.option("--projects", default="projects.yaml", help="Pfad zur Projektliste")
+@click.option(
     "--projekt", default=None, help="Nur dieses Projekt (sonst alle mit bericht.aktiv)"
 )
 @click.option(

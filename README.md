@@ -8,7 +8,7 @@
 
 **Multi-tenant SEO automation that closes the loop:** crawl → find → fix → measure → report.
 
-> Version 1.17.0 · 1206 tests · 18 analysis dimensions · 136 documented issue types
+> Version 1.18.0 · 1223 tests · 18 analysis dimensions · 136 documented issue types
 
 Most SEO tools stop at a list of warnings. SEO Autopilot repairs what it finds,
 writes the change into the site's repository, and then uses Search Console to
@@ -44,6 +44,9 @@ prove — 7, 14, 28 and 56 days later — whether the change actually helped.
    approval queue, missing cron).
 10. **Watches the market** — daily radar over search/ads/AI-search sources, with
     every AI-reported item discarded unless its source URL actually resolves.
+11. **Keeps itself current** — a weekly learning loop turns market news into at
+    most three concrete changes to the tool and asks for a go before anyone
+    touches the code.
 
 Lightweight stack: httpx / BeautifulSoup / FastAPI / SQLAlchemy. SQLite by
 default, PostgreSQL supported.
@@ -377,6 +380,23 @@ URL, no item.** Every URL named is fetched; anything that does not answer below
 HTTP 400 is dropped, and homepages or redirect services do not count as a
 source. The source link always comes from the item, never from the AI's answer.
 
+### Learning loop (weekly)
+
+`seo-autopilot lernschleife --senden` turns the radar into maintenance work:
+
+1. Last week's market items that have not been assessed yet; the policy radar
+   maps each one to the check areas it affects.
+2. One AI call **without tools** sees the items plus what each check area does
+   today, and proposes at most three concrete changes. Proposals citing a URL
+   that is not in the list, or an unknown area, are dropped.
+3. Each proposal gets a decision button (yes / later / no) and is mailed to the
+   address in `projects.yaml` → `lernschleife.empfaenger`.
+4. The next run picks up the clicks. An approved proposal stays "go, not yet
+   done" until `lernschleife --erledigt <id>`; `selfcheck` warns after 7 days.
+
+The loop never edits code. Approved changes are implemented in a normal,
+supervised session with tests. `--trocken` assesses only and changes nothing.
+
 ---
 
 ## 16-month Search Console archive
@@ -446,6 +466,7 @@ venv/bin/python -m seo_autopilot.cli.main selfcheck
 | `weekly` | Short cross-project weekly summary |
 | `marktradar` | Market radar (`--sammeln`, `--ohne-ki`, `--tage`) |
 | `radar` | Policy radar: new Google/AI search guidelines and what they touch |
+| `lernschleife` | Weekly learning loop (`--senden`, `--trocken`, `--erledigt <id>`) |
 | `wettbewerb` | Competitor comparison with our own crawler, obeying their robots.txt |
 | `learnings` | Recurring false positives — if a type shows up across projects, the rule is broken |
 | `selfcheck` | Watchdog (`--notify`); exit 0/1/2 |

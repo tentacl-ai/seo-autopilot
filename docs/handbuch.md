@@ -100,6 +100,8 @@ Jeder Befehl kennt `--help`.
 | `empfehlungen --erzeugen --umsetzen` | Empfehlungen berechnen und abarbeiten |
 | `historie --importieren` | Fehlende Monate aus der Search Console nachholen |
 | `marktradar --sammeln` | Neuerungen im Markt einsammeln |
+| `lernschleife --senden` | Wöchentlich: Neuerungen bewerten, höchstens 3 Anpassungen am Werkzeug vorschlagen (Go per Knopf, ändert nie Code) |
+| `lernschleife --erledigt <id>` | Umgesetzten Vorschlag abhaken |
 | `selfcheck` | Selbstprüfung des Werkzeugs |
 
 ### Ansehen und entscheiden
@@ -443,6 +445,7 @@ Die Deckel:
 | Reparaturen (Titel, Beschreibung, Alt-Texte) | nur für Befunde, die im aktuellen Lauf bestehen |
 | Wochenbericht | KI-Sichtbarkeit und Markt-Impulse; mit `--ohne-ki` abschaltbar |
 | Marktbeobachter | zwei KI-Späher pro Lauf; mit `--ohne-ki` abschaltbar |
+| Lernschleife | **ein** KI-Aufruf pro Woche, ohne Werkzeuge |
 
 Zusätzlich verhindert ein Inhalts-Hash je Seite, dass Unverändertes neu
 berechnet wird. Dadurch rotiert der Lauf von selbst über die Seiten, statt
