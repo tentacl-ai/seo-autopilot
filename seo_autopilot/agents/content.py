@@ -12,9 +12,13 @@ templates when the API is unavailable. Produces ready-to-paste fixes:
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import json
+import os
+import time
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ..core.config import settings
@@ -133,6 +137,12 @@ class ContentAgent(Agent):
                 fixes.append(fix)
             result.metrics["fixes_verworfen"] = verworfen
             result.metrics["ki_aufrufe"] = ki_aufrufe
+            if isinstance(claude_client, _GemerkterClient):
+                gemerkt = claude_client.messages
+                result.metrics["ki_gemerkt"] = gemerkt.treffer
+                logger.info(
+                    f"[content] KI: {gemerkt.neu} neu, {gemerkt.treffer} aus dem Gedaechtnis"
+                )
 
             # Always produce a generic Organization schema snippet + security headers block
             fixes.append(_generic_organization_schema(name, domain))
@@ -361,7 +371,77 @@ def _get_claude_client():
     if not abo_ki.verfuegbar():
         logger.warning("[content] Abo-Zugang fehlt - Vorlagen statt KI")
         return None
-    return abo_ki.AboClient(zeitlimit=CLAUDE_TIMEOUT)
+    return _GemerkterClient(abo_ki.AboClient(zeitlimit=CLAUDE_TIMEOUT))
+
+
+# --- Gemerkte KI-Antworten (25.09.2026) ---------------------------------------
+# Ohne Auto-Fix bleiben dieselben Befunde taeglich offen, und die KI schrieb jeden
+# Tag dieselben Vorschlaege neu (ein Projekt: 31 Opus-Aufrufe am Tag). Identische
+# Anfrage (Modell, Systemprompt, Seitentext, Befund, Bild) -> gemerkte Antwort.
+# Aendert sich die Seite, aendert sich die Anfrage und die KI schreibt neu.
+KI_CACHE_DATEI = Path(
+    os.environ.get(
+        "SEO_KI_CACHE", "/var/lib/tentacl/seo-autopilot/ki_cache_content.json"
+    )
+)
+KI_CACHE_TAGE = 14  # danach wird auch bei unveraenderter Seite neu geschrieben
+
+
+class _GemerkteAntwort:
+    stop_reason = "end_turn"
+
+    def __init__(self, text: str):
+        block = type("Block", (), {"type": "text", "text": text})()
+        self.content = [block]
+
+
+def _cache_laden() -> Dict[str, Dict[str, Any]]:
+    try:
+        return json.loads(KI_CACHE_DATEI.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _cache_speichern(speicher: Dict[str, Dict[str, Any]]) -> None:
+    grenze = time.time() - KI_CACHE_TAGE * 86400
+    frisch = {k: v for k, v in speicher.items() if v.get("zeit", 0) >= grenze}
+    try:
+        KI_CACHE_DATEI.parent.mkdir(parents=True, exist_ok=True)
+        tmp = KI_CACHE_DATEI.with_suffix(".tmp")
+        tmp.write_text(json.dumps(frisch, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(KI_CACHE_DATEI)
+    except OSError as exc:
+        logger.warning(f"[content] KI-Cache nicht gespeichert: {exc}")
+
+
+class _GemerkteNachrichten:
+    def __init__(self, client):
+        self._client = client
+        self._speicher = _cache_laden()
+        self.treffer = 0
+        self.neu = 0
+
+    def create(self, **anfrage):
+        roh = json.dumps(anfrage, sort_keys=True, ensure_ascii=False, default=str)
+        schluessel = hashlib.sha256(roh.encode("utf-8")).hexdigest()
+        eintrag = self._speicher.get(schluessel)
+        if eintrag and time.time() - eintrag.get("zeit", 0) < KI_CACHE_TAGE * 86400:
+            self.treffer += 1
+            return _GemerkteAntwort(eintrag["text"])
+        antwort = self._client.messages.create(**anfrage)
+        self.neu += 1
+        text = _text_aus(antwort)
+        if text.strip():
+            self._speicher[schluessel] = {"text": text, "zeit": time.time()}
+            _cache_speichern(self._speicher)
+        return antwort
+
+
+class _GemerkterClient:
+    """Wie AboClient (client.messages.create), merkt sich aber Antworten."""
+
+    def __init__(self, client):
+        self.messages = _GemerkteNachrichten(client)
 
 
 async def _claude_fix(

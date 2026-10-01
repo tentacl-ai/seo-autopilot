@@ -50,13 +50,31 @@ def verfuegbar() -> bool:
     return bool(token()) and Path(CLAUDE_CLI).exists()
 
 
+# Feste Modelle statt CLI-Kurznamen: "opus" hiesse in der CLI Opus 5 - Opus 5.5
+# ist neuer und zieht weniger vom Abo (Umstellung 25.09.2026).
+MODELLE = {
+    "opus": "claude-opus-5-5",
+    "sonnet": "claude-sonnet-5",
+    "haiku": "claude-haiku-4-5",
+}
+
+# Schlanker Aufruf (25.09.2026): ohne Plugins (sonst startet jeder Aufruf den
+# WhatsApp-Kanal mit), ohne MCP, ohne Nutzer-Einstellungen und ohne den
+# Claude-Code-Systemprompt. Grundlast je Aufruf sinkt von ~8-19k auf <1k Tokens.
+SCHLANK = ["--strict-mcp-config", "--setting-sources", "", "--disable-slash-commands"]
+STANDARD_SYSTEM = (
+    "Du bist ein sorgfaeltiger Assistent. Beantworte die Anfrage direkt, "
+    "vollstaendig und genau im verlangten Format."
+)
+
+
 def modell_alias(name: Optional[str]) -> str:
-    """claude-opus-5 -> opus usw.; Unbekanntes -> sonnet."""
+    """claude-opus-5 / opus -> claude-opus-5-5 usw.; Unbekanntes -> Sonnet 5."""
     n = (name or "").lower()
-    for alias in ("opus", "sonnet", "haiku"):
+    for alias, modell in MODELLE.items():
         if alias in n:
-            return alias
-    return "sonnet"
+            return modell
+    return MODELLE["sonnet"]
 
 
 def _nachricht(inhalt: List[Dict]) -> str:
@@ -96,13 +114,13 @@ def lauf(
         modell_alias(modell),
         "--effort",
         "low",
+        *SCHLANK,
     ]
     if websuche:
         befehl += ["--tools", "WebSearch", "--allowedTools", "WebSearch"]
     else:
         befehl += ["--tools", ""]
-    if system:
-        befehl += ["--system-prompt", system]
+    befehl += ["--system-prompt", system or STANDARD_SYSTEM]
 
     p = subprocess.run(
         befehl,
