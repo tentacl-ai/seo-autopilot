@@ -90,10 +90,16 @@ jobs:
           else
             NOTES="Initial public release."
           fi
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
-            --notes "$NOTES" \
-            dist/*.whl dist/*.tar.gz
+          # Release schon von Hand mit eigenen Notizen angelegt? Dann nur die Pakete
+          # anhaengen statt mit "already exists" den ganzen Lauf rot zu machen.
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/*.whl dist/*.tar.gz --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --title "$GITHUB_REF_NAME" \
+              --notes "$NOTES" \
+              dist/*.whl dist/*.tar.gz
+          fi
 
       - name: Telegram notification
         if: always()
