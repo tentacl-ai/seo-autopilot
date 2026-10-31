@@ -326,3 +326,33 @@ def test_block_ueberlebt_das_speichern_der_projektliste(tmp_path):
 def test_radar_ignoriert_doku_adressen():
     text = "see /docs/multi-agent and docs-agent; ChatGPT-User, meta-externalagent"
     assert set(k.namen_auf_seite(text)) == {"chatgpt-user", "meta-externalagent"}
+
+
+def test_lauf_sperrt_die_datenbank_nicht_fuer_andere_jobs(tmp_path, monkeypatch):
+    """31.10.2026: der Lauf hielt die Schreibsperre 45 s, gsc_ereignisse brach ab."""
+    import sqlite3
+
+    db = tmp_path / "a.db"
+    pfad = tmp_path / "projects.yaml"
+    pfad.write_text(
+        "projects:\n"
+        "  a:\n    domain: https://a.de\n    ki_sichtbarkeit: {umami_id: x}\n"
+        "  b:\n    domain: https://b.de\n    ki_sichtbarkeit: {umami_id: x}\n"
+    )
+    andere = []
+
+    def lauf(pid, p, ab, netze, holen, umami):
+        if pid == "b":  # waehrend des zweiten Projekts schreibt ein anderer Job
+            con = sqlite3.connect(db, timeout=0.2)
+            con.execute("CREATE TABLE IF NOT EXISTS t (x)")
+            con.execute("INSERT INTO t VALUES (1)")
+            con.commit()
+            andere.append("ok")
+        return {}, Counter()
+
+    monkeypatch.setattr(k, "projekt_lauf", lauf)
+    monkeypatch.setattr(k, "ip_listen_laden", lambda holen: ({}, []))
+    monkeypatch.setattr(k, "radar_quellen", lambda con, holen, sp: ([], []))
+    monkeypatch.setattr(k, "_senden", lambda con, n, trocken: 0)
+    assert k.main(["--projects", str(pfad), "--db", str(db)]) == 0
+    assert andere == ["ok"]

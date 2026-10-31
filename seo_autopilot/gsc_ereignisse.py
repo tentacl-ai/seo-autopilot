@@ -127,7 +127,7 @@ CREATE TABLE IF NOT EXISTS gsc_laeufe (am TEXT, art TEXT);
 
 
 def db_oeffnen(pfad: str) -> sqlite3.Connection:
-    con = sqlite3.connect(pfad)
+    con = sqlite3.connect(pfad, timeout=30)  # Datei teilen sich mehrere Cron-Jobs
     con.row_factory = sqlite3.Row
     con.executescript(_SCHEMA)
     return con

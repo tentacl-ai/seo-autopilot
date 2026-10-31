@@ -42,7 +42,6 @@ import subprocess
 import urllib.robotparser
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 from urllib.parse import urlparse
 
@@ -220,7 +219,8 @@ CREATE TABLE IF NOT EXISTS ki_laeufe (am TEXT, art TEXT);
 
 
 def db_oeffnen(pfad: str) -> sqlite3.Connection:
-    con = sqlite3.connect(pfad)
+    # Mehrere Cron-Jobs teilen die Datei: kurz warten statt abbrechen.
+    con = sqlite3.connect(pfad, timeout=30)
     con.row_factory = sqlite3.Row
     con.executescript(_SCHEMA)
     return con
@@ -721,6 +721,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 "INSERT OR REPLACE INTO ki_wochen VALUES (?,?,?)",
                 (pid, woche, json.dumps(w)),
             )
+            con.commit()  # sofort freigeben, sonst sperrt der Lauf die Datei fuer andere Jobs
     quellen_neu, quelle_kaputt = radar_quellen(con, holen, not args.trocken)
     radar = {
         "quellen": quellen_neu,
