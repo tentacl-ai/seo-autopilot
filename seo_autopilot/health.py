@@ -232,6 +232,7 @@ def run_selfcheck(
         _pruefe_externe_berichte(aktive, report)
         _pruefe_lernschleife(crontab, jetzt, report)
         _pruefe_gsc_ereignisse(con, crontab, jetzt, report)
+        _pruefe_ki_sichtbarkeit(con, crontab, jetzt, report)
     finally:
         con.close()
     if UMGEBUNG_PRUEFEN:
@@ -421,6 +422,29 @@ def _pruefe_gsc_ereignisse(
                 "Search-Console-Pruefung laeuft nicht",
                 f"Letzter voller Lauf: {row[0] if row and row[0] else 'nie'}.",
                 "logs/gsc_ereignisse.log und den Cron-Eintrag pruefen.",
+            )
+        )
+
+
+def _pruefe_ki_sichtbarkeit(
+    con: sqlite3.Connection, crontab: str, jetzt: datetime, report: HealthReport
+) -> None:
+    """Laeuft der woechentliche KI-Sichtbarkeitsbericht samt Crawler-Radar noch?"""
+    if "ki_sichtbarkeit" not in crontab:
+        return
+    try:
+        row = con.execute("SELECT max(am) FROM ki_laeufe WHERE art='voll'").fetchone()
+    except sqlite3.OperationalError:
+        row = None
+    zuletzt = _als_datum(row[0]) if row else None
+    if not zuletzt or (jetzt - zuletzt).days >= 8:
+        report.befunde.append(
+            Befund(
+                "warnung",
+                "-",
+                "KI-Sichtbarkeitsbericht laeuft nicht",
+                f"Letzter voller Lauf: {row[0] if row and row[0] else 'nie'}.",
+                "logs/ki_sichtbarkeit.log und den Cron-Eintrag pruefen.",
             )
         )
 

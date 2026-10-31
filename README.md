@@ -8,7 +8,7 @@
 
 **Multi-tenant SEO automation that closes the loop:** crawl → find → fix → measure → report.
 
-> Version 1.19.0 · 1256 tests · 18 analysis dimensions · 139 documented issue types
+> Version 1.19.0 · 1281 tests · 18 analysis dimensions · 139 documented issue types
 
 Most SEO tools stop at a list of warnings. SEO Autopilot repairs what it finds,
 writes the change into the site's repository, and then uses Search Console to
@@ -399,6 +399,36 @@ source. The source link always comes from the item, never from the AI's answer.
 
 The loop never edits code. Approved changes are implemented in a normal,
 supervised session with tests. `--trocken` assesses only and changes nothing.
+
+### AI visibility and crawler radar (weekly)
+
+`python -m seo_autopilot.ki_sichtbarkeit` sends one Telegram report per week
+for every project with a `ki_sichtbarkeit` block in `projects.yaml`:
+
+```yaml
+ki_sichtbarkeit:
+  umami_id: <Umami website id>          # AI referral visitors (read-only SQL)
+  logs:                                  # optional: where the bot hits are
+  - befehl: ssh prod cat /var/log/nginx/site.log   # run without a shell
+    format: combined                     # or visitor: ip|time|host|uri|status|referer|ua
+    hosts: [example.com]                 # visitor format only
+```
+
+- **What AI reads:** hits per bot, split into AI search, users asking an AI,
+  training and classic search, plus the most-read pages (technical files such
+  as robots.txt, sitemaps and assets do not count).
+- **Fakes are filtered:** a hit counts only if the IP is in the vendor's
+  published list (OpenAI, Perplexity, Google, Microsoft) or its reverse DNS
+  matches (Apple, Amazon). Scanner paths (`.env`, `.git`, ...) are always fake.
+  Vendors without a list stay "unconfirmed", never "real".
+- **robots.txt check:** warns when an AI search or user bot is locked out.
+- **Crawler radar:** compares the bot names on the vendors' official crawler
+  pages with last week (first run = baseline) and reports bots that show up in
+  our own logs for the first time. Each name is reported once.
+
+The week's numbers are stored in `ki_wochen` for the week-over-week trend;
+`selfcheck` warns when the last full run is older than 8 days. `--trocken`
+prints the report and stores nothing.
 
 ---
 

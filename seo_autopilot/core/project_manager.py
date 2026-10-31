@@ -79,6 +79,9 @@ class ProjectConfig:
     # Local SEO (maps.py): {place_id, region, radius_km, begriffe, orte} — als Feld
     # gefuehrt, sonst verwirft _save_config() den Block beim naechsten Lauf.
     maps: Optional[Dict[str, Any]] = None
+    # KI-Sichtbarkeit (ki_sichtbarkeit.py): {umami_id, logs: [{befehl, format, hosts}]}
+    # - als Feld gefuehrt, sonst verwirft _save_config() den Block beim naechsten Lauf.
+    ki_sichtbarkeit: Optional[Dict[str, Any]] = None
 
     # Metadata
     created_at: datetime = None
