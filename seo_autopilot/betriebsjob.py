@@ -147,12 +147,12 @@ def ausfuehren(command, name, state_dir: Path, timeout=1800, wait=1800):
 
 def main(argv=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("job", choices=["audit", *JOBS])
+    parser.add_argument("job", choices=["audit", "audit-lesend", *JOBS])
     parser.add_argument("--projekt")
     parser.add_argument("--state-dir", type=Path, default=ROOT / "logs" / "betrieb")
     args = parser.parse_args(argv)
     name = args.job
-    if name == "audit":
+    if name in {"audit", "audit-lesend"}:
         from .core.project_manager import ProjectManager
         from .core.config import settings
 
@@ -161,9 +161,11 @@ def main(argv=None):
             parser.error("Aktives Projekt erforderlich")
         name += "-" + project.id
         parts = ["cli.main", "run", "--project-id", project.id]
+        if args.job == "audit-lesend":
+            parts.append("--nur-pruefen")
     else:
         if args.projekt:
-            parser.error("Projekt nur für audit zulässig")
+            parser.error("Projekt nur für Audit-Jobs zulässig")
         parts = JOBS[name]
     if any(
         c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.20.2] - 2026-11-14
+
+### Added
+- Inspection-only project policy and CLI option: retain HTTP/GSC/GA4 analysis and
+  stored findings while skipping text generation, paid intent analysis, trends,
+  website changes, approval cleanup and notifications.
+- Managed inspection jobs share the existing lock, timeout and completion records.
+- Regression coverage for configured/manual inspection, force-apply rejection,
+  persisted configuration and watchdog recognition.
+
 ## [1.20.1] - 2026-11-14
 
 - Audits expose partial failures; GSC failures no longer suppress GA4. Only confirmed persistence updates last_run_at.

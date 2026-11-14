@@ -561,7 +561,7 @@ class AnalyzerAgent(Agent):
                 elif (self.project_config.source_config or {}).get("gsc_keywords"):
                     gsc_keywords = self.project_config.source_config["gsc_keywords"]
 
-                if gsc_keywords:
+                if gsc_keywords and not getattr(self.context, "inspection_only", False):
                     page_snapshots = [_page_snapshot(p) for p in good_pages]
                     intent_geo_result = await intent_geo_analyze(
                         gsc_keywords=gsc_keywords,

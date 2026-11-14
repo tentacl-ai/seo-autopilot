@@ -113,8 +113,10 @@ def cron_fuer_pruefung(text):
 
     def replace(match):
         job, project = match.groups()
-        if job == "audit" and project:
+        if job in {"audit", "audit-lesend"} and project:
             parts = ["cli.main", "run", "--project-id", project]
+            if job == "audit-lesend":
+                parts.append("--nur-pruefen")
         elif job in JOBS and not project:
             parts = JOBS[job]
         else:

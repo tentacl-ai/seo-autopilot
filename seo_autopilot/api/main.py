@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="SEO Autopilot API",
     description="Multi-tenant SEO automation platform",
-    version="1.20.1",
+    version="1.20.2",
 )
 
 # CORS
@@ -211,7 +211,7 @@ async def shutdown_event():
 @app.get("/api/health")
 async def health():
     """Health Check"""
-    return {"status": "ok", "version": "1.20.1"}
+    return {"status": "ok", "version": "1.20.2"}
 
 
 @app.get("/api/projects", response_model=List[ProjectResponse])
@@ -467,7 +467,7 @@ LAUF_STATUS: Dict[str, str] = {}
 
 
 async def run_audit_for_project(
-    project_id: str, force_apply: bool = False
+    project_id: str, force_apply: bool = False, inspection_only: bool = False
 ) -> Optional[str]:
     """
     Run the full SEO audit pipeline for a single project.
@@ -477,16 +477,22 @@ async def run_audit_for_project(
     After the pipeline the context is persisted to the database,
     an HTML report is written to disk and notifications are sent.
     """
+    if inspection_only and force_apply:
+        raise ValueError("Nur prüfen und Auto-Fix schließen sich aus")
     project = project_manager.get_project(project_id)
     if not project:
         logger.error(f"Project not found: {project_id}")
         return None
+    inspection_only = inspection_only or getattr(project, "inspection_only", False)
+    if inspection_only and force_apply:
+        raise ValueError("Nur prüfen und Auto-Fix schließen sich aus")
 
     audit_id = f"audit_{project_id}_{int(datetime.utcnow().timestamp())}"
     logger.info(f"Starting audit: {audit_id}")
 
     ctx = AuditContext(audit_id=audit_id, project_id=project_id, project_config=project)
     ctx.force_apply = force_apply  # gelesen vom ApplyAgent
+    ctx.inspection_only = inspection_only
 
     await event_bus.emit(
         Event(
@@ -505,6 +511,8 @@ async def run_audit_for_project(
         ContentAgent,
         ApplyAgent,
     ]
+    if inspection_only:
+        agent_classes = [AnalyzerAgent, KeywordAgent, StrategyAgent]
 
     try:
         # Identitaetsschutz: VOR jeder Analyse und jedem Auto-Fix. Scheitert
@@ -547,7 +555,7 @@ async def run_audit_for_project(
                     project_id,
                     {i.get("type") for i in ctx.all_issues if i.get("type")},
                 )
-                if gespeichert and ctx.status == "completed"
+                if gespeichert and ctx.status == "completed" and not inspection_only
                 else 0
             )
             if n:
@@ -564,8 +572,10 @@ async def run_audit_for_project(
             report_path = None
 
         # Preserve explicit project notification policy, including in cron runs.
-        if project.notifications_enabled and "telegram" in (
-            project.notify_channels or []
+        if (
+            not inspection_only
+            and project.notifications_enabled
+            and "telegram" in (project.notify_channels or [])
         ):
             try:
                 await send_audit_notification(ctx, report_path=report_path)

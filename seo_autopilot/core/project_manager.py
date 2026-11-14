@@ -43,6 +43,8 @@ class ProjectConfig:
 
     # Scheduling
     enabled: bool = True
+    # Reine Bestandspruefung: keine Text-KI, Websiteaenderung oder Benachrichtigung.
+    inspection_only: bool = False
     schedule_cron: str = "0 7 * * 1"  # Monday 07:00
     last_run_at: Optional[datetime] = None
     run_interval_days: int = 7

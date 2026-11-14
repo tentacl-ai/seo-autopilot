@@ -8,7 +8,7 @@
 
 **Multi-tenant SEO automation that closes the loop:** crawl → find → fix → measure → report.
 
-> Version 1.20.1 · 1335 tests · 18 analysis dimensions · 139 documented issue types
+> Version 1.20.2 · 1340 tests · 18 analysis dimensions · 139 documented issue types
 
 Most SEO tools stop at a list of warnings. SEO Autopilot repairs what it finds,
 writes the change into the site's repository, and then uses Search Console to
