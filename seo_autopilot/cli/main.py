@@ -137,13 +137,18 @@ def remove(id):
     default=False,
     help="Force ApplyAgent to apply fixes even if project.auto_fix_enabled=False",
 )
-def run(project_id, auto_fix):
+@click.option(
+    "--nur-pruefen", is_flag=True, help="Ohne Text-KI, Trends, Apply und Versand prüfen"
+)
+def run(project_id, auto_fix, nur_pruefen):
     """Run audits (synchronous, with full report)."""
     import asyncio
     from ..api.main import run_audit_for_project
     from ..db.database import db
     from ..core.project_manager import ProjectManager
 
+    if nur_pruefen and auto_fix:
+        raise click.UsageError("--nur-pruefen und --auto-fix schließen sich aus")
     pm = ProjectManager(settings.PROJECT_CONFIG_PATH)
     projects = [pm.get_project(project_id)] if project_id else pm.get_enabled_projects()
     projects = [p for p in projects if p]
@@ -165,7 +170,14 @@ def run(project_id, auto_fix):
         try:
             for project in projects:
                 click.echo(f"  Auditing {project.id}...")
-                audit_id = await run_audit_for_project(project.id, force_apply=auto_fix)
+                if nur_pruefen:
+                    audit_id = await run_audit_for_project(
+                        project.id, inspection_only=True
+                    )
+                else:
+                    audit_id = await run_audit_for_project(
+                        project.id, force_apply=auto_fix
+                    )
                 status = LAUF_STATUS.get(audit_id, "failed")
                 click.echo(f"  -> {status}: {audit_id}")
                 if status != "completed":

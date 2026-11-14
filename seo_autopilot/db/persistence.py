@@ -123,6 +123,7 @@ async def _persist_once(ctx: AuditContext, audit_uuid: str) -> str:
                     "pagespeed_status": analyzer_metrics.get("pagespeed_status"),
                     "image_inventory": analyzer_metrics.get("image_inventory", []),
                     "image_changes": bilder_delta,
+                    "inspection_only": bool(getattr(ctx, "inspection_only", False)),
                     "image_inventory_truncated": analyzer_metrics.get(
                         "image_inventory_truncated", False
                     ),
