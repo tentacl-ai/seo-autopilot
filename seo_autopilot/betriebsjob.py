@@ -15,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -98,23 +99,38 @@ def ausfuehren(command, name, state_dir: Path, timeout=1800, wait=1800):
             data.update(status="startfehler", ende=jetzt(), exit_code=127)
             atomar(path, data)
             return 127
+
+        def stop_child():
+            if process.poll() is None:
+                os.killpg(process.pid, signal.SIGTERM)
+                try:
+                    process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    os.killpg(process.pid, signal.SIGKILL)
+                    process.wait()
+
+        def interrupted(signum, frame):
+            raise InterruptedError("SEO-Job wurde unterbrochen")
+
+        previous_handlers = {}
+        if threading.current_thread() is threading.main_thread():
+            for sig in (signal.SIGTERM, signal.SIGINT):
+                previous_handlers[sig] = signal.signal(sig, interrupted)
         try:
-            code = process.wait(timeout=timeout)
-            status = "ok" if code == 0 else "failed"
-        except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGTERM)
             try:
-                process.wait(timeout=10)
+                code = process.wait(timeout=timeout)
+                status = "ok" if code == 0 else "failed"
             except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL)
-                process.wait()
-            code, status = 124, "timeout"
-        except BaseException:
-            os.killpg(process.pid, signal.SIGTERM)
-            process.wait()
-            data.update(status="interrupted", ende=jetzt())
-            atomar(path, data)
-            raise
+                stop_child()
+                code, status = 124, "timeout"
+            except BaseException:
+                stop_child()
+                data.update(status="interrupted", ende=jetzt())
+                atomar(path, data)
+                raise
+        finally:
+            for sig, handler in previous_handlers.items():
+                signal.signal(sig, handler)
         data.update(ende=jetzt(), status=status, exit_code=code)
         if code == 0:
             data["last_success"] = data["ende"]

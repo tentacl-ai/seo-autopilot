@@ -58,7 +58,7 @@ Originalquellen wurden einmal live gegen fünf Dokumentationsseiten geprüft: Go
 - `tentacl-suchleistung-20261114.json`: Suchdatenvergleich.
 - SEO-Betrieb: `operations/seo-betrieb.md` in der Reparaturarbeitskopie.
 - Cron-Übernahmeplan: 23 bestehende SEO-Aufrufe umschlossen, ein zusätzlicher reiner Quellenvergleich; fremde Cronjobs unverändert. Zeitzone UTC.
-- Tests Reparaturzweig: 1.332 bestanden, 1 übersprungen. Integration gegen aktuellen kanonischen Code einschließlich fremdem WIP: 1.344 bestanden, 1 übersprungen.
+- Tests Reparaturzweig: 1.333 bestanden, 1 übersprungen. Integration gegen aktuellen kanonischen Code einschließlich fremdem WIP: 1.345 bestanden, 1 übersprungen.
 
 Ein zukünftiger Nacht-/Montagslauf ist erst nach seinem tatsächlichen Abschluss abgenommen. Vorher nicht behaupten, dass der Dauerbetrieb bewiesen ist. Produktive Freischaltung und deren Nachweis werden im Übernahmeprotokoll festgehalten.
 
@@ -69,3 +69,7 @@ Google verlangt nützliche, kontextbezogene Bildtexte statt Keywordlisten: https
 Für Googles KI-Funktionen gelten die üblichen SEO-Grundlagen; zusätzliche Spezialdateien oder besondere Schema-Tricks sind nicht erforderlich: https://developers.google.com/search/docs/appearance/ai-features
 
 Eine figcaption ist optional; ihr Fehlen macht eine figure nicht automatisch fehlerhaft: https://html.spec.whatwg.org/multipage/grouping-content.html#the-figure-element
+
+## Übernahmestatus
+
+Robert hat das genau beschriebene Paket ausdrücklich freigegeben: „Go dieses Paket sicher produktiv mal nehmen“. Geschützte Sicherung und erfolgreicher Dry-run liegen vor. Commit/Push und produktive Übernahme der benannten Website-, Code- und Zeitplanänderungen sind autorisiert; Ausführung und Live-Abnahme werden gesondert protokolliert.

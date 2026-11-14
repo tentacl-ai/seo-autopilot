@@ -410,3 +410,39 @@ def test_new_images_and_changed_descriptions_are_distinguished():
     assert [i["src"] for i in delta["neu"]] == ["y"]
     assert [i["src"] for i in delta["geaendert"]] == ["x"]
     assert bs.bild_delta(after, after)["neu"] == []
+
+
+def test_stopping_wrapper_stops_child_and_releases_lock(tmp_path):
+    import os, signal, subprocess
+
+    pidfile = tmp_path / "child.pid"
+    child = "import os,pathlib,time;pathlib.Path(__import__('sys').argv[1]).write_text(str(os.getpid()));time.sleep(30)"
+    launcher = "from pathlib import Path;from seo_autopilot.betriebsjob import ausfuehren;import sys;ausfuehren([sys.executable,'-c',sys.argv[2],sys.argv[3]],'signal',Path(sys.argv[1]))"
+    process = subprocess.Popen(
+        [sys.executable, "-c", launcher, str(tmp_path), child, str(pidfile)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    try:
+        deadline = time.monotonic() + 5
+        while not pidfile.exists() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert pidfile.exists()
+        pid = int(pidfile.read_text())
+        os.kill(process.pid, signal.SIGTERM)
+        process.wait(timeout=5)
+        assert not Path("/proc").joinpath(str(pid)).exists()
+        assert (
+            json.loads((tmp_path / "signal.json").read_text())["status"]
+            == "interrupted"
+        )
+        assert (
+            betriebsjob.ausfuehren(
+                [sys.executable, "-c", "pass"], "after", tmp_path, wait=0.1
+            )
+            == 0
+        )
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait()
