@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>SEO · Tentacl</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script defer src="./app.js"></script>
+  </head>
+  <body>
+    <section id="login" class="login">
+      <div class="brand">tentacl<span> / SEO</span></div>
+      <h1>Wissen, was wirkt.</h1>
+      <p>
+        Dein Arbeitsplatz für Sichtbarkeit, Inhalte und die nächsten sinnvollen
+        Schritte.
+      </p>
+      <form id="login-form">
+        <label
+          >Zugangscode<input
+            id="token"
+            type="password"
+            autocomplete="off"
+            required /></label
+        ><button>Anmelden</button>
+      </form>
+      <p id="demo-note" class="muted" hidden>
+        Lokale Beispielansicht: Zugangscode „demo“.
+      </p>
+    </section>
+    <div id="workspace" hidden>
+      <aside>
+        <div class="brand">tentacl<span> / SEO</span></div>
+        <label class="project-label"
+          >Projekt<select id="project" aria-label="Projekt wählen"></select
+        ></label>
+        <nav id="nav" aria-label="Bereiche"></nav>
+        <button id="logout" class="quiet">Abmelden</button>
+      </aside>
+      <main>
+        <header>
+          <div>
+            <p class="eyebrow" id="project-domain"></p>
+            <h1 id="title">Überblick</h1>
+          </div>
+          <span id="role" class="badge"></span>
+        </header>
+        <div id="notice" role="status" aria-live="polite"></div>
+        <section id="content"></section>
+        <footer>Ein Datenstand. Nachvollziehbare Entscheidungen.</footer>
+      </main>
+    </div>
+  </body>
+</html>
