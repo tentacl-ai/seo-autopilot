@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.20.1] - 2026-11-14
+
+- Audits expose partial failures; GSC failures no longer suppress GA4. Only confirmed persistence updates last_run_at.
+- Database lock retries repeat only rolled-back persistence, with the same audit ID; existing scheduled jobs can use a shared lock and durable completion records.
+- Watchdog detects historical missing audits, failed subchecks, missing managed jobs and stalled approvals.
+- KI reports distinguish failed calls from negative mentions and use successful answers as denominator. Radar releases DB locks before further network calls.
+- Image inventories track descriptions per occurrence; generic alternatives are flagged. Optional captions are no longer falsely required.
+- Weekly official-source comparison and reports of actually applied own changes, with no new mail recipient or unreviewed execution of external text.
+- Rollout and recurring-operation policy: operations/seo-betrieb.md.
+
 ## [1.20.0] - 2026-11-14
 
 ### Added

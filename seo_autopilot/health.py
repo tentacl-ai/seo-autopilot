@@ -19,6 +19,7 @@ Werkzeug selbst — und liefert eine Liste von Befunden mit Schweregrad.
 from __future__ import annotations
 
 import logging
+import json
 import os
 import sqlite3
 import subprocess
@@ -233,6 +234,7 @@ def run_selfcheck(
         _pruefe_lernschleife(crontab, jetzt, report)
         _pruefe_gsc_ereignisse(con, crontab, jetzt, report)
         _pruefe_ki_sichtbarkeit(con, crontab, jetzt, report)
+        _pruefe_betriebsjobs(Path(db_pfad).parent / "logs" / "betrieb", jetzt, report)
     finally:
         con.close()
     if UMGEBUNG_PRUEFEN:
@@ -820,8 +822,10 @@ def _pruefe_projekt(
             )
         )
 
+    audit_spalten = {r[1] for r in con.execute("PRAGMA table_info(seo_audits)")}
+    fehler_spalte = "errors" if "errors" in audit_spalten else "NULL as errors"
     laeufe = con.execute(
-        "select id, score, status, issues_found, total_pages, started_at "
+        f"select id, score, status, issues_found, total_pages, started_at, {fehler_spalte} "
         "from seo_audits where project_id=? order by started_at desc limit 2",
         (name,),
     ).fetchall()
@@ -841,6 +845,35 @@ def _pruefe_projekt(
 
     letzter = laeufe[0]
     gestartet = _als_datum(letzter["started_at"])
+    try:
+        fehler = json.loads(letzter["errors"] or "[]")
+    except (ValueError, TypeError):
+        fehler = [{"agent": "unlesbares Fehlerprotokoll"}]
+    if fehler:
+        namen = (
+            sorted(
+                {
+                    str(f.get("agent", "unbekannt"))
+                    for f in fehler
+                    if isinstance(f, dict)
+                }
+            )
+            if isinstance(fehler, list)
+            else ["unbekannt"]
+        )
+        report.befunde.append(
+            Befund(
+                "kritisch",
+                name,
+                "Teilaufgaben des letzten Audits fehlgeschlagen",
+                "Betroffene Aufgaben: "
+                + ", ".join(namen)
+                + ". Ein frischer Crawl ist kein vollständiger Lauf.",
+                "Fehlerfeld des Audits und Quellenzugänge prüfen; nicht als SEO-Erfolg werten.",
+            )
+        )
+    _pruefe_laufluecken(con, name, cfg, jetzt, report)
+    _pruefe_freigegebene(con, name, jetzt, report)
 
     # --- Ist der letzte Lauf frisch genug? ---
     if gestartet is None:
@@ -984,5 +1017,153 @@ def _pruefe_projekt(
                     f"({letzter['score'] - vorher:+.1f} Punkte).",
                     "Neue Befunde des letzten Laufs ansehen — echte Verschlechterung "
                     "oder Messfehler?",
+                )
+            )
+
+
+def _pruefe_laufluecken(con, name, cfg, jetzt, report):
+    from .betriebssicherheit import cron_tage
+
+    start = (jetzt - timedelta(days=14)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    stop = jetzt.replace(hour=0, minute=0, second=0, microsecond=0)
+    erwartete = cron_tage(cfg.get("schedule_cron", ""), start, stop)
+    if erwartete is None:
+        return
+    erster = con.execute(
+        "SELECT min(started_at) FROM seo_audits WHERE project_id=?", (name,)
+    ).fetchone()[0]
+    erster = _als_datum(erster)
+    if erster is None:
+        return
+    erwartete = {tag for tag in erwartete if tag >= erster.date().isoformat()}
+    tage = {
+        str(row[0])[:10]
+        for row in con.execute(
+            "SELECT started_at FROM seo_audits WHERE project_id=? AND started_at>=?",
+            (name, start.strftime("%Y-%m-%d")),
+        )
+    }
+    fehlen = sorted(erwartete - tage)
+    if fehlen:
+        report.befunde.append(
+            Befund(
+                "kritisch",
+                name,
+                "Geplante Audits fehlen in der Datenbank",
+                f"{len(fehlen)} fehlende Tage in den letzten 14 abgeschlossenen Tagen: "
+                + ", ".join(fehlen),
+                "Cron- und Persistenzprotokoll prüfen. Heutiger Erfolg schließt frühere Lücken nicht.",
+            )
+        )
+
+
+def _pruefe_freigegebene(con, name, jetzt, report):
+    if not con.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='freigaben'"
+    ).fetchone():
+        return
+    rows = con.execute(
+        "SELECT erstellt_am FROM freigaben WHERE project_id=? AND status='freigegeben'",
+        (name,),
+    ).fetchall()
+    alt = [
+        r
+        for r in rows
+        if _als_datum(r[0]) and jetzt - _als_datum(r[0]) > timedelta(days=14)
+    ]
+    if alt:
+        report.befunde.append(
+            Befund(
+                "warnung",
+                name,
+                "Freigegebene Aufgaben bleiben liegen",
+                f"{len(alt)} Freigaben älter als 14 Tage noch nicht abgeschlossen.",
+                "Aktualität und Adapterfähigkeit prüfen; veraltete Freigaben nicht blind wiederholen.",
+            )
+        )
+
+
+def _pruefe_betriebsjobs(ordner, jetzt, report):
+    from .betriebssicherheit import cron_tage
+
+    plan_path = ordner.parent / "betriebsplan.json"
+    if plan_path.exists():
+        try:
+            plan = json.loads(plan_path.read_text())
+        except (ValueError, OSError):
+            plan = {}
+            report.befunde.append(
+                Befund(
+                    "kritisch",
+                    "betrieb",
+                    "Betriebsplan unlesbar",
+                    "Erwartete Starts können nicht geprüft werden.",
+                )
+            )
+        activated = _als_datum(plan.get("aktiv_ab")) if isinstance(plan, dict) else None
+        jobs = plan.get("jobs", plan) if isinstance(plan, dict) else {}
+        for name, schedules in jobs.items():
+            due_days = set()
+            # Two-hour grace; check today's runs only after their latest daily slot.
+            stop = jetzt.replace(hour=0, minute=0, second=0, microsecond=0)
+            for expression in schedules:
+                days = cron_tage(expression, stop - timedelta(days=8), stop)
+                due_days.update(days or set())
+                fields = expression.split()
+                if len(fields) == 5 and fields[0].isdigit() and fields[1].isdigit():
+                    slot = stop.replace(hour=int(fields[1]), minute=int(fields[0]))
+                    if jetzt >= slot + timedelta(hours=2):
+                        due_days.update(
+                            cron_tage(expression, stop, stop + timedelta(days=1))
+                            or set()
+                        )
+            if activated:
+                due_days = {
+                    day for day in due_days if day > activated.date().isoformat()
+                }
+            state_path = ordner / (name + ".json")
+            try:
+                started = json.loads(state_path.read_text()).get("start", "")[:10]
+            except (ValueError, OSError):
+                started = ""
+            if due_days and started < max(due_days):
+                report.befunde.append(
+                    Befund(
+                        "kritisch",
+                        "betrieb",
+                        "Geplanter SEO-Job nicht gestartet",
+                        name + ": letzter fälliger Tag " + max(due_days),
+                        "Cron und gemeinsamen Joblock prüfen.",
+                    )
+                )
+    for pfad in ordner.glob("*.json"):
+        try:
+            job = json.loads(pfad.read_text())
+        except (OSError, ValueError):
+            report.befunde.append(
+                Befund("kritisch", "betrieb", "Jobstatus unlesbar", pfad.name)
+            )
+            continue
+        if job.get("job") == "selfcheck":
+            continue  # Its findings are computed here; do not latch yesterday's alarm.
+        status = job.get("status")
+        start = _als_datum(job.get("start"))
+        if status != "ok" and (
+            status != "running" or not start or jetzt - start > timedelta(hours=1)
+        ):
+            severity = (
+                "warnung"
+                if job.get("job") == "selfcheck" and job.get("exit_code") == 1
+                else "kritisch"
+            )
+            report.befunde.append(
+                Befund(
+                    severity,
+                    "betrieb",
+                    "SEO-Job nicht erfolgreich",
+                    f"{job.get('job', pfad.stem)}: {status}",
+                    "Zugehöriges Laufprotokoll prüfen; keine automatische Wiederholung externer Aktionen.",
                 )
             )

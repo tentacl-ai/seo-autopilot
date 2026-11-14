@@ -206,7 +206,9 @@ def pruefen(konfig: dict) -> dict:
         )
         for ki in KIS
     }
-    return {
+    from seo_autopilot.betriebssicherheit import ki_abdeckung
+
+    aus = {
         "host": host,
         "fragen": len(konfig["fragen"]),
         "genannt_je_ki": zaehler,
@@ -217,6 +219,8 @@ def pruefen(konfig: dict) -> dict:
         },
         "ergebnisse": je_frage,
     }
+    aus["abdeckung"] = ki_abdeckung(aus)
+    return aus
 
 
 def main() -> int:

@@ -42,10 +42,9 @@ Zwei bewusste Nicht-Prüfungen, damit keine Fehlalarme entstehen:
   von Screenreadern uneinheitlich behandelt und auf Touchgeräten gar nicht
   angezeigt; es zu fordern würde nur Rauschen erzeugen. Wir erfassen es und
   nutzen es als *entlastendes* Signal.
-* Eine ``<figcaption>`` ersetzt für den Leser die Bildbeschreibung. Ein Bild in
-  einer ``<figure>`` mit Bildunterschrift wird deshalb nie wegen des
-  alt-Textes gemeldet. Gemeldet wird der umgekehrte Fall: eine ``<figure>``
-  ganz **ohne** ``<figcaption>`` ist unvollständiges Markup.
+* Eine ``<figcaption>`` ist optional und ersetzt nicht pauschal das alt-Attribut.
+  Inhaltstragende Bilder brauchen eine passende Textalternative. Eine fehlende
+  Bildunterschrift allein ist kein HTML- oder SEO-Fehler.
 
 Grundhaltung wie im ganzen Projekt: **Im Zweifel nichts melden.** Schlägt ein
 HEAD-Abruf fehl, bleibt die Grösse unbekannt und es entsteht kein Befund —
@@ -557,13 +556,9 @@ class ImageAuditor:
 
         if not self.doppelte_befunde_vermeiden:
             # NUR ein fehlendes Attribut ist ein Mangel. alt="" ist bei
-            # dekorativen Bildern die richtige Auszeichnung, und eine
-            # Bildunterschrift trägt die Bedeutung ebenfalls.
-            ohne_alt = [
-                b
-                for b in bilder
-                if b.alt is None and not b.dekorativ and not b.hat_figcaption
-            ]
+            # dekorativen Bildern die richtige Auszeichnung. Eine sichtbare
+            # Bildunterschrift hebt die Pflicht zur Textalternative nicht pauschal auf.
+            ohne_alt = [b for b in bilder if b.alt is None and not b.dekorativ]
             if ohne_alt:
                 issues.append(
                     _issue(
@@ -599,22 +594,28 @@ class ImageAuditor:
                 )
             )
 
-        ohne_bildunterschrift = [
-            b for b in bilder if b.in_figure and not b.hat_figcaption
+        nichtssagend = [
+            b
+            for b in bilder
+            if b.alt
+            and not b.dekorativ
+            and re.fullmatch(
+                r"(?:bild|foto|image|photo|picture|untitled|img[_ -]?\d+)(?:\.(?:jpe?g|png|webp|avif))?",
+                b.alt.strip(),
+                re.I,
+            )
         ]
-        if ohne_bildunterschrift:
+        if nichtssagend:
             issues.append(
                 _issue(
                     "images",
-                    "image_figure_without_caption",
+                    "image_uninformative_alt",
                     "low",
                     url,
-                    f"{len(ohne_bildunterschrift)} <figure> ohne <figcaption>",
-                    "Eine <figure> ist laut HTML-Standard für Inhalte mit "
-                    "Bildunterschrift gedacht. Ohne <figcaption> geht die "
-                    "Zusatzinformation verloren, die Google gern als Kontext liest.",
-                    "Entweder eine <figcaption> ergänzen oder das <figure> durch "
-                    "ein einfaches <img> ersetzen.",
+                    f"{len(nichtssagend)} Bilder mit nichtssagender Beschreibung",
+                    "Beschreibungen wie Bild, Foto oder IMG1234 vermitteln keinen Bildinhalt. Beispiele: "
+                    + ", ".join(b.dateiname or b.src for b in nichtssagend[:3]),
+                    "Bildinhalt und Seitenkontext beschreiben; keine Keywordlisten und keine erfundenen Motive.",
                 )
             )
         return issues

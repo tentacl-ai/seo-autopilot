@@ -506,6 +506,7 @@ def radar_quellen(
                 "INSERT OR IGNORE INTO ki_radar_namen VALUES (?,?,?)",
                 [(quelle, k, jetzt) for k in namen],
             )
+            con.commit()  # never hold a write lock while fetching the next website
     con.commit()
     return neu, kaputt
 
@@ -735,19 +736,24 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 def _senden(con, nachrichten: List[str], trocken: bool) -> int:
     from .notifications.telegram import send_plain_message
 
+    erfolgreich = True
     for text in nachrichten:
         if trocken:
             print("--- wuerde senden ---\n" + text)
         elif not send_plain_message(text):
+            erfolgreich = False
             logger.warning("[KI-Sichtbarkeit] Telegram-Versand fehlgeschlagen")
     if not trocken:
         con.execute(
             "INSERT INTO ki_laeufe VALUES (?,?)",
-            (datetime.now(timezone.utc).isoformat(timespec="seconds"), "voll"),
+            (
+                datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "voll" if erfolgreich else "versandfehler",
+            ),
         )
         con.commit()
     print(f"[KI-Sichtbarkeit] {len(nachrichten)} Nachricht(en)")
-    return 0
+    return 0 if erfolgreich else 1
 
 
 if __name__ == "__main__":

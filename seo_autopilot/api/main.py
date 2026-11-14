@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="SEO Autopilot API",
     description="Multi-tenant SEO automation platform",
-    version="1.20.0",
+    version="1.20.1",
 )
 
 # CORS
@@ -211,7 +211,7 @@ async def shutdown_event():
 @app.get("/api/health")
 async def health():
     """Health Check"""
-    return {"status": "ok", "version": "1.20.0"}
+    return {"status": "ok", "version": "1.20.1"}
 
 
 @app.get("/api/projects", response_model=List[ProjectResponse])
@@ -334,8 +334,8 @@ async def trigger_audit(project_id: str, req: AuditRunRequest):
             return AuditRunResponse(
                 audit_id=audit_id,
                 project_id=project_id,
-                status="completed",
-                message=f"Audit completed for {project_id}{' (auto-fix applied)' if req.auto_fix else ''}",
+                status=LAUF_STATUS.get(audit_id, "failed"),
+                message=f"Audit {LAUF_STATUS.get(audit_id, 'failed')} for {project_id}",
             )
 
     except Exception as e:
@@ -519,27 +519,36 @@ async def run_audit_for_project(
             ctx.add_result(agent.name, result)
 
         ctx.completed_at = datetime.utcnow()
-        ctx.status = "completed"
+        from ..betriebssicherheit import agenten_fehler
+
+        ctx.status = "partial" if agenten_fehler(ctx.agent_results) else "completed"
         ctx.calculate_score()
 
         # Persist to DB. Scheitert das Speichern, gilt der Lauf fuer die CLI als
         # fehlgeschlagen (Exit 1) — sonst wiederholt sich der stille Datenverlust
         # vom Mai 2026 (Laeufe "ok", aber nichts gespeichert).
+        gespeichert = True
         try:
             await persist_audit(ctx)
         except Exception as exc:
             logger.error(f"Audit persistence failed: {exc}")
-            LAUF_STATUS[audit_id] = "nicht_gespeichert"
+            gespeichert = False
+            ctx.status = "nicht_gespeichert"
+            LAUF_STATUS[audit_id] = ctx.status
 
         # Freigaben fuer inzwischen verschwundene Befunde schliessen (jedes
         # Projekt, nicht nur die mit Kundenbericht)
         try:
             from ..ausfuehrung import erledigte_schliessen, standard_db_pfad
 
-            n = erledigte_schliessen(
-                standard_db_pfad(),
-                project_id,
-                {i.get("type") for i in ctx.all_issues if i.get("type")},
+            n = (
+                erledigte_schliessen(
+                    standard_db_pfad(),
+                    project_id,
+                    {i.get("type") for i in ctx.all_issues if i.get("type")},
+                )
+                if gespeichert and ctx.status == "completed"
+                else 0
             )
             if n:
                 logger.info(f"[freigabe] {n} erledigte Vorschlaege geschlossen")
@@ -554,29 +563,37 @@ async def run_audit_for_project(
             logger.warning(f"Report generation failed: {exc}")
             report_path = None
 
-        # Notify via Telegram (non-fatal)
-        try:
-            await send_audit_notification(ctx, report_path=report_path)
-        except Exception as exc:
-            logger.warning(f"Telegram notification failed: {exc}")
+        # Preserve explicit project notification policy, including in cron runs.
+        if project.notifications_enabled and "telegram" in (
+            project.notify_channels or []
+        ):
+            try:
+                await send_audit_notification(ctx, report_path=report_path)
+            except Exception as exc:
+                logger.warning(f"Telegram notification failed: {exc}")
 
         await event_bus.emit(
             Event(
-                type=EventType.AUDIT_COMPLETED,
+                type=(
+                    EventType.AUDIT_COMPLETED
+                    if ctx.status == "completed"
+                    else EventType.AUDIT_FAILED
+                ),
                 project_id=project_id,
                 timestamp=datetime.utcnow(),
                 data=ctx.summary(),
             )
         )
 
-        project_manager.update_project(project_id, last_run_at=datetime.utcnow())
+        if gespeichert:
+            project_manager.update_project(project_id, last_run_at=datetime.utcnow())
 
         sev = ctx.issues_by_severity()
         logger.info(
             f"Audit completed: {audit_id} score={ctx.score} "
             f"high={sev['high']} med={sev['medium']} low={sev['low']}"
         )
-        LAUF_STATUS.setdefault(audit_id, "completed")
+        LAUF_STATUS.setdefault(audit_id, ctx.status)
         return audit_id
 
     except Exception as exc:

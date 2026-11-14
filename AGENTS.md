@@ -29,6 +29,10 @@ Bestehende Jobs und Daten bleiben erhalten. Pulse liest `reports/pulse/` nur les
 - Annahmen kennzeichnen; bestätigte Fachangaben nicht still überschreiben. Berichte privat und unveränderlich versionieren. Inhalte bei Darstellung als Text behandeln.
 - Eigene Änderungen gezielt committen; fremdes WIP erhalten. Push ist kein Produktiv-Deployment.
 
+## Regelmäßiger SEO-Betrieb
+
+Roberts Auftrag vom 14.11.2026 umfasst Zuverlässigkeitskorrekturen, die lesende Bestandsprüfung von `tentacl.ai`, Detailkontrollen neuer Bilder und die Vorbereitung eines festen Nacht-/Wochenablaufs. Sichere eigene Websitekorrekturen folgen dem bestehenden Autopilot-Modus; neue Erkenntnisse heben keine Sperrliste auf. Umfang, Abnahme, Übernahme und Rückweg: `operations/seo-betrieb.md`. Neue öffentliche Dienste, Kundenschreibrechte und Kosten bleiben gesonderte Entscheidungen.
+
 ## Offene Freigaben
 
 Öffentliche Zieladresse, Kundenzugänge, neue bezahlte Daten und Übernahme in die bestehende Laufzeit bleiben offen. Der aktuelle Auftrag autorisiert vollständigen Bau und isolierte Prüfung.
