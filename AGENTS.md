@@ -35,4 +35,4 @@ Roberts Auftrag vom 14.11.2026 umfasst Zuverlässigkeitskorrekturen, die lesende
 
 ## Offene Freigaben
 
-Öffentliche Zieladresse, Kundenzugänge, neue bezahlte Daten und Übernahme in die bestehende Laufzeit bleiben offen. Der aktuelle Auftrag autorisiert vollständigen Bau und isolierte Prüfung.
+Öffentliche Zieladresse, Kundenzugänge, neue bezahlte Daten und Übernahme der Arbeitsplatzoberfläche bleiben offen. Das separat freigegebene Betriebspaket wurde am 14.11.2026 produktiv übernommen; Nachweise und verbleibende Störungen: `operations/SEO_UEBERNAHME_20261114.md`.

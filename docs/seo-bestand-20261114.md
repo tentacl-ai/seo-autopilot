@@ -73,3 +73,7 @@ Eine figcaption ist optional; ihr Fehlen macht eine figure nicht automatisch feh
 ## Übernahmestatus
 
 Robert hat das genau beschriebene Paket ausdrücklich freigegeben: „Go dieses Paket sicher produktiv mal nehmen“. Geschützte Sicherung und erfolgreicher Dry-run liegen vor. Commit/Push und produktive Übernahme der benannten Website-, Code- und Zeitplanänderungen sind autorisiert; Ausführung und Live-Abnahme werden gesondert protokolliert.
+
+## Produktive Übernahme
+
+Das konkret freigegebene Paket ist übernommen. Website-GETs, Dateihashes, Cron-Autostart und ein tatsächlicher versandfreier Cronlauf wurden geprüft. Vollständiger Nachweis und offene externe Störungen: `operations/SEO_UEBERNAHME_20261114.md`.
