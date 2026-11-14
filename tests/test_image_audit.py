@@ -92,13 +92,13 @@ class TestBildMetadaten:
         befunde = await _befunde(html)
         assert "image_missing_alt" in _typen(befunde)
 
-    async def test_bild_mit_bildunterschrift_braucht_kein_alt(self):
-        """Eine <figcaption> trägt die Bedeutung bereits für alle Leser."""
+    async def test_bildunterschrift_ersetzt_fehlendes_alt_nicht(self):
+        """Caption context is useful; img still needs a text alternative."""
         html = (
             "<figure><img src='/diagramm.webp' width='800' height='600'>"
             "<figcaption>Umsatz 2025 nach Quartal</figcaption></figure>"
         )
-        assert "image_missing_alt" not in _typen(await _befunde(html))
+        assert "image_missing_alt" in _typen(await _befunde(html))
 
     async def test_generischer_dateiname_wird_erkannt(self):
         html = '<img src="/IMG_1234.webp" alt="Foto" width="800" height="600">'
@@ -113,7 +113,7 @@ class TestBildMetadaten:
 
     async def test_figure_ohne_bildunterschrift(self):
         html = "<figure><img src='/foto-hafen.webp' alt='Hafen' width='800' height='600'></figure>"
-        assert "image_figure_without_caption" in _typen(await _befunde(html))
+        assert "image_figure_without_caption" not in _typen(await _befunde(html))
 
 
 class TestDateinamen:

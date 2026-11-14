@@ -210,6 +210,7 @@ _EMPFEHLUNG_TYPEN = {
     "image_missing_srcset",
     "image_missing_dimensions",
     "image_generic_filename",
+    "image_uninformative_alt",
     "image_figure_without_caption",
     "moderate_lighthouse_performance",
     # Chancen aus Such-/Nutzungsdaten

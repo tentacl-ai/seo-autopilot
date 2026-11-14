@@ -8,7 +8,7 @@
 
 **Multi-tenant SEO automation that closes the loop:** crawl → find → fix → measure → report.
 
-> Version 1.19.0 · 1282 tests · 18 analysis dimensions · 139 documented issue types
+> Version 1.20.1 · 1335 tests · 18 analysis dimensions · 139 documented issue types
 
 Most SEO tools stop at a list of warnings. SEO Autopilot repairs what it finds,
 writes the change into the site's repository, and then uses Search Console to
@@ -665,7 +665,7 @@ seo_autopilot/
 ├── health.py                watchdog
 ├── api/main.py              FastAPI REST + WebSocket
 ├── cli/main.py              Click CLI
-└── mcp/server.py            MCP server (experimental, unmaintained)
+└── mcp/server.py            Project-scoped MCP workspace tools
 ```
 
 ---
@@ -684,15 +684,29 @@ Swagger UI: `http://localhost:8002/docs`.
 
 ---
 
-## MCP server (experimental, currently unmaintained)
+## SEO workspace and agent tools
 
-`seo_autopilot/mcp/server.py` was written to expose the audit pipeline to Claude
-via the Model Context Protocol. It is **not** a supported feature today:
+The optional workspace adds project context, saved keywords, weekly comparisons,
+research, manual or explicitly scheduled measurements, private versioned reports,
+and a German desktop/mobile UI. It reads existing audit data without creating
+another scoring pipeline. All new APIs are authenticated and project-scoped.
+Paid data, scheduled execution and the optional text assistant are off by default.
 
-- the `mcp` package is not installed and not in `requirements.txt`
-- the wrapper no longer matches the current agent signatures
+```bash
+python -m seo_autopilot.arbeitsplatz --demo
+python scripts/test-isoliert.py
+```
 
-Treat it as a starting point for a contribution, not as something that runs.
+The demo uses temporary invented data on loopback only. For a configured instance,
+use a private access file; see [workspace features](docs/arbeitsplatz.md) and
+[operations, backup and rollout](operations/arbeitsplatz.md). The existing API can
+mount it at `/arbeitsplatz/` when `SEO_WORKSPACE_CONFIG` is explicitly set.
+MCP clients use `python -m seo_autopilot.arbeitsplatz --config <private-file> --stdio`.
+The legacy `mcp/server.py` entrypoint delegates to these same authorized services.
+
+The workspace reserves conservative operator-defined cost estimates atomically;
+these are not a provider price guarantee. Existing live worktrees, schedules and
+customer configuration are not changed by installing this source revision.
 
 ---
 

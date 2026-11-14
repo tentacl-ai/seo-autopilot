@@ -34,6 +34,7 @@ from __future__ import annotations
 import html
 import importlib.util
 import json
+import sqlite3
 import logging
 import subprocess
 import sys
@@ -924,6 +925,12 @@ def sammeln(
     for name in ("impulse", "freigaben"):
         if not isinstance(b.get(name), list):
             b[name] = []
+    _versuche(
+        b, "erledigt_diese_woche", lambda: erledigt_diese_woche(db, schluessel, heute)
+    )
+    _versuche(b, "bilderkontrolle", lambda: bilderkontrolle(db, schluessel, heute))
+    if schluessel == "tentacl-ai":
+        _versuche(b, "fachquellen", fachquellen_stand)
     b["hinweise"] = hinweise(b)
     return b
 
@@ -950,9 +957,24 @@ def hinweise(b: Dict[str, Any]) -> List[str]:
     ):
         h.append(f"Prüfnote gesunken: {wp['note']} (vorher {wp['note_vorher']}).")
     ks = b.get("ki_sichtbarkeit", {})
-    if "genannt_je_ki" in ks and not any(ks["genannt_je_ki"].values()):
+    from .betriebssicherheit import ki_abdeckung
+
+    abdeckung = ki_abdeckung(ks)
+    ausgefallen = [name for name, values in abdeckung.items() if values["fehler"]]
+    if ausgefallen:
         h.append(
-            "Keine KI (ChatGPT, Gemini, Claude) nennt die Website bei den Testfragen."
+            "KI-Test unvollständig: "
+            + ", ".join(ausgefallen)
+            + ". Ausfälle sind keine fehlenden Nennungen."
+        )
+    if (
+        abdeckung
+        and not ausgefallen
+        and any(v["erfolgreich"] for v in abdeckung.values())
+        and not any(v["genannt"] for v in abdeckung.values())
+    ):
+        h.append(
+            "Keine der erfolgreich abgefragten KIs nennt die Website bei den Testfragen."
         )
     bg = b.get("bing", {})
     if bg.get("probleme"):
@@ -1035,6 +1057,21 @@ def als_html(b: Dict[str, Any]) -> str:
             )
         )
     t += _abschnitt_stand(b)
+    t += _abschnitt_erledigt(b)
+    bilder = b.get("bilderkontrolle")
+    if bilder:
+        t += [
+            _h("Bilderkontrolle"),
+            _p(_e(bilder.get("zusammenfassung", "Bilderkontrolle nicht verfügbar"))),
+        ]
+    fq = b.get("fachquellen")
+    if fq:
+        t += [
+            _h("SEO-/GEO-Originalquellen"),
+            _p(_e(fq.get("zusammenfassung", "Quellenvergleich nicht verfügbar"))),
+        ]
+        for change in fq.get("aenderungen", []):
+            t.append(_p(_e(change["quelle"]) + ": " + _e(change["url"])))
     t += (
         _abschnitt_entscheidungen(b)
         + _abschnitt_empfehlungen(b)
@@ -1409,15 +1446,17 @@ def _abschnitt_ki(b: Dict[str, Any]) -> List[str]:
             if ks
             else []
         )
-    vor = ks.get("vorwoche") or {}
+    from .betriebssicherheit import ki_abdeckung
+
+    abdeckung = ki_abdeckung(ks)
     t = [
         _h("KI-Sichtbarkeit (ChatGPT, Gemini, Claude – mit Websuche)"),
         _p(
             "Genannt: "
             + " · ".join(
-                f"{k} {v} von {ks['fragen']}"
-                + (f" (Vorwoche {vor.get(k, 0)})" if vor else "")
-                for k, v in ks["genannt_je_ki"].items()
+                f"{name} {values['genannt']} von {values['erfolgreich']} erfolgreichen Antworten"
+                + (f"; {values['fehler']} ausgefallen" if values["fehler"] else "")
+                for name, values in abdeckung.items()
             )
         ),
     ]
@@ -1629,3 +1668,114 @@ def erstellen(
         b["versand"] = {"ok": ok, "meldung": meldung}
         logger.info(f"[Kundenbericht] {schluessel} an {senden_an}: {meldung}")
     return b
+
+
+def erledigt_diese_woche(db, project, heute):
+    """Only confirmed own applied actions, never proposals or third-party edits."""
+    from datetime import timedelta
+
+    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    con.row_factory = sqlite3.Row
+    try:
+        if not con.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='change_log'"
+        ).fetchone():
+            return []
+        rows = con.execute(
+            "SELECT zeitpunkt,aktion,ziel_url,begruendung,git_commit FROM change_log "
+            "WHERE project_id=? AND urheber='autopilot' AND status='angewendet' "
+            "AND zeitpunkt>=? ORDER BY zeitpunkt DESC LIMIT 50",
+            (project, (heute - timedelta(days=7)).isoformat()),
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        con.close()
+
+
+def _abschnitt_erledigt(b):
+    actions = b.get("erledigt_diese_woche")
+    if not isinstance(actions, list):
+        return []
+    if not actions:
+        return [
+            _h("Diese Woche automatisch erledigt"),
+            _p(
+                "Keine automatisch angewendete Änderung protokolliert. Vorschläge zählen nicht als erledigt."
+            ),
+        ]
+    return [
+        _h("Diese Woche automatisch erledigt"),
+        _tabelle(
+            ["Wann", "Änderung", "Seite", "Grund"],
+            [
+                [
+                    _e(a["zeitpunkt"][:10]),
+                    _e(a["aktion"]),
+                    _e(a.get("ziel_url") or ""),
+                    _e(a.get("begruendung") or "Kein Grund protokolliert"),
+                ]
+                for a in actions
+            ],
+        ),
+        _p(
+            "Angewendet laut Änderungsbuch. Eine daraus entstandene SEO-Wirkung wird gesondert gemessen.",
+            klein=True,
+        ),
+    ]
+
+
+def fachquellen_stand():
+    from datetime import timezone, timedelta
+
+    path = WURZEL / "logs" / "fachquellen.json"
+    if not path.exists():
+        return {"zusammenfassung": "Noch kein Quellenvergleich gespeichert."}
+    data = json.loads(path.read_text())
+    date = datetime.fromisoformat(data["am"])
+    if datetime.now(timezone.utc) - date > timedelta(days=8):
+        return {
+            "zusammenfassung": "Quellenvergleich älter als acht Tage; derzeit keine aktuelle Freigabegrundlage."
+        }
+    errors = data.get("fehler", [])
+    return {
+        "zusammenfassung": f"{len(data.get('quellen', {}))} Originalquellen überprüft; {len(data.get('aenderungen', []))} Änderungen gegenüber dem gespeicherten Stand."
+        + (" Nicht erreichbar: " + ", ".join(errors) if errors else ""),
+        "aenderungen": data.get("aenderungen", []),
+    }
+
+
+def bilderkontrolle(db, project, heute):
+    from datetime import timedelta
+
+    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        rows = con.execute(
+            "SELECT analytics_data FROM seo_audits WHERE project_id=? AND started_at>=? ORDER BY started_at DESC",
+            (project, (heute - timedelta(days=7)).isoformat()),
+        ).fetchall()
+        data = [json.loads(row[0] or "{}") for row in rows]
+    finally:
+        con.close()
+    measured = [d for d in data if "image_inventory" in d]
+    if not measured:
+        return {
+            "zusammenfassung": "Noch kein detaillierter Bildgrundstand gespeichert. Fehlende Messung ist kein bestandener Bildcheck."
+        }
+    added = {
+        (item.get("page"), item.get("src"))
+        for d in measured
+        for item in d.get("image_changes", {}).get("neu", [])
+    }
+    changed = {
+        (item.get("page"), item.get("src"))
+        for d in measured
+        for item in d.get("image_changes", {}).get("geaendert", [])
+    }
+    return {
+        "zusammenfassung": f"{len(measured[0]['image_inventory'])} Bildvorkommen im letzten Audit erfasst. In sieben Tagen {len(added)} neu, {len(changed)} mit geänderten Beschreibungen oder Maßen. Alt-Texte, Bildkontext und technische Eigenschaften werden bei jedem Crawl geprüft."
+        + (
+            " Inventur an der Obergrenze gekürzt."
+            if any(d.get("image_inventory_truncated") for d in measured)
+            else ""
+        )
+    }

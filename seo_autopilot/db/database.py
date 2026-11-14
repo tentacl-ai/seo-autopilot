@@ -37,7 +37,9 @@ class Database:
 
         # Create async engine. SQLite/aiosqlite does not support pool_size/max_overflow.
         engine_kwargs = {"echo": settings.DB_ECHO, "future": True}
-        if not settings.DATABASE_URL.startswith("sqlite"):
+        if settings.DATABASE_URL.startswith("sqlite"):
+            engine_kwargs["connect_args"] = {"timeout": 30}
+        else:
             engine_kwargs.update(
                 {
                     "pool_size": 10,

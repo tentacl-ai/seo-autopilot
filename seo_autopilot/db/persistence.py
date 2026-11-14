@@ -8,11 +8,13 @@ SEOIssue row per issue plus one SEOKeyword row per top query.
 from __future__ import annotations
 
 import logging
+import asyncio
 import uuid
 from datetime import datetime
 from typing import Any, Dict
 
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 
 from ..befund_arten import art_von
 from ..core.audit_context import AuditContext
@@ -24,9 +26,28 @@ logger = logging.getLogger(__name__)
 
 async def persist_audit(ctx: AuditContext) -> str:
     """Write an audit + all its issues/keywords to the DB. Returns audit UUID."""
-    await db.initialize()
-
     audit_uuid = str(uuid.uuid4())
+    for attempt in range(4):
+        try:
+            return await _persist_once(ctx, audit_uuid)
+        except OperationalError as exc:
+            # Only retry the rolled-back DB transaction, never crawl/apply/API calls.
+            if (
+                not any(
+                    x in str(exc.orig).lower()
+                    for x in ("database is locked", "database table is locked")
+                )
+                or attempt == 3
+            ):
+                raise
+            logger.warning(
+                "Audit-Speicherung wartet auf Datenbanksperre (Versuch %s)", attempt + 1
+            )
+            await asyncio.sleep((0.25, 0.75, 1.5)[attempt])
+
+
+async def _persist_once(ctx: AuditContext, audit_uuid: str) -> str:
+    await db.initialize()
 
     async with db.get_session() as session:
         # 1. upsert SEOProject row
@@ -61,6 +82,18 @@ async def persist_audit(ctx: AuditContext) -> str:
             getattr(analyzer_result, "metrics", {}) if analyzer_result else {}
         )
 
+        from ..betriebssicherheit import bild_delta
+
+        vorher = await session.scalar(
+            select(SEOAudit.analytics_data)
+            .where(SEOAudit.project_id == ctx.project_id)
+            .order_by(SEOAudit.started_at.desc())
+            .limit(1)
+        )
+        bilder_delta = bild_delta(
+            vorher.get("image_inventory") if isinstance(vorher, dict) else None,
+            analyzer_metrics.get("image_inventory", []),
+        )
         audit_row = SEOAudit(
             id=audit_uuid,
             project_id=ctx.project_id,
@@ -88,6 +121,11 @@ async def persist_audit(ctx: AuditContext) -> str:
                     # GA4 wurde bis 18.09.2026 berechnet, aber nie gespeichert
                     **{k: v for k, v in kw_metrics.items() if k.startswith("ga4_")},
                     "pagespeed_status": analyzer_metrics.get("pagespeed_status"),
+                    "image_inventory": analyzer_metrics.get("image_inventory", []),
+                    "image_changes": bilder_delta,
+                    "image_inventory_truncated": analyzer_metrics.get(
+                        "image_inventory_truncated", False
+                    ),
                 }
             ),
             log_output="\n".join(

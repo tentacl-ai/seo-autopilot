@@ -136,6 +136,7 @@ class AnalyzerAgent(Agent):
                         "Änderung(en) erkannt (nicht vom Autopilot)"
                     )
             except Exception as exc:
+                result.errors.append("Änderungsbuch fehlgeschlagen fehlgeschlagen")
                 logger.warning(f"[analyzer] Änderungsbuch fehlgeschlagen: {exc}")
 
             issues: List[Dict[str, Any]] = []
@@ -175,6 +176,9 @@ class AnalyzerAgent(Agent):
                     f"[analyzer] Canonical engine: {len(canonical_issues)} issues"
                 )
             except Exception as exc:
+                result.errors.append(
+                    "Canonical engine failed (non-fatal) fehlgeschlagen"
+                )
                 logger.warning(f"[analyzer] Canonical engine failed (non-fatal): {exc}")
 
             # --- v0.4 Analyzer: Schema Validator ---
@@ -189,6 +193,9 @@ class AnalyzerAgent(Agent):
                 issues.extend(schema_issues)
                 logger.info(f"[analyzer] Schema validator: {len(schema_issues)} issues")
             except Exception as exc:
+                result.errors.append(
+                    "Schema validator failed (non-fatal) fehlgeschlagen"
+                )
                 logger.warning(f"[analyzer] Schema validator failed (non-fatal): {exc}")
 
             # --- v0.4 Analyzer: Soft-404 Detection ---
@@ -219,6 +226,9 @@ class AnalyzerAgent(Agent):
                 if soft_404_count:
                     logger.info(f"[analyzer] Soft-404: {soft_404_count} detected")
             except Exception as exc:
+                result.errors.append(
+                    "Soft-404 detection failed (non-fatal) fehlgeschlagen"
+                )
                 logger.warning(
                     f"[analyzer] Soft-404 detection failed (non-fatal): {exc}"
                 )
@@ -236,6 +246,9 @@ class AnalyzerAgent(Agent):
                         if _resp.status_code == 200:
                             robots_txt = _resp.text
                 except Exception as exc:
+                    result.errors.append(
+                        "robots.txt fetch failed (non-fatal) fehlgeschlagen"
+                    )
                     logger.debug(
                         f"[analyzer] robots.txt fetch failed (non-fatal): {exc}"
                     )
@@ -249,6 +262,7 @@ class AnalyzerAgent(Agent):
                     f"{len(geo_result['issues'])} issues"
                 )
             except Exception as exc:
+                result.errors.append("GEO audit failed (non-fatal) fehlgeschlagen")
                 logger.warning(f"[analyzer] GEO audit failed (non-fatal): {exc}")
 
             # --- v0.5 Analyzer: Topical Authority ---
@@ -264,6 +278,9 @@ class AnalyzerAgent(Agent):
                     f"{len(ta_issues)} issues"
                 )
             except Exception as exc:
+                result.errors.append(
+                    "Topical authority failed (non-fatal) fehlgeschlagen"
+                )
                 logger.warning(
                     f"[analyzer] Topical authority failed (non-fatal): {exc}"
                 )
@@ -292,6 +309,9 @@ class AnalyzerAgent(Agent):
                 issues.extend(dup_issues)
                 logger.info(f"[analyzer] Duplicate content: {len(dup_issues)} issues")
             except Exception as exc:
+                result.errors.append(
+                    "Duplicate content failed (non-fatal) fehlgeschlagen"
+                )
                 logger.warning(
                     f"[analyzer] Duplicate content failed (non-fatal): {exc}"
                 )
@@ -323,6 +343,7 @@ class AnalyzerAgent(Agent):
                 issues.extend(link_issues)
                 logger.info(f"[analyzer] Link graph: {len(link_issues)} issues")
             except Exception as exc:
+                result.errors.append("Link graph failed (non-fatal) fehlgeschlagen")
                 logger.warning(f"[analyzer] Link graph failed (non-fatal): {exc}")
 
             # --- v1.16: Links, Catch-all, hreflang, Seitenpruefungen ---------
@@ -373,6 +394,9 @@ class AnalyzerAgent(Agent):
                         f"{len(sitemap_issues) + len([i for i in issues if i['category'] == 'robots'])} issues"
                     )
             except Exception as exc:
+                result.errors.append(
+                    "Robots/Sitemap audit failed (non-fatal) fehlgeschlagen"
+                )
                 logger.warning(
                     f"[analyzer] Robots/Sitemap audit failed (non-fatal): {exc}"
                 )
@@ -424,6 +448,9 @@ class AnalyzerAgent(Agent):
                         f"{len(llms_issues)} issues"
                     )
             except Exception as exc:
+                result.errors.append(
+                    "LLMs/AI.txt audit failed (non-fatal) fehlgeschlagen"
+                )
                 logger.warning(
                     f"[analyzer] LLMs/AI.txt audit failed (non-fatal): {exc}"
                 )
@@ -440,6 +467,9 @@ class AnalyzerAgent(Agent):
                     f"{len(eeat_result['issues'])} issues"
                 )
             except Exception as exc:
+                result.errors.append(
+                    "E-E-A-T analysis failed (non-fatal) fehlgeschlagen"
+                )
                 logger.warning(f"[analyzer] E-E-A-T analysis failed (non-fatal): {exc}")
 
             # --- v1.6 Analyzer: Bilder + Ladezeit ---------------------------
@@ -514,6 +544,9 @@ class AnalyzerAgent(Agent):
                     f"({gemessene_bytes / 1024:.0f} KB gesamt)"
                 )
             except Exception as exc:
+                result.errors.append(
+                    "Bild-Audit fehlgeschlagen (non-fatal) fehlgeschlagen"
+                )
                 logger.warning(
                     f"[analyzer] Bild-Audit fehlgeschlagen (non-fatal): {exc}"
                 )
@@ -551,6 +584,9 @@ class AnalyzerAgent(Agent):
                         "[analyzer] Intent/GEO: no GSC keywords available, skipped"
                     )
             except Exception as exc:
+                result.errors.append(
+                    "Intent/GEO analysis failed (non-fatal) fehlgeschlagen"
+                )
                 logger.warning(
                     f"[analyzer] Intent/GEO analysis failed (non-fatal): {exc}"
                 )
@@ -590,11 +626,15 @@ class AnalyzerAgent(Agent):
                             "fuer die Lernschleife gesichert"
                         )
                     except Exception as exc:
+                        result.errors.append("Teilprüfung fehlgeschlagen")
                         logger.warning(
                             f"[learning] Sichern der widerlegten Befunde "
                             f"fehlgeschlagen (non-fatal): {exc}"
                         )
             except Exception as exc:
+                result.errors.append(
+                    "Gegenprobe fehlgeschlagen (non-fatal) fehlgeschlagen"
+                )
                 logger.warning(
                     f"[analyzer] Gegenprobe fehlgeschlagen (non-fatal): {exc}"
                 )
@@ -685,6 +725,28 @@ class AnalyzerAgent(Agent):
                 result.metrics["pagespeed_status"] = "no_api_key"
 
             # Store raw page data in metrics so downstream agents can use it
+            # Persist image occurrences so the next run can identify additions and
+            # changed descriptions, rather than only a site-wide missing-alt count.
+            from ..analyzers.image_audit import extract_images
+
+            inventory = []
+            for page in good_pages:
+                for image in extract_images(
+                    page.html or "", base_url=page.final_url or page.url
+                ):
+                    inventory.append(
+                        {
+                            "page": page.url,
+                            "src": image.src[:2048],
+                            "alt": image.alt,
+                            "width": image.breite,
+                            "height": image.hoehe,
+                            "decorative": image.dekorativ,
+                            "caption": image.hat_figcaption,
+                        }
+                    )
+            result.metrics["image_inventory"] = inventory[:5000]
+            result.metrics["image_inventory_truncated"] = len(inventory) > 5000
             result.metrics["pages"] = [_page_snapshot(p) for p in pages]
 
             result.issues = issues

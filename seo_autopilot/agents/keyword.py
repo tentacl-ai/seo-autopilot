@@ -82,9 +82,12 @@ class KeywordAgent(Agent):
         try:
             await self.emit_started()
 
-            analytics = await self._pull_gsc_analytics()
-            # GA4 laeuft unabhaengig von GSC — es liefert nie eine Ausnahme,
-            # sondern im Zweifel None.
+            # Collect independent sources independently: a GSC 403 must not hide GA4.
+            try:
+                analytics = await self._pull_gsc_analytics()
+            except DataSourceError as exc:
+                analytics = None
+                result.errors.append(str(exc))
             visitors = await self._pull_ga4_analytics()
 
             if analytics is None:
