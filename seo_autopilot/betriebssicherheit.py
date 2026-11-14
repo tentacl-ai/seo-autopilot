@@ -100,3 +100,28 @@ def bild_delta(previous, current):
         "geaendert": changed[:100],
         "gekuerzt": len(added) > 100 or len(changed) > 100,
     }
+
+
+def cron_fuer_pruefung(text):
+    """Expose the original command of managed cron jobs to legacy checks."""
+    import re
+    from .betriebsjob import JOBS
+
+    pattern = re.compile(
+        r"-m seo_autopilot\.betriebsjob ([a-z-]+)(?: --projekt ([A-Za-z0-9_-]+))?"
+    )
+
+    def replace(match):
+        job, project = match.groups()
+        if job == "audit" and project:
+            parts = ["cli.main", "run", "--project-id", project]
+        elif job in JOBS and not project:
+            parts = JOBS[job]
+        else:
+            return match.group(0)
+        return "-m seo_autopilot." + " ".join(parts)
+
+    return "\n".join(
+        line if line.lstrip().startswith("#") else pattern.sub(replace, line)
+        for line in text.splitlines()
+    )

@@ -446,3 +446,13 @@ def test_stopping_wrapper_stops_child_and_releases_lock(tmp_path):
         if process.poll() is None:
             process.kill()
             process.wait()
+
+
+def test_watchdog_recognizes_managed_cron_commands_as_the_existing_jobs():
+    original = "15 4 * * * venv/bin/python3 -m seo_autopilot.betriebsjob audit --projekt tentacl-ai\n45 11 * * * cd /opt/odoo/docs/seo-autopilot && venv/bin/python3 -m seo_autopilot.betriebsjob wirkung\n15 11 * * * venv/bin/python3 -m seo_autopilot.betriebsjob historie\n5 8 * * 1 venv/bin/python3 -m seo_autopilot.betriebsjob ki-radar\n50 7 * * * venv/bin/python3 -m seo_autopilot.betriebsjob gsc\n"
+    normalized = bs.cron_fuer_pruefung(original)
+    assert "cli.main run --project-id tentacl-ai" in normalized
+    assert "cli.main wirkung --messen" in normalized
+    assert "cli.main historie --importieren" in normalized
+    assert "-m seo_autopilot.ki_sichtbarkeit" in normalized
+    assert "-m seo_autopilot.gsc_ereignisse" in normalized

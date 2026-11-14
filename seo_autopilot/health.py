@@ -221,7 +221,11 @@ def run_selfcheck(
     con.row_factory = sqlite3.Row
     try:
         _pruefe_schema(con, report)
-        crontab = _crontab_text() if crontab_text is None else crontab_text
+        from .betriebssicherheit import cron_fuer_pruefung
+
+        crontab = cron_fuer_pruefung(
+            _crontab_text() if crontab_text is None else crontab_text
+        )
         aktive = {k: v for k, v in projekte.items() if v.get("enabled", True)}
         report.geprueft = len(aktive)
         for name, cfg in aktive.items():
