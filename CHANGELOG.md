@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.20.0] - 2026-11-14
+
+### Added
+- Project-scoped SEO workspace with German desktop/mobile UI, confirmed project
+  context, saved keywords, GSC import and weekly side-by-side comparisons.
+- Read-only access to existing measurements, changes and effect evidence.
+- Immutable private reports, templates, historical versions and print/text export.
+- Persistent research cache, atomic shared spending reservations and idempotent
+  provider jobs; explicit SERP, local-grid and AI measurement collection.
+- Prepared schedules with a separately gated runner and asynchronous review jobs.
+- Optional bounded text assistant using existing subscription access, no apply tools.
+- Fifteen MCP tools backed by the same authorized services as the UI and HTTP API.
+- Hermetic full-suite runner, behavioral isolation/budget tests and disposable
+  desktop/mobile browser acceptance. Paid integrations remain disabled by default.
+
+### Changed
+- Legacy experimental MCP wrapper now delegates to the workspace instead of
+  duplicating the audit pipeline. No production rollout or new sending scope.
+
 ## [1.19.0] - 2026-10-01
 
 Die ersten drei Vorschlaege der Lernschleife (Go 01.10.2026), jeweils an der Quelle geprueft.

@@ -1,0 +1,10 @@
+{
+  "projects_path": "/srv/seo/projects.yaml",
+  "source_db": "/srv/seo/data/audit.db",
+  "state_db": "/srv/seo/data/workspace.db",
+  "hosts": ["127.0.0.1", "localhost"],
+  "access": [],
+  "assistant_enabled": false,
+  "provider": {},
+  "policies": {}
+}

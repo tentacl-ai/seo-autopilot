@@ -32,7 +32,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest tests/ -v --cov=seo_autopilot --cov-report=term-missing
+          python scripts/test-isoliert.py tests/ -v --cov=seo_autopilot --cov-report=term-missing
         env:
           DATABASE_URL: "sqlite+aiosqlite:///test.db"
 

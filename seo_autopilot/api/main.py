@@ -23,6 +23,7 @@ from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import logging
+import os as _os
 import secrets
 import asyncio
 from datetime import datetime
@@ -54,7 +55,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="SEO Autopilot API",
     description="Multi-tenant SEO automation platform",
-    version="1.19.0",
+    version="1.20.0",
 )
 
 # CORS
@@ -210,7 +211,7 @@ async def shutdown_event():
 @app.get("/api/health")
 async def health():
     """Health Check"""
-    return {"status": "ok", "version": "1.19.0"}
+    return {"status": "ok", "version": "1.20.0"}
 
 
 @app.get("/api/projects", response_model=List[ProjectResponse])
@@ -644,6 +645,12 @@ async def manual_poll_intelligence():
 
 # Public Scan Router (tentacl.ai/seo-check/)
 app.include_router(public_scan_router)
+
+# Optional workspace: same data services, explicitly configured, closed by default.
+if _os.environ.get("SEO_WORKSPACE_CONFIG"):
+    from ..arbeitsplatz.__main__ import configured_app
+
+    app.mount("/arbeitsplatz", configured_app(_os.environ["SEO_WORKSPACE_CONFIG"]))
 
 
 if __name__ == "__main__":

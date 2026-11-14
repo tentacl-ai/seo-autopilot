@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="seo-autopilot",
-    version="1.19.0",
+    version="1.20.0",
     description="Multi-tenant SEO automation platform – real crawler, GSC, PageSpeed, AI agents",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -29,7 +29,13 @@ setup(
     ],
     packages=find_packages(exclude=["tests*", "docs*", "examples*"]),
     package_data={
-        "seo_autopilot": ["reports/templates/*.html", "daten/*.json", "daten/*.md"],
+        "seo_autopilot": [
+            "reports/templates/*.html",
+            "daten/*.json",
+            "daten/*.md",
+            "arbeitsplatz/web/*",
+            "arbeitsplatz/web/fonts/*",
+        ],
     },
     python_requires=">=3.12",
     install_requires=[
@@ -73,9 +79,21 @@ setup(
     },
     license="MIT",
     keywords=[
-        "seo", "automation", "crawler", "google-search-console",
-        "pagespeed", "lighthouse", "multi-tenant", "audit",
-        "llms-txt", "ai-txt", "indexnow", "bing",
-        "playwright", "javascript", "spa", "rendering",
+        "seo",
+        "automation",
+        "crawler",
+        "google-search-console",
+        "pagespeed",
+        "lighthouse",
+        "multi-tenant",
+        "audit",
+        "llms-txt",
+        "ai-txt",
+        "indexnow",
+        "bing",
+        "playwright",
+        "javascript",
+        "spa",
+        "rendering",
     ],
 )
