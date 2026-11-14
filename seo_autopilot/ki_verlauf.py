@@ -11,8 +11,7 @@ speichert jedes Ergebnis und wertet ueber Wochen aus:
 - Wettbewerber: wer bei welchen Fragen genannt wird, wenn wir es nicht sind
   (optional ``wettbewerber`` in der Fragen-Datei)
 
-Nach Vorbild von OpenSEO (share of voice, cited sources) und den Regeln aus
-Anthropics Skill `seo-ai-visibility` (knowledge-work-plugins): keine
+Nach den Regeln aus Anthropics Skill `seo-ai-visibility` (knowledge-work-plugins): keine
 erfundene Sichtbarkeits-Punktzahl, nur was bei echten Fragen passiert ist; ein
 einzelner Lauf beweist wenig, der Verlauf zaehlt.
 """

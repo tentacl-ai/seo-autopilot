@@ -1,11 +1,9 @@
 """
 Rangliste — woechentliche Google-Position je Suchbegriff, selbst gebaut.
 
-Nachbau der "Rank Tracking"-Funktion von OpenSEO (every-app/open-seo), aber
-ohne DataForSEO: Grundlage ist die Search Console des Kunden. Das kostet
-nichts und hat einen Vorteil, den bezahlte Ranglisten nicht haben: Die Search
-Console reicht 16 Monate zurueck, der Verlauf steht also vom ersten Tag an
-(`nachholen`), statt erst ab Einrichtung zu wachsen.
+Grundlage ist die Search Console des Kunden. Sie liefert die eigenen
+Positionen ohne zusaetzlichen Datenanbieter und reicht 16 Monate zurueck.
+Der Verlauf steht dadurch vom ersten Tag an zur Verfuegung (`nachholen`).
 
 Grenzen (bewusst so, nicht vergessen):
 - Es ist die DURCHSCHNITTLICHE Position ueber alle Einblendungen der Woche,
